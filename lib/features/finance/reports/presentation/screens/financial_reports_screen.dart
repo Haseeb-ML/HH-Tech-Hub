@@ -385,7 +385,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         ),
         const SizedBox(height: 24),
 
-        // ── Render Specific Dynamic Breakdown Table Based On Selected Focus Button ──
+        // ── Render Specific Dynamic Full-Width Breakdown Table Based On Selected Focus Button ──
         if (_summaryFocus == 'Overview')
           _buildOverviewBreakdownCard(context, currentFilter)
         else if (_summaryFocus == 'Income')
@@ -401,7 +401,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  1. OVERVIEW — MONTHLY / PERIOD BREAKDOWN TABLE (Matching Mockup Screenshot)
+  //  1. OVERVIEW — FULL-WIDTH BREAKDOWN TABLE (Matching Mockup Screenshot)
   // ═══════════════════════════════════════════════════════════
   Widget _buildOverviewBreakdownCard(BuildContext context, FinancialReportFilter filter) {
     final periodLabel = _getPeriodLabelText(filter.dateRange);
@@ -492,90 +492,96 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
             const Divider(),
             const SizedBox(height: 8),
 
-            // Table Content
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowHeight: 40,
-                dataRowMinHeight: 48,
-                dataRowMaxHeight: 48,
-                columnSpacing: 36,
-                columns: const [
-                  DataColumn(label: Text('PERIOD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                  DataColumn(label: Text('REVENUE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                  DataColumn(label: Text('EXPENSES', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                  DataColumn(label: Text('NET PROFIT / LOSS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                  DataColumn(label: Text('MARGIN', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                  DataColumn(label: Text('ACTION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                ],
-                rows: [
-                  ...monthlyRows.map((row) {
-                    final revenue = row['revenue'] as double;
-                    final expenses = row['expenses'] as double;
-                    final netProfit = row['netProfit'] as double;
-                    final margin = row['margin'] as double;
+            // Full-Width Table Container (Using LayoutBuilder + ConstrainedBox to stretch 100%)
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      headingRowHeight: 40,
+                      dataRowMinHeight: 48,
+                      dataRowMaxHeight: 48,
+                      columns: const [
+                        DataColumn(label: Text('PERIOD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('REVENUE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('EXPENSES', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('NET PROFIT / LOSS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('MARGIN', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('ACTION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                      ],
+                      rows: [
+                        ...monthlyRows.map((row) {
+                          final revenue = row['revenue'] as double;
+                          final expenses = row['expenses'] as double;
+                          final netProfit = row['netProfit'] as double;
+                          final margin = row['margin'] as double;
 
-                    return DataRow(
-                      cells: [
-                        DataCell(Text(row['period'] as String, style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary, fontSize: 13))),
-                        DataCell(Text('Rs. ${revenue.toStringAsFixed(0)}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w600, fontSize: 13))),
-                        DataCell(Text('Rs. ${expenses.toStringAsFixed(0)}', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600, fontSize: 13))),
-                        DataCell(Text('Rs. ${netProfit.toStringAsFixed(0)}', style: TextStyle(color: netProfit >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 13))),
-                        DataCell(
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: margin >= 0 ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${margin.toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                color: margin >= 0 ? Colors.green : Colors.red,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                          return DataRow(
+                            cells: [
+                              DataCell(Text(row['period'] as String, style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary, fontSize: 13))),
+                              DataCell(Text('Rs. ${revenue.toStringAsFixed(0)}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w600, fontSize: 13))),
+                              DataCell(Text('Rs. ${expenses.toStringAsFixed(0)}', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600, fontSize: 13))),
+                              DataCell(Text('Rs. ${netProfit.toStringAsFixed(0)}', style: TextStyle(color: netProfit >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 13))),
+                              DataCell(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: margin >= 0 ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${margin.toStringAsFixed(1)}%',
+                                    style: TextStyle(
+                                      color: margin >= 0 ? Colors.green : Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                TextButton(
+                                  onPressed: () {},
+                                  child: const Text('Details', style: TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                        // YEAR TOTAL (YTD) Summary Row at Bottom
+                        DataRow(
+                          cells: [
+                            const DataCell(Text('YEAR TOTAL (YTD)', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 13))),
+                            DataCell(Text('Rs. ${ytdRevenue.toStringAsFixed(0)}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w900, fontSize: 13))),
+                            DataCell(Text('Rs. ${ytdExpenses.toStringAsFixed(0)}', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900, fontSize: 13))),
+                            DataCell(Text('Rs. ${ytdNetProfit.toStringAsFixed(0)}', style: TextStyle(color: ytdNetProfit >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.w900, fontSize: 13))),
+                            DataCell(
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: ytdMargin >= 0 ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${ytdMargin.toStringAsFixed(1)}%',
+                                  style: TextStyle(
+                                    color: ytdMargin >= 0 ? Colors.green : Colors.red,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                        DataCell(
-                          TextButton(
-                            onPressed: () {},
-                            child: const Text('Details', style: TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
+                            const DataCell(SizedBox.shrink()),
+                          ],
                         ),
                       ],
-                    );
-                  }),
-                  // YEAR TOTAL (YTD) Summary Row at Bottom
-                  DataRow(
-                    cells: [
-                      const DataCell(Text('YEAR TOTAL (YTD)', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 13))),
-                      DataCell(Text('Rs. ${ytdRevenue.toStringAsFixed(0)}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w900, fontSize: 13))),
-                      DataCell(Text('Rs. ${ytdExpenses.toStringAsFixed(0)}', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900, fontSize: 13))),
-                      DataCell(Text('Rs. ${ytdNetProfit.toStringAsFixed(0)}', style: TextStyle(color: ytdNetProfit >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.w900, fontSize: 13))),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: ytdMargin >= 0 ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${ytdMargin.toStringAsFixed(1)}%',
-                            style: TextStyle(
-                              color: ytdMargin >= 0 ? Colors.green : Colors.red,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const DataCell(SizedBox.shrink()),
-                    ],
+                    ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ],
         ),
@@ -584,7 +590,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  2. INCOME BREAKDOWN TABLE
+  //  2. INCOME FULL-WIDTH BREAKDOWN TABLE
   // ═══════════════════════════════════════════════════════════
   Widget _buildIncomeBreakdownCard(BuildContext context, FinancialReportFilter filter) {
     final periodLabel = _getPeriodLabelText(filter.dateRange);
@@ -615,43 +621,50 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                     padding: EdgeInsets.all(32),
                     child: Center(child: Text('No income records for this period.')),
                   )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowHeight: 40,
-                      columns: const [
-                        DataColumn(label: Text('DATE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('CLIENT NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('INVOICE #', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('DESCRIPTION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('AMOUNT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                      ],
-                      rows: incomes.map((inc) {
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(inc.date.split('T').first, style: TextStyle(color: context.textPrimary, fontSize: 13))),
-                            DataCell(Text(inc.clientName, style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary, fontSize: 13))),
-                            DataCell(Text(inc.invoiceNumber.isNotEmpty ? inc.invoiceNumber : inc.id, style: TextStyle(color: context.textSecondary, fontSize: 12))),
-                            DataCell(Text(inc.description, style: TextStyle(color: context.textSecondary, fontSize: 13))),
-                            DataCell(Text('Rs. ${inc.amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 13))),
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  inc.status,
-                                  style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                          child: DataTable(
+                            headingRowHeight: 40,
+                            columns: const [
+                              DataColumn(label: Text('DATE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('CLIENT NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('INVOICE #', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('DESCRIPTION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('AMOUNT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                            ],
+                            rows: incomes.map((inc) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(inc.date.split('T').first, style: TextStyle(color: context.textPrimary, fontSize: 13))),
+                                  DataCell(Text(inc.clientName, style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary, fontSize: 13))),
+                                  DataCell(Text(inc.invoiceNumber.isNotEmpty ? inc.invoiceNumber : inc.id, style: TextStyle(color: context.textSecondary, fontSize: 12))),
+                                  DataCell(Text(inc.description, style: TextStyle(color: context.textSecondary, fontSize: 13))),
+                                  DataCell(Text('Rs. ${inc.amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataCell(
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        inc.status,
+                                        style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      );
+                    },
                   ),
           ],
         ),
@@ -660,7 +673,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  3. EXPENSES BREAKDOWN TABLE
+  //  3. EXPENSES FULL-WIDTH BREAKDOWN TABLE
   // ═══════════════════════════════════════════════════════════
   Widget _buildExpensesBreakdownCard(BuildContext context, FinancialReportFilter filter) {
     final periodLabel = _getPeriodLabelText(filter.dateRange);
@@ -691,43 +704,50 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                     padding: EdgeInsets.all(32),
                     child: Center(child: Text('No expense records for this period.')),
                   )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowHeight: 40,
-                      columns: const [
-                        DataColumn(label: Text('DATE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('CATEGORY', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('VENDOR / BENEFICIARY', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('DESCRIPTION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('AMOUNT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('CLASSIFICATION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                      ],
-                      rows: expenses.map((exp) {
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(exp.date.split('T').first, style: TextStyle(color: context.textPrimary, fontSize: 13))),
-                            DataCell(Text(exp.category, style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary, fontSize: 13))),
-                            DataCell(Text(exp.vendorName.isNotEmpty ? exp.vendorName : '-', style: TextStyle(color: context.textSecondary, fontSize: 13))),
-                            DataCell(Text(exp.description, style: TextStyle(color: context.textSecondary, fontSize: 13))),
-                            DataCell(Text('Rs. ${exp.amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13))),
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: exp.isPersonalExpense ? Colors.orange.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  exp.isPersonalExpense ? 'Personal Draw' : 'Company Expense',
-                                  style: TextStyle(color: exp.isPersonalExpense ? Colors.orange : Colors.blue, fontWeight: FontWeight.bold, fontSize: 11),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                          child: DataTable(
+                            headingRowHeight: 40,
+                            columns: const [
+                              DataColumn(label: Text('DATE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('CATEGORY', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('VENDOR / BENEFICIARY', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('DESCRIPTION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('AMOUNT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('CLASSIFICATION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                            ],
+                            rows: expenses.map((exp) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(exp.date.split('T').first, style: TextStyle(color: context.textPrimary, fontSize: 13))),
+                                  DataCell(Text(exp.category, style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary, fontSize: 13))),
+                                  DataCell(Text(exp.vendorName.isNotEmpty ? exp.vendorName : '-', style: TextStyle(color: context.textSecondary, fontSize: 13))),
+                                  DataCell(Text(exp.description, style: TextStyle(color: context.textSecondary, fontSize: 13))),
+                                  DataCell(Text('Rs. ${exp.amount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataCell(
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: exp.isPersonalExpense ? Colors.orange.withValues(alpha: 0.1) : Colors.blue.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        exp.isPersonalExpense ? 'Personal Draw' : 'Company Expense',
+                                        style: TextStyle(color: exp.isPersonalExpense ? Colors.orange : Colors.blue, fontWeight: FontWeight.bold, fontSize: 11),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      );
+                    },
                   ),
           ],
         ),
@@ -736,7 +756,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  4. PAYROLL BREAKDOWN TABLE
+  //  4. PAYROLL FULL-WIDTH BREAKDOWN TABLE
   // ═══════════════════════════════════════════════════════════
   Widget _buildPayrollBreakdownCard(BuildContext context, FinancialReportFilter filter) {
     final periodLabel = _getPeriodLabelText(filter.dateRange);
@@ -767,43 +787,50 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                     padding: EdgeInsets.all(32),
                     child: Center(child: Text('No salary records found for this period.')),
                   )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowHeight: 40,
-                      columns: const [
-                        DataColumn(label: Text('PAYMENT DATE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('EMPLOYEE NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('PAY PERIOD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('BASE SALARY', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('NET PAID', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                        DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                      ],
-                      rows: salaries.map((sal) {
-                        return DataRow(
-                          cells: [
-                            DataCell(Text(sal.paymentDate.split('T').first, style: TextStyle(color: context.textPrimary, fontSize: 13))),
-                            DataCell(Text(sal.employeeName, style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary, fontSize: 13))),
-                            DataCell(Text(sal.payPeriod, style: TextStyle(color: context.textSecondary, fontSize: 13))),
-                            DataCell(Text('Rs. ${sal.baseSalary.toStringAsFixed(2)}', style: TextStyle(color: context.textPrimary, fontSize: 13))),
-                            DataCell(Text('Rs. ${sal.netPaid.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))),
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: sal.status == 'Paid' ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  sal.status,
-                                  style: TextStyle(color: sal.status == 'Paid' ? Colors.green : Colors.orange, fontWeight: FontWeight.bold, fontSize: 11),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    ),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                          child: DataTable(
+                            headingRowHeight: 40,
+                            columns: const [
+                              DataColumn(label: Text('PAYMENT DATE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('EMPLOYEE NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('PAY PERIOD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('BASE SALARY', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('NET PAID', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                              DataColumn(label: Text('STATUS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                            ],
+                            rows: salaries.map((sal) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(sal.paymentDate.split('T').first, style: TextStyle(color: context.textPrimary, fontSize: 13))),
+                                  DataCell(Text(sal.employeeName, style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary, fontSize: 13))),
+                                  DataCell(Text(sal.payPeriod, style: TextStyle(color: context.textSecondary, fontSize: 13))),
+                                  DataCell(Text('Rs. ${sal.baseSalary.toStringAsFixed(2)}', style: TextStyle(color: context.textPrimary, fontSize: 13))),
+                                  DataCell(Text('Rs. ${sal.netPaid.toStringAsFixed(2)}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataCell(
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: sal.status == 'Paid' ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        sal.status,
+                                        style: TextStyle(color: sal.status == 'Paid' ? Colors.green : Colors.orange, fontWeight: FontWeight.bold, fontSize: 11),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      );
+                    },
                   ),
           ],
         ),
@@ -812,7 +839,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  5. PROFIT / LOSS BREAKDOWN TABLE
+  //  5. PROFIT / LOSS FULL-WIDTH BREAKDOWN TABLE
   // ═══════════════════════════════════════════════════════════
   Widget _buildProfitLossBreakdownCard(
     BuildContext context,
@@ -841,52 +868,62 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
             const Divider(),
             const SizedBox(height: 8),
 
-            DataTable(
-              headingRowHeight: 40,
-              columns: const [
-                DataColumn(label: Text('CLASSIFICATION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                DataColumn(label: Text('CATEGORY / ITEM', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                DataColumn(label: Text('PERIOD AMOUNT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                DataColumn(label: Text('MARGIN %', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-              ],
-              rows: [
-                DataRow(cells: [
-                  const DataCell(Text('Gross Income', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
-                  const DataCell(Text('Total Client Revenue & Deposits')),
-                  DataCell(Text('Rs. ${pl.totalRevenue.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
-                  const DataCell(Text('100.0%')),
-                ]),
-                DataRow(cells: [
-                  const DataCell(Text('Operating Cost', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
-                  const DataCell(Text('Company Direct Expenses + Staff Payroll')),
-                  DataCell(Text('Rs. ${pl.totalExpenses.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
-                  DataCell(Text('${pl.totalRevenue > 0 ? ((pl.totalExpenses / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}%')),
-                ]),
-                DataRow(cells: [
-                  DataCell(Text('Net Profit / Loss', style: TextStyle(fontWeight: FontWeight.w900, color: pl.netProfit >= 0 ? Colors.green : Colors.red))),
-                  const DataCell(Text('Net Revenue minus Operating Costs', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataCell(Text('Rs. ${pl.netProfit.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w900, color: pl.netProfit >= 0 ? Colors.green : Colors.red))),
-                  DataCell(
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: pl.netProfit >= 0 ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${pl.totalRevenue > 0 ? ((pl.netProfit / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}%',
-                        style: TextStyle(color: pl.netProfit >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
-                      ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      headingRowHeight: 40,
+                      columns: const [
+                        DataColumn(label: Text('CLASSIFICATION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('CATEGORY / ITEM', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('PERIOD AMOUNT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('MARGIN %', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                      ],
+                      rows: [
+                        DataRow(cells: [
+                          const DataCell(Text('Gross Income', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
+                          const DataCell(Text('Total Client Revenue & Deposits')),
+                          DataCell(Text('Rs. ${pl.totalRevenue.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
+                          const DataCell(Text('100.0%')),
+                        ]),
+                        DataRow(cells: [
+                          const DataCell(Text('Operating Cost', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
+                          const DataCell(Text('Company Direct Expenses + Staff Payroll')),
+                          DataCell(Text('Rs. ${pl.totalExpenses.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
+                          DataCell(Text('${pl.totalRevenue > 0 ? ((pl.totalExpenses / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}%')),
+                        ]),
+                        DataRow(cells: [
+                          DataCell(Text('Net Profit / Loss', style: TextStyle(fontWeight: FontWeight.w900, color: pl.netProfit >= 0 ? Colors.green : Colors.red))),
+                          const DataCell(Text('Net Revenue minus Operating Costs', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataCell(Text('Rs. ${pl.netProfit.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w900, color: pl.netProfit >= 0 ? Colors.green : Colors.red))),
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: pl.netProfit >= 0 ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${pl.totalRevenue > 0 ? ((pl.netProfit / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}%',
+                                style: TextStyle(color: pl.netProfit >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
+                              ),
+                            ),
+                          ),
+                        ]),
+                        DataRow(cells: [
+                          const DataCell(Text('Working Capital', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const DataCell(Text('Current Assets minus Liabilities')),
+                          DataCell(Text('Rs. ${al.workingCapital.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, color: al.workingCapital >= 0 ? Colors.green : Colors.red))),
+                          DataCell(Text(al.workingCapital >= 0 ? 'Healthy' : 'Deficit', style: TextStyle(fontWeight: FontWeight.bold, color: al.workingCapital >= 0 ? Colors.green : Colors.red))),
+                        ]),
+                      ],
                     ),
                   ),
-                ]),
-                DataRow(cells: [
-                  const DataCell(Text('Working Capital', style: TextStyle(fontWeight: FontWeight.bold))),
-                  const DataCell(Text('Current Assets minus Liabilities')),
-                  DataCell(Text('Rs. ${al.workingCapital.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, color: al.workingCapital >= 0 ? Colors.green : Colors.red))),
-                  DataCell(Text(al.workingCapital >= 0 ? 'Healthy' : 'Deficit', style: TextStyle(fontWeight: FontWeight.bold, color: al.workingCapital >= 0 ? Colors.green : Colors.red))),
-                ]),
-              ],
+                );
+              },
             ),
           ],
         ),
