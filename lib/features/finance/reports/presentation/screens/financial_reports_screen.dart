@@ -457,6 +457,17 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       });
     }
 
+    // Filter to only active months that have revenue or expense activity
+    final activeRows = monthlyRows.where((row) {
+      final r = row['revenue'] as double;
+      final e = row['expenses'] as double;
+      return r > 0 || e > 0;
+    }).toList();
+
+    final displayRows = activeRows.isNotEmpty
+        ? activeRows
+        : (monthlyRows.isNotEmpty ? [monthlyRows.last] : <Map<String, dynamic>>[]);
+
     double ytdNetProfit = ytdRevenue - ytdExpenses;
     double ytdMargin = ytdRevenue > 0 ? (ytdNetProfit / ytdRevenue) * 100 : 0.0;
 
@@ -512,7 +523,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                         DataColumn(label: Text('ACTION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
                       ],
                       rows: [
-                        ...monthlyRows.map((row) {
+                        ...displayRows.map((row) {
                           final revenue = row['revenue'] as double;
                           final expenses = row['expenses'] as double;
                           final netProfit = row['netProfit'] as double;
