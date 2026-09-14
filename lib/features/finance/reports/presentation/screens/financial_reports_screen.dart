@@ -23,6 +23,7 @@ class FinancialReportsScreen extends ConsumerStatefulWidget {
 
 class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen> {
   int _selectedIndex = 0;
+  String _summaryFocus = 'Overview';
 
   final List<ReportTabItem> _reportTabs = const [
     ReportTabItem(0, 'Finance Summary', Icons.grid_view_rounded),
@@ -168,17 +169,49 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                   ),
                   const SizedBox(height: 20),
 
-                  // Period Filters Header Row
-                  Row(
-                    children: [
-                      _buildPeriodFilterChip(context, ref, 'Today', ReportDateRange.today, currentFilter.dateRange),
-                      const SizedBox(width: 8),
-                      _buildPeriodFilterChip(context, ref, 'This Month', ReportDateRange.thisMonth, currentFilter.dateRange),
-                      const SizedBox(width: 8),
-                      _buildPeriodFilterChip(context, ref, 'This Year', ReportDateRange.thisYear, currentFilter.dateRange),
-                      const SizedBox(width: 8),
-                      _buildPeriodFilterChip(context, ref, 'All Time', ReportDateRange.allTime, currentFilter.dateRange),
-                    ],
+  // Period & View Focus Filters Header Row
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildPeriodFilterChip(context, ref, 'Today', ReportDateRange.today, currentFilter.dateRange),
+                        const SizedBox(width: 8),
+                        _buildPeriodFilterChip(context, ref, 'This Month', ReportDateRange.thisMonth, currentFilter.dateRange),
+                        const SizedBox(width: 8),
+                        _buildPeriodFilterChip(context, ref, 'This Year', ReportDateRange.thisYear, currentFilter.dateRange),
+                        const SizedBox(width: 8),
+                        _buildPeriodFilterChip(context, ref, 'All Time', ReportDateRange.allTime, currentFilter.dateRange),
+
+                        const SizedBox(width: 16),
+                        Container(width: 1, height: 24, color: context.border),
+                        const SizedBox(width: 16),
+
+                        ...['Overview', 'Income', 'Expenses', 'Payroll', 'Profit/Loss'].map((focus) {
+                          final isSelected = _summaryFocus == focus;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              label: Text(focus),
+                              selected: isSelected,
+                              onSelected: (_) => setState(() => _summaryFocus = focus),
+                              selectedColor: context.primaryColor,
+                              backgroundColor: context.cardBg,
+                              labelStyle: TextStyle(
+                                color: isSelected ? Colors.white : context.textSecondary,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                fontSize: 13,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              side: BorderSide(
+                                color: isSelected ? context.primaryColor : context.border,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
 
