@@ -269,6 +269,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                     'Rent',
                                                     tr('Salaries'),
                                                     'Bills',
+                                                    'Internet',
+                                                    'Electricity',
                                                     'Supplies',
                                                     'Refreshments',
                                                     'Travel',
@@ -836,7 +838,26 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                       dropdownColor: context.cardBg,
                       style: TextStyle(color: context.textPrimary, fontSize: 13),
                       decoration: _buildInputDecoration('Select Category'),
-                      items: ['Rent', tr('Salaries'), 'Bills', 'Supplies', 'Refreshments', 'Travel', 'Other'].map((c) {
+                      items: {
+                        'Rent & Occupancy',
+                        'Salaries & Payroll',
+                        'Electricity & Utilities',
+                        'Internet & Telecom',
+                        'Transport & Logistics',
+                        'Marketing & Advertising',
+                        'Office & Admin Expenses',
+                        'Repairs & Maintenance',
+                        'Depreciation',
+                        'Bank Charges & Fees',
+                        'Rent',
+                        'Salaries',
+                        'Bills',
+                        'Supplies',
+                        'Refreshments',
+                        'Travel',
+                        'Other',
+                        if (_category.isNotEmpty) _category,
+                      }.map((c) {
                         return DropdownMenuItem(value: c, child: Text(c));
                       }).toList(),
                       onChanged: (val) {

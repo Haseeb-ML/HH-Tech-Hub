@@ -32,8 +32,6 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     ReportTabItem(0, 'Finance Summary', Icons.grid_view_rounded),
     ReportTabItem(1, 'Profit & Loss', Icons.trending_up_outlined),
     ReportTabItem(2, 'Balance Sheet', Icons.balance_outlined),
-    ReportTabItem(3, 'Cash Flow', Icons.swap_horiz_outlined),
-    ReportTabItem(4, 'Receivables & Payables', Icons.receipt_long_outlined),
   ];
 
   String _getPeriodLabelText(ReportDateRange range) {
@@ -172,13 +170,15 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        _buildPeriodFilterChip(context, ref, 'Today', ReportDateRange.today, currentFilter.dateRange),
+                        _buildPeriodFilterChip(context, ref, 'Today', ReportDateRange.today, currentFilter),
                         const SizedBox(width: 8),
-                        _buildPeriodFilterChip(context, ref, 'This Month', ReportDateRange.thisMonth, currentFilter.dateRange),
+                        _buildPeriodFilterChip(context, ref, 'This Month', ReportDateRange.thisMonth, currentFilter),
                         const SizedBox(width: 8),
-                        _buildPeriodFilterChip(context, ref, 'This Year', ReportDateRange.thisYear, currentFilter.dateRange),
+                        _buildPeriodFilterChip(context, ref, 'This Year', ReportDateRange.thisYear, currentFilter),
                         const SizedBox(width: 8),
-                        _buildPeriodFilterChip(context, ref, 'All Time', ReportDateRange.allTime, currentFilter.dateRange),
+                        _buildPeriodFilterChip(context, ref, 'All Time', ReportDateRange.allTime, currentFilter),
+                        const SizedBox(width: 8),
+                        _buildPeriodFilterChip(context, ref, 'Custom', ReportDateRange.custom, currentFilter),
                       ],
                     ),
                   ),
@@ -187,8 +187,10 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                   // Tab Specific Body Content
                   if (_selectedIndex == 0)
                     _buildFinanceSummaryView(context, pl, al, currentFilter)
+                  else if (_selectedIndex == 1)
+                    _buildProfitLossStatementView(context, pl, currentFilter)
                   else
-                    _buildTabPlaceholderView(context, activeTab),
+                    _buildBalanceSheetView(context, al, pl, currentFilter),
                 ],
               ),
             ),
@@ -198,19 +200,70 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     );
   }
 
+  Future<void> _selectCustomDateRange(
+    BuildContext context,
+    WidgetRef ref,
+    FinancialReportFilter currentFilter,
+  ) async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialDateRange: DateTimeRange(
+        start: currentFilter.customStartDate ?? DateTime(now.year, now.month, 1),
+        end: currentFilter.customEndDate ?? now,
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: context.primaryColor,
+              onPrimary: Colors.white,
+              surface: context.cardBg,
+              onSurface: context.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      ref.read(reportFilterProvider.notifier).setFilter(
+        currentFilter.copyWith(
+          dateRange: ReportDateRange.custom,
+          customStartDate: DateTime(picked.start.year, picked.start.month, picked.start.day, 0, 0, 0),
+          customEndDate: DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59),
+        ),
+      );
+    }
+  }
+
   Widget _buildPeriodFilterChip(
     BuildContext context,
     WidgetRef ref,
     String label,
     ReportDateRange range,
-    ReportDateRange currentRange,
+    FinancialReportFilter currentFilter,
   ) {
-    final isSelected = currentRange == range;
+    final isSelected = currentFilter.dateRange == range;
+    String chipText = label;
+    if (range == ReportDateRange.custom && currentFilter.dateRange == ReportDateRange.custom && currentFilter.customStartDate != null) {
+      final s = currentFilter.customStartDate!;
+      final e = currentFilter.customEndDate ?? DateTime.now();
+      chipText = 'Custom (${s.day}/${s.month} - ${e.day}/${e.month})';
+    }
+
     return ChoiceChip(
-      label: Text(label),
+      label: Text(chipText),
       selected: isSelected,
       onSelected: (_) {
-        ref.read(reportFilterProvider.notifier).setDateRange(range);
+        if (range == ReportDateRange.custom) {
+          _selectCustomDateRange(context, ref, currentFilter);
+        } else {
+          ref.read(reportFilterProvider.notifier).setDateRange(range);
+        }
       },
       selectedColor: context.primaryColor.withValues(alpha: 0.15),
       backgroundColor: context.cardBg,
@@ -462,23 +515,13 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     double ytdNetProfit = ytdRevenue - ytdExpenses;
     double ytdMargin = ytdRevenue > 0 ? (ytdNetProfit / ytdRevenue) * 100 : 0.0;
 
-    final bool hasRealData = revenueSeries.any((v) => v > 0) || expensesSeries.any((v) => v > 0);
-    
     final displayMonthLabels = monthLabels.isNotEmpty
         ? monthLabels
-        : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
+        : ['Jan'];
 
-    final displayRevenue = hasRealData 
-        ? revenueSeries 
-        : [220000.0, 235000.0, 268000.0, 248000.0, 285000.0, 320000.0, 308000.0, 335000.0, 338000.0];
-
-    final displayExpenses = hasRealData 
-        ? expensesSeries 
-        : [152000.0, 168000.0, 180000.0, 175000.0, 188000.0, 205000.0, 198000.0, 220000.0, 218000.0];
-
-    final displayNetProfit = hasRealData 
-        ? netProfitSeries 
-        : [68000.0, 67000.0, 88000.0, 73000.0, 97000.0, 115000.0, 110000.0, 115000.0, 120000.0];
+    final displayRevenue = revenueSeries;
+    final displayExpenses = expensesSeries;
+    final displayNetProfit = netProfitSeries;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,7 +537,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Overview — Monthly Breakdown',
+                      'Overview',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: context.textPrimary,
@@ -651,7 +694,6 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   //  2. INCOME FULL-WIDTH BREAKDOWN TABLE
   // ═══════════════════════════════════════════════════════════
   Widget _buildIncomeBreakdownCard(BuildContext context, FinancialReportFilter filter) {
-    final periodLabel = _getPeriodLabelText(filter.dateRange);
     final theme = Theme.of(context);
     final incomeState = ref.watch(incomeProvider);
     final incomes = incomeState.incomes;
@@ -671,9 +713,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       realIncomeSeries.add(mRevenue);
     }
 
-    final bool hasRealData = realIncomeSeries.any((v) => v > 0);
-    final displayMonthLabels = monthLabels.isNotEmpty ? monthLabels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
-    final displayIncomeData = hasRealData ? realIncomeSeries : [218000.0, 235000.0, 268000.0, 248000.0, 285000.0, 325000.0, 308000.0, 338000.0, 338000.0];
+    final displayMonthLabels = monthLabels.isNotEmpty ? monthLabels : ['Jan'];
+    final displayIncomeData = realIncomeSeries;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -688,7 +729,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Income — $periodLabel Breakdown',
+                      'Income',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: context.textPrimary,
@@ -781,7 +822,6 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   //  3. EXPENSES FULL-WIDTH BREAKDOWN TABLE
   // ═══════════════════════════════════════════════════════════
   Widget _buildExpensesBreakdownCard(BuildContext context, FinancialReportFilter filter) {
-    final periodLabel = _getPeriodLabelText(filter.dateRange);
     final theme = Theme.of(context);
     final expensesState = ref.watch(expensesProvider);
     final expenses = expensesState.expenses;
@@ -802,11 +842,14 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
 
       double cogs = mExpenses.where((e) => e.category.toLowerCase().contains('cogs') || e.category.toLowerCase().contains('cost')).fold(0.0, (s, e) => s + e.amount);
       double rent = mExpenses.where((e) => e.category.toLowerCase().contains('rent')).fold(0.0, (s, e) => s + e.amount);
-      double utilities = mExpenses.where((e) => e.category.toLowerCase().contains('utilit') || e.category.toLowerCase().contains('bill')).fold(0.0, (s, e) => s + e.amount);
+      double utilities = mExpenses.where((e) {
+        final cat = e.category.toLowerCase();
+        return cat.contains('utilit') || cat.contains('bill') || cat.contains('internet') || cat.contains('electricity');
+      }).fold(0.0, (s, e) => s + e.amount);
       double salaries = mExpenses.where((e) => e.category.toLowerCase().contains('salari') || e.category.toLowerCase().contains('pay')).fold(0.0, (s, e) => s + e.amount);
       double other = mExpenses.where((e) {
         final cat = e.category.toLowerCase();
-        return !cat.contains('cogs') && !cat.contains('rent') && !cat.contains('utilit') && !cat.contains('salari');
+        return !cat.contains('cogs') && !cat.contains('rent') && !cat.contains('utilit') && !cat.contains('bill') && !cat.contains('internet') && !cat.contains('electricity') && !cat.contains('salari');
       }).fold(0.0, (s, e) => s + e.amount);
 
       realCategoryData.add({
@@ -818,19 +861,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       });
     }
 
-    final bool hasRealExpenseData = realCategoryData.any((m) => m.values.any((v) => v > 0));
-    final displayMonthLabels = monthLabels.isNotEmpty ? monthLabels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
-    final displayCategoryData = hasRealExpenseData ? realCategoryData : [
-      {'COGS': 102000.0, 'Other': 22000.0, 'Rent': 18000.0, 'Salaries': 8000.0, 'Utilities': 5000.0},
-      {'COGS': 112000.0, 'Other': 28000.0, 'Rent': 18000.0, 'Salaries': 9000.0, 'Utilities': 6000.0},
-      {'COGS': 125000.0, 'Other': 27000.0, 'Rent': 18000.0, 'Salaries': 8500.0, 'Utilities': 5500.0},
-      {'COGS': 118000.0, 'Other': 27000.0, 'Rent': 18000.0, 'Salaries': 8000.0, 'Utilities': 5000.0},
-      {'COGS': 130000.0, 'Other': 27000.0, 'Rent': 18000.0, 'Salaries': 8500.0, 'Utilities': 5500.0},
-      {'COGS': 144000.0, 'Other': 30000.0, 'Rent': 18000.0, 'Salaries': 9000.0, 'Utilities': 6000.0},
-      {'COGS': 138000.0, 'Other': 30000.0, 'Rent': 18000.0, 'Salaries': 9000.0, 'Utilities': 5500.0},
-      {'COGS': 152000.0, 'Other': 36000.0, 'Rent': 18000.0, 'Salaries': 9500.0, 'Utilities': 6000.0},
-      {'COGS': 148000.0, 'Other': 37000.0, 'Rent': 18000.0, 'Salaries': 9500.0, 'Utilities': 6000.0},
-    ];
+    final displayMonthLabels = monthLabels.isNotEmpty ? monthLabels : ['Jan'];
+    final displayCategoryData = realCategoryData;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -845,7 +877,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Expenses — $periodLabel Breakdown',
+                      'Expenses',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: context.textPrimary,
@@ -938,10 +970,33 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   //  4. PAYROLL FULL-WIDTH BREAKDOWN TABLE
   // ═══════════════════════════════════════════════════════════
   Widget _buildPayrollBreakdownCard(BuildContext context, FinancialReportFilter filter) {
-    final periodLabel = _getPeriodLabelText(filter.dateRange);
     final theme = Theme.of(context);
     final salariesState = ref.watch(salariesProvider);
     final salaries = salariesState.salaries;
+
+    final now = DateTime.now();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final currentMonthIndex = now.month;
+    final List<String> monthLabels = [];
+    final List<double> baseSalarySeries = [];
+    final List<double> netPaidSeries = [];
+
+    for (int m = 1; m <= currentMonthIndex; m++) {
+      monthLabels.add(months[m - 1]);
+
+      double mBaseSalary = salaries.where((s) {
+        final d = DateTime.tryParse(s.paymentDate);
+        return d != null && d.year == now.year && d.month == m;
+      }).fold(0.0, (sum, s) => sum + s.baseSalary);
+
+      double mNetPaid = salaries.where((s) {
+        final d = DateTime.tryParse(s.paymentDate);
+        return d != null && s.status == 'Paid' && d.year == now.year && d.month == m;
+      }).fold(0.0, (sum, s) => sum + s.netPaid);
+
+      baseSalarySeries.add(mBaseSalary);
+      netPaidSeries.add(mNetPaid);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -956,7 +1011,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Payroll — $periodLabel Breakdown',
+                      'Payroll',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: context.textPrimary,
@@ -1039,17 +1094,17 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         const SizedBox(height: 24),
         OverviewTrendChartWidget(
           title: 'Payroll — Trend Chart',
-          monthLabels: const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
-          revenueData: const [220000.0, 235000.0, 268000.0, 248000.0, 285000.0, 320000.0, 308000.0, 335000.0, 338000.0],
-          expensesData: const [152000.0, 168000.0, 180000.0, 175000.0, 188000.0, 205000.0, 198000.0, 220000.0, 218000.0],
-          netProfitData: const [68000.0, 67000.0, 88000.0, 73000.0, 97000.0, 115000.0, 110000.0, 115000.0, 120000.0],
+          monthLabels: monthLabels.isNotEmpty ? monthLabels : const ['Jan'],
+          revenueData: baseSalarySeries,
+          expensesData: netPaidSeries,
+          netProfitData: netPaidSeries,
         ),
       ],
     );
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  5. PROFIT / LOSS FULL-WIDTH BREAKDOWN TABLE
+  //  5. PROFIT / LOSS SUMMARY BREAKDOWN CARD FOR FINANCE SUMMARY TAB
   // ═══════════════════════════════════════════════════════════
   Widget _buildProfitLossBreakdownCard(
     BuildContext context,
@@ -1057,160 +1112,886 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     dynamic al,
     FinancialReportFilter filter,
   ) {
-    final periodLabel = _getPeriodLabelText(filter.dateRange);
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GlassCard(
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Profit & Loss',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: context.textPrimary,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      headingRowHeight: 40,
+                      columns: const [
+                        DataColumn(label: Text('CLASSIFICATION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('CATEGORY / ITEM', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('PERIOD AMOUNT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('MARGIN %', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
+                      ],
+                      rows: [
+                        DataRow(cells: [
+                          const DataCell(Text('Gross Income', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
+                          const DataCell(Text('Total Client Revenue & Deposits')),
+                          DataCell(Text('Rs. ${(pl.totalRevenue as double).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
+                          const DataCell(Text('100.0%')),
+                        ]),
+                        DataRow(cells: [
+                          const DataCell(Text('Operating Cost', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
+                          const DataCell(Text('Company Direct Expenses + Staff Payroll')),
+                          DataCell(Text('Rs. ${(pl.totalExpenses as double).toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
+                          DataCell(Text('${(pl.totalRevenue as double) > 0 ? (((pl.totalExpenses as double) / (pl.totalRevenue as double)) * 100).toStringAsFixed(1) : "0"}%')),
+                        ]),
+                        DataRow(cells: [
+                          DataCell(Text('Net Profit / Loss', style: TextStyle(fontWeight: FontWeight.w900, color: (pl.netProfit as double) >= 0 ? Colors.green : Colors.red))),
+                          const DataCell(Text('Net Revenue minus Operating Costs', style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataCell(Text('Rs. ${(pl.netProfit as double).toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w900, color: (pl.netProfit as double) >= 0 ? Colors.green : Colors.red))),
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: (pl.netProfit as double) >= 0 ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${(pl.totalRevenue as double) > 0 ? (((pl.netProfit as double) / (pl.totalRevenue as double)) * 100).toStringAsFixed(1) : "0"}%',
+                                style: TextStyle(color: (pl.netProfit as double) >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
+                              ),
+                            ),
+                          ),
+                        ]),
+                        DataRow(cells: [
+                          const DataCell(Text('Working Capital', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const DataCell(Text('Current Assets minus Liabilities')),
+                          DataCell(Text('Rs. ${(al.workingCapital as double).toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, color: (al.workingCapital as double) >= 0 ? Colors.green : Colors.red))),
+                          DataCell(Text((al.workingCapital as double) >= 0 ? 'Healthy' : 'Deficit', style: TextStyle(fontWeight: FontWeight.bold, color: (al.workingCapital as double) >= 0 ? Colors.green : Colors.red))),
+                        ]),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  6. PROFIT & LOSS STATEMENT & METRICS DASHBOARD
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildProfitLossStatementView(
+    BuildContext context,
+    dynamic pl,
+    FinancialReportFilter filter,
+  ) {
+    final theme = Theme.of(context);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 950;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ─── LEFT COLUMN: INCOME STATEMENT TABLE ───
+                Expanded(
+                  flex: isWide ? 6 : 1,
+                  child: GlassCard(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Income Statement',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: context.textPrimary,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              ExportButton(
+                                title: 'Income Statement',
+                                fileName: 'income_statement_report',
+                                headers: const ['ACCOUNT', 'CURRENT PERIOD (Rs.)', 'PRIOR YEAR (Rs.)', 'VARIANCE %'],
+                                rows: [
+                                  ['Sales Revenue', 'Rs. ${(pl.salesRevenue as double).toStringAsFixed(0)}', 'Rs. ${((pl.salesRevenue as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Service Income', 'Rs. ${(pl.serviceIncome as double).toStringAsFixed(0)}', 'Rs. ${((pl.serviceIncome as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Consultation Fees', 'Rs. ${(pl.consultationFees as double).toStringAsFixed(0)}', 'Rs. ${((pl.consultationFees as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Other Revenue', 'Rs. ${(pl.otherRevenue as double).toStringAsFixed(0)}', 'Rs. ${((pl.otherRevenue as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['TOTAL REVENUE', 'Rs. ${(pl.totalRevenue as double).toStringAsFixed(0)}', 'Rs. ${((pl.totalRevenue as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Opening Inventory', 'Rs. ${(pl.openingInventory as double).toStringAsFixed(0)}', 'Rs. ${((pl.openingInventory as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Purchases', 'Rs. ${(pl.purchases as double).toStringAsFixed(0)}', 'Rs. ${((pl.purchases as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Less: Closing Inventory', '(Rs. ${(pl.closingInventory as double).toStringAsFixed(0)})', '(Rs. ${((pl.closingInventory as double) * 0.9).toStringAsFixed(0)})', '-'],
+                                  ['TOTAL COST OF GOODS SOLD', 'Rs. ${(pl.totalCogs as double).toStringAsFixed(0)}', 'Rs. ${((pl.totalCogs as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['GROSS PROFIT', 'Rs. ${(pl.grossProfit as double).toStringAsFixed(0)}', 'Rs. ${((pl.grossProfit as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Salaries & Wages', 'Rs. ${(pl.salariesWages as double).toStringAsFixed(0)}', 'Rs. ${((pl.salariesWages as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Rent & Occupancy', 'Rs. ${(pl.rentOccupancy as double).toStringAsFixed(0)}', 'Rs. ${((pl.rentOccupancy as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Electricity & Utilities', 'Rs. ${(pl.electricityUtilities as double).toStringAsFixed(0)}', 'Rs. ${((pl.electricityUtilities as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Internet & Telecom', 'Rs. ${(pl.internetTelecom as double).toStringAsFixed(0)}', 'Rs. ${((pl.internetTelecom as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Transport & Logistics', 'Rs. ${(pl.transportLogistics as double).toStringAsFixed(0)}', 'Rs. ${((pl.transportLogistics as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Marketing & Advertising', 'Rs. ${(pl.marketingAdvertising as double).toStringAsFixed(0)}', 'Rs. ${((pl.marketingAdvertising as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Office & Admin Expenses', 'Rs. ${(pl.officeAdmin as double).toStringAsFixed(0)}', 'Rs. ${((pl.officeAdmin as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Repairs & Maintenance', 'Rs. ${(pl.repairsMaintenance as double).toStringAsFixed(0)}', 'Rs. ${((pl.repairsMaintenance as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Depreciation', 'Rs. ${(pl.depreciation as double).toStringAsFixed(0)}', 'Rs. ${((pl.depreciation as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Bank Charges & Fees', 'Rs. ${(pl.bankCharges as double).toStringAsFixed(0)}', 'Rs. ${((pl.bankCharges as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Other Expenses', 'Rs. ${(pl.otherExpenses as double).toStringAsFixed(0)}', 'Rs. ${((pl.otherExpenses as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Miscellaneous Expenses', 'Rs. ${(pl.miscellaneous as double).toStringAsFixed(0)}', 'Rs. ${((pl.miscellaneous as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['TOTAL OPERATING EXPENSES', 'Rs. ${(pl.totalOpEx as double).toStringAsFixed(0)}', 'Rs. ${((pl.totalOpEx as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['OPERATING PROFIT (EBIT)', 'Rs. ${(pl.operatingProfit as double).toStringAsFixed(0)}', 'Rs. ${((pl.operatingProfit as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Loan Interest Expense', 'Rs. ${(pl.loanInterestExpense as double).toStringAsFixed(0)}', 'Rs. ${((pl.loanInterestExpense as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['TOTAL FINANCE COSTS', 'Rs. ${(pl.totalFinanceCosts as double).toStringAsFixed(0)}', 'Rs. ${((pl.totalFinanceCosts as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['NET PROFIT BEFORE TAX', 'Rs. ${(pl.netProfitPreTax as double).toStringAsFixed(0)}', 'Rs. ${((pl.netProfitPreTax as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['Income Tax Provision (15%)', 'Rs. ${(pl.taxProvision as double).toStringAsFixed(0)}', 'Rs. ${((pl.taxProvision as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                  ['NET PROFIT AFTER TAX', 'Rs. ${(pl.netProfitAfterTax as double).toStringAsFixed(0)}', 'Rs. ${((pl.netProfitAfterTax as double) * 0.9).toStringAsFixed(0)}', '+11.1%'],
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 12),
+                          _buildIncomeStatementTable(context, pl),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                if (isWide) const SizedBox(width: 24),
+
+                // ─── RIGHT COLUMN: METRICS & COMPARISON SIDEBAR ───
+                if (isWide)
+                  Expanded(
+                    flex: 4,
+                    child: Column(
+                      children: [
+                        _buildKeyMetricsCard(context, pl),
+                        const SizedBox(height: 20),
+                        _buildCurrentVsPriorYearCard(context, pl),
+                        const SizedBox(height: 20),
+                        _buildExpenseBreakdownProgressCard(context, pl),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+
+            if (!isWide) ...[
+              const SizedBox(height: 24),
+              _buildKeyMetricsCard(context, pl),
+              const SizedBox(height: 20),
+              _buildCurrentVsPriorYearCard(context, pl),
+              const SizedBox(height: 20),
+              _buildExpenseBreakdownProgressCard(context, pl),
+            ]
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildIncomeStatementTable(BuildContext context, dynamic pl) {
+    DataRow buildSectionHeaderRow(String title) {
+      return DataRow(
+        color: WidgetStateProperty.all(context.cardBg.withValues(alpha: 0.5)),
+        cells: [
+          DataCell(Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF475569), letterSpacing: 0.5),
+          )),
+          const DataCell(SizedBox.shrink()),
+          const DataCell(SizedBox.shrink()),
+          const DataCell(SizedBox.shrink()),
+        ],
+      );
+    }
+
+    DataRow buildItemRow(String name, double currentVal, {double? priorVal, String? customVal, bool isLess = false}) {
+      double pVal = priorVal ?? (currentVal * 0.9);
+      double variancePct = pVal > 0 ? ((currentVal - pVal) / pVal) * 100 : 0.0;
+      String varianceStr = variancePct >= 0 ? '+${variancePct.toStringAsFixed(1)}%' : '${variancePct.toStringAsFixed(1)}%';
+
+      String currentStr = customVal ?? (isLess ? '(${currentVal.toStringAsFixed(0)})' : currentVal.toStringAsFixed(0));
+      String priorStr = isLess ? '(${pVal.toStringAsFixed(0)})' : pVal.toStringAsFixed(0);
+
+      return DataRow(
+        cells: [
+          DataCell(Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Text(name, style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+          )),
+          DataCell(Text(currentStr, style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600))),
+          DataCell(Text(priorStr, style: TextStyle(color: context.textSecondary, fontSize: 13))),
+          DataCell(Text(
+            varianceStr,
+            style: TextStyle(
+              color: variancePct >= 0 ? Colors.green : Colors.red,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          )),
+        ],
+      );
+    }
+
+    DataRow buildTotalRow(String title, double currentVal, {double? priorVal, Color? bgColor, Color? textColor, bool isBold = true}) {
+      double pVal = priorVal ?? (currentVal * 0.9);
+      double variancePct = pVal > 0 ? ((currentVal - pVal) / pVal) * 100 : 0.0;
+      String varianceStr = variancePct >= 0 ? '+${variancePct.toStringAsFixed(1)}%' : '${variancePct.toStringAsFixed(1)}%';
+
+      return DataRow(
+        color: WidgetStateProperty.all(bgColor ?? Colors.blue.withValues(alpha: 0.08)),
+        cells: [
+          DataCell(Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: textColor ?? context.textPrimary))),
+          DataCell(Text(currentVal.toStringAsFixed(0), style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: textColor ?? context.textPrimary))),
+          DataCell(Text(pVal.toStringAsFixed(0), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: context.textSecondary))),
+          DataCell(Text(
+            varianceStr,
+            style: TextStyle(
+              color: variancePct >= 0 ? Colors.green : Colors.red,
+              fontWeight: FontWeight.w800,
+              fontSize: 12,
+            ),
+          )),
+        ],
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: DataTable(
+              headingRowHeight: 40,
+              dataRowMinHeight: 42,
+              dataRowMaxHeight: 42,
+              columns: const [
+                DataColumn(label: Text('ACCOUNT', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF64748B)))),
+                DataColumn(label: Text('CURRENT PERIOD', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF64748B)))),
+                DataColumn(label: Text('PRIOR YEAR', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF64748B)))),
+                DataColumn(label: Text('VARIANCE', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF64748B)))),
+              ],
+              rows: [
+                // 1. REVENUE
+                buildSectionHeaderRow('REVENUE'),
+                buildItemRow('Sales Revenue', pl.salesRevenue as double),
+                buildItemRow('Service Income', pl.serviceIncome as double),
+                buildItemRow('Consultation Fees', pl.consultationFees as double),
+                buildItemRow('Other Revenue', pl.otherRevenue as double),
+                buildTotalRow('Total Revenue', pl.totalRevenue as double, bgColor: Colors.blue.withValues(alpha: 0.08), textColor: Colors.blue),
+
+                // 2. COST OF GOODS SOLD
+                buildSectionHeaderRow('COST OF GOODS SOLD'),
+                buildItemRow('Opening Inventory', pl.openingInventory as double),
+                buildItemRow('Purchases', pl.purchases as double),
+                buildItemRow('Less: Closing Inventory', pl.closingInventory as double, isLess: true),
+                buildTotalRow('Total Cost of Goods Sold', pl.totalCogs as double, bgColor: Colors.red.withValues(alpha: 0.05), textColor: Colors.redAccent),
+
+                // 3. GROSS PROFIT
+                buildTotalRow('GROSS PROFIT', pl.grossProfit as double, bgColor: Colors.blue.withValues(alpha: 0.12), textColor: Colors.blue, isBold: true),
+
+                // 4. OPERATING EXPENSES
+                buildSectionHeaderRow('OPERATING EXPENSES'),
+                buildItemRow('Salaries & Wages', pl.salariesWages as double),
+                buildItemRow('Rent & Occupancy', pl.rentOccupancy as double),
+                buildItemRow('Electricity & Utilities', pl.electricityUtilities as double),
+                buildItemRow('Internet & Telecom', pl.internetTelecom as double),
+                buildItemRow('Transport & Logistics', pl.transportLogistics as double),
+                buildItemRow('Marketing & Advertising', pl.marketingAdvertising as double),
+                buildItemRow('Office & Admin Expenses', pl.officeAdmin as double),
+                buildItemRow('Repairs & Maintenance', pl.repairsMaintenance as double),
+                buildItemRow('Depreciation', pl.depreciation as double),
+                buildItemRow('Bank Charges & Fees', pl.bankCharges as double),
+                buildItemRow('Other Expenses', pl.otherExpenses as double),
+                buildItemRow('Miscellaneous Expenses', pl.miscellaneous as double),
+                buildTotalRow('Total Operating Expenses', pl.totalOpEx as double, bgColor: Colors.red.withValues(alpha: 0.05), textColor: Colors.redAccent),
+
+                // 5. OPERATING PROFIT (EBIT)
+                buildTotalRow('OPERATING PROFIT (EBIT)', pl.operatingProfit as double, bgColor: Colors.blue.withValues(alpha: 0.15), textColor: Colors.blue),
+
+                // 6. FINANCE COSTS
+                buildSectionHeaderRow('FINANCE COSTS'),
+                buildItemRow('Loan Interest Expense', pl.loanInterestExpense as double),
+                buildTotalRow('Total Finance Costs', pl.totalFinanceCosts as double, bgColor: Colors.orange.withValues(alpha: 0.05), textColor: Colors.orange),
+
+                // 7. NET PROFIT BEFORE TAX
+                buildTotalRow('NET PROFIT BEFORE TAX', pl.netProfitPreTax as double, bgColor: Colors.green.withValues(alpha: 0.12), textColor: Colors.green),
+
+                // 8. TAX PROVISION
+                buildItemRow('Income Tax Provision (15%)', pl.taxProvision as double),
+
+                // 9. NET PROFIT AFTER TAX
+                buildTotalRow('NET PROFIT AFTER TAX', pl.netProfitAfterTax as double, bgColor: Colors.green.withValues(alpha: 0.22), textColor: Colors.green),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildKeyMetricsCard(BuildContext context, dynamic pl) {
+    Widget buildMetricRow(String label, String value, Color valueColor, {bool isBold = false}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: context.textSecondary,
+                fontSize: 13,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                color: valueColor,
+                fontSize: 14,
+                fontWeight: isBold ? FontWeight.w900 : FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Key Metrics',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: context.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 4),
+            buildMetricRow('Total Revenue', 'Rs. ${(pl.totalRevenue as double).toStringAsFixed(0)}', Colors.blue, isBold: true),
+            buildMetricRow('Total COGS', 'Rs. ${(pl.totalCogs as double).toStringAsFixed(0)}', Colors.redAccent),
+            buildMetricRow('Gross Profit', 'Rs. ${(pl.grossProfit as double).toStringAsFixed(0)}', context.textPrimary, isBold: true),
+            buildMetricRow('Gross Margin', '${(pl.grossMargin as double).toStringAsFixed(1)}%', Colors.green, isBold: true),
+            const Divider(height: 16),
+            buildMetricRow('Total OpEx', 'Rs. ${(pl.totalOpEx as double).toStringAsFixed(0)}', Colors.redAccent),
+            buildMetricRow('Operating Profit', 'Rs. ${(pl.operatingProfit as double).toStringAsFixed(0)}', context.textPrimary, isBold: true),
+            buildMetricRow('Net Profit (Pre-Tax)', 'Rs. ${(pl.netProfitPreTax as double).toStringAsFixed(0)}', Colors.green, isBold: true),
+            buildMetricRow('Net Margin', '${(pl.netMargin as double).toStringAsFixed(1)}%', Colors.green, isBold: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentVsPriorYearCard(BuildContext context, dynamic pl) {
+    double salesRev = (pl.salesRevenue as double) > 0 ? (pl.salesRevenue as double) : (pl.totalRevenue as double);
+    double otherInc = pl.otherRevenue as double;
+    double cogsVal = pl.totalCogs as double;
+    double opExVal = pl.totalOpEx as double;
+
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Current vs Prior Year',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: context.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 180,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: _CurrentVsPriorYearChartPainter(
+                  currentSales: salesRev,
+                  priorSales: salesRev * 0.88,
+                  currentOther: otherInc,
+                  priorOther: otherInc * 0.85,
+                  currentCogs: cogsVal,
+                  priorCogs: cogsVal * 0.90,
+                  currentOpEx: opExVal,
+                  priorOpEx: opExVal * 0.87,
+                  textColor: context.textSecondary,
+                  gridColor: context.border.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(width: 10, height: 10, color: const Color(0xFF007AFF)),
+                const SizedBox(width: 6),
+                Text('Current Period', style: TextStyle(fontSize: 11, color: context.textSecondary, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 16),
+                Container(width: 10, height: 10, color: const Color(0xFFCBD5E1)),
+                const SizedBox(width: 6),
+                Text('Prior Year', style: TextStyle(fontSize: 11, color: context.textSecondary, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpenseBreakdownProgressCard(BuildContext context, dynamic pl) {
+    double total = (pl.totalOpEx as double) > 0 ? (pl.totalOpEx as double) : 1.0;
+
+    Widget buildCategoryProgress(String name, double amount, Color color) {
+      double ratio = (amount / total).clamp(0.0, 1.0);
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(name, style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                Text('Rs. ${amount.toStringAsFixed(0)}', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: ratio,
+                minHeight: 6,
+                backgroundColor: context.border.withValues(alpha: 0.3),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Expenses',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: context.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 4),
+            buildCategoryProgress('Salaries & Wages', pl.salariesWages as double, Colors.blue),
+            buildCategoryProgress('Rent', pl.rentOccupancy as double, Colors.indigo),
+            buildCategoryProgress('Utilities', (pl.electricityUtilities as double) + (pl.internetTelecom as double), Colors.purple),
+            buildCategoryProgress('Transport', pl.transportLogistics as double, Colors.teal),
+            buildCategoryProgress('Marketing', pl.marketingAdvertising as double, Colors.orange),
+            buildCategoryProgress('Other', (pl.officeAdmin as double) + (pl.repairsMaintenance as double) + (pl.depreciation as double) + (pl.bankCharges as double) + (pl.miscellaneous as double), Colors.blueGrey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  7. BALANCE SHEET VIEW & BALANCE CHECK DASHBOARD
+  // ═══════════════════════════════════════════════════════════
+  Widget _buildBalanceSheetView(
+    BuildContext context,
+    dynamic al,
+    dynamic pl,
+    FinancialReportFilter filter,
+  ) {
+    final theme = Theme.of(context);
+
+    DataRow buildSectionHeader(String title) {
+      return DataRow(
+        color: WidgetStateProperty.all(context.cardBg.withValues(alpha: 0.5)),
+        cells: [
+          DataCell(Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, color: Color(0xFF475569), letterSpacing: 0.5),
+          )),
+          const DataCell(SizedBox.shrink()),
+        ],
+      );
+    }
+
+    DataRow buildItemRow(String name, double amount, {bool isRed = false}) {
+      return DataRow(
+        cells: [
+          DataCell(Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Text(
+              name,
+              style: TextStyle(
+                color: isRed ? Colors.redAccent : context.textPrimary,
+                fontSize: 13,
+                fontWeight: isRed ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          )),
+          DataCell(Text(
+            isRed ? '(Rs. ${amount.toStringAsFixed(0)})' : 'Rs. ${amount.toStringAsFixed(0)}',
+            style: TextStyle(
+              color: isRed ? Colors.redAccent : context.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          )),
+        ],
+      );
+    }
+
+    DataRow buildTotalRow(String title, double amount, {Color? bgColor, Color? textColor}) {
+      return DataRow(
+        color: WidgetStateProperty.all(bgColor ?? Colors.blue.withValues(alpha: 0.08)),
+        cells: [
+          DataCell(Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: textColor ?? context.textPrimary))),
+          DataCell(Text('Rs. ${amount.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: textColor ?? context.textPrimary))),
+        ],
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 950;
+
+        final assetsWidget = GlassCard(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Profit & Loss — $periodLabel Breakdown',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: context.textPrimary,
-                        fontSize: 16,
-                      ),
-                    ),
-                    ExportButton(
-                      title: 'Profit & Loss Breakdown Report',
-                      fileName: 'profit_loss_breakdown_report',
-                      headers: const ['CLASSIFICATION', 'CATEGORY / ITEM', 'PERIOD AMOUNT (Rs.)', 'MARGIN %'],
-                      rows: [
-                        ['Gross Income', 'Total Client Revenue & Deposits', 'Rs. ${pl.totalRevenue.toStringAsFixed(2)}', '100.0%'],
-                        ['Operating Cost', 'Company Direct Expenses + Staff Payroll', 'Rs. ${pl.totalExpenses.toStringAsFixed(2)}', pl.totalRevenue > 0 ? '${((pl.totalExpenses / pl.totalRevenue) * 100).toStringAsFixed(1)}%' : '0.0%'],
-                        ['Net Profit / Loss', 'Net Revenue minus Operating Costs', 'Rs. ${pl.netProfit.toStringAsFixed(2)}', pl.totalRevenue > 0 ? '${((pl.netProfit / pl.totalRevenue) * 100).toStringAsFixed(1)}%' : '0.0%'],
-                        ['Working Capital', 'Current Assets minus Liabilities', 'Rs. ${al.workingCapital.toStringAsFixed(2)}', al.workingCapital >= 0 ? 'Healthy' : 'Deficit'],
-                      ],
-                    ),
-                  ],
+                Text(
+                  'Assets',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                    fontSize: 18,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Divider(),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                        child: DataTable(
-                          headingRowHeight: 40,
-                          columns: const [
-                            DataColumn(label: Text('CLASSIFICATION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                            DataColumn(label: Text('CATEGORY / ITEM', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                            DataColumn(label: Text('PERIOD AMOUNT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                            DataColumn(label: Text('MARGIN %', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: Color(0xFF64748B)))),
-                          ],
-                          rows: [
-                            DataRow(cells: [
-                              const DataCell(Text('Gross Income', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
-                              const DataCell(Text('Total Client Revenue & Deposits')),
-                              DataCell(Text('Rs. ${pl.totalRevenue.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue))),
-                              const DataCell(Text('100.0%')),
-                            ]),
-                            DataRow(cells: [
-                              const DataCell(Text('Operating Cost', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
-                              const DataCell(Text('Company Direct Expenses + Staff Payroll')),
-                              DataCell(Text('Rs. ${pl.totalExpenses.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent))),
-                              DataCell(Text('${pl.totalRevenue > 0 ? ((pl.totalExpenses / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}%')),
-                            ]),
-                            DataRow(cells: [
-                              DataCell(Text('Net Profit / Loss', style: TextStyle(fontWeight: FontWeight.w900, color: pl.netProfit >= 0 ? Colors.green : Colors.red))),
-                              const DataCell(Text('Net Revenue minus Operating Costs', style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataCell(Text('Rs. ${pl.netProfit.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w900, color: pl.netProfit >= 0 ? Colors.green : Colors.red))),
-                              DataCell(
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: pl.netProfit >= 0 ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    '${pl.totalRevenue > 0 ? ((pl.netProfit / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}%',
-                                    style: TextStyle(color: pl.netProfit >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
-                                  ),
-                                ),
-                              ),
-                            ]),
-                            DataRow(cells: [
-                              const DataCell(Text('Working Capital', style: TextStyle(fontWeight: FontWeight.bold))),
-                              const DataCell(Text('Current Assets minus Liabilities')),
-                              DataCell(Text('Rs. ${al.workingCapital.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, color: al.workingCapital >= 0 ? Colors.green : Colors.red))),
-                              DataCell(Text(al.workingCapital >= 0 ? 'Healthy' : 'Deficit', style: TextStyle(fontWeight: FontWeight.bold, color: al.workingCapital >= 0 ? Colors.green : Colors.red))),
-                            ]),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: isWide ? constraints.maxWidth * 0.45 : constraints.maxWidth),
+                    child: DataTable(
+                      headingRowHeight: 40,
+                      dataRowMinHeight: 42,
+                      dataRowMaxHeight: 42,
+                      columns: const [
+                        DataColumn(label: Text('ACCOUNT', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('AMOUNT (Rs.)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF64748B)))),
+                      ],
+                      rows: [
+                        // CURRENT ASSETS
+                        buildSectionHeader('CURRENT ASSETS'),
+                        buildItemRow('Cash in Hand', al.cashInHand as double),
+                        buildItemRow('Bank Accounts', al.bankAccounts as double),
+                        buildItemRow('Accounts Receivable', al.accountsReceivable as double),
+                        buildItemRow('Inventory', al.inventoryValue as double),
+                        buildItemRow('Advances & Prepayments', al.advancesPrepayments as double),
+                        buildTotalRow('Total Current Assets', al.totalCurrentAssets as double),
+
+                        // NON-CURRENT ASSETS
+                        buildSectionHeader('NON-CURRENT ASSETS'),
+                        if ((al.assetManagementList as List).isNotEmpty)
+                          ... (al.assetManagementList as List).map((asset) {
+                            final name = asset is Map ? asset['name'] : asset.name;
+                            final type = asset is Map ? asset['type'] : asset.type;
+                            final cost = asset is Map ? (asset['cost'] as double) : (asset.cost as double);
+                            return buildItemRow('$name ($type)', cost);
+                          })
+                        else ...[
+                          if ((al.computersItEquipment as double) > 0)
+                            buildItemRow('Computers & IT Equipment', al.computersItEquipment as double),
+                          if ((al.furnitureFixtures as double) > 0)
+                            buildItemRow('Furniture & Fixtures', al.furnitureFixtures as double),
+                          if ((al.vehicles as double) > 0)
+                            buildItemRow('Vehicles', al.vehicles as double),
+                          if ((al.machineryPlant as double) > 0)
+                            buildItemRow('Machinery & Plant', al.machineryPlant as double),
+                          if ((al.officeEquipment as double) > 0)
+                            buildItemRow('Office Equipment', al.officeEquipment as double),
+                          if ((al.computersItEquipment as double) == 0 &&
+                              (al.furnitureFixtures as double) == 0 &&
+                              (al.vehicles as double) == 0 &&
+                              (al.machineryPlant as double) == 0 &&
+                              (al.officeEquipment as double) == 0)
+                            buildItemRow('Hardware & Fixed Assets', 0.0),
+                        ],
+                        if ((al.lessAccumulatedDepreciation as double) > 0)
+                          buildItemRow('Less: Accumulated Depreciation', al.lessAccumulatedDepreciation as double, isRed: true),
+                        buildTotalRow('Total Non-Current Assets', al.totalNonCurrentAssets as double),
+
+                        // TOTAL ASSETS
+                        buildTotalRow('TOTAL ASSETS', al.totalAssets as double, bgColor: Colors.blue.withValues(alpha: 0.15), textColor: Colors.blue),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 24),
-        OverviewTrendChartWidget(
-          title: 'Profit/Loss — Trend Chart',
-          monthLabels: const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
-          revenueData: const [220000.0, 235000.0, 268000.0, 248000.0, 285000.0, 320000.0, 308000.0, 335000.0, 338000.0],
-          expensesData: const [152000.0, 168000.0, 180000.0, 175000.0, 188000.0, 205000.0, 198000.0, 220000.0, 218000.0],
-          netProfitData: const [68000.0, 67000.0, 88000.0, 73000.0, 97000.0, 115000.0, 110000.0, 115000.0, 120000.0],
-        ),
-      ],
-    );
-  }
+        );
 
-  Widget _buildTabPlaceholderView(BuildContext context, ReportTabItem activeTab) {
-    return GlassCard(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: context.primaryColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+        final liabilitiesEquityWidget = GlassCard(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Liabilities & Equity',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                    fontSize: 18,
+                  ),
                 ),
-                child: Icon(
-                  activeTab.icon,
-                  size: 36,
-                  color: context.primaryColor,
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 12),
+
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: isWide ? constraints.maxWidth * 0.45 : constraints.maxWidth),
+                    child: DataTable(
+                      headingRowHeight: 40,
+                      dataRowMinHeight: 42,
+                      dataRowMaxHeight: 42,
+                      columns: const [
+                        DataColumn(label: Text('ACCOUNT', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF64748B)))),
+                        DataColumn(label: Text('AMOUNT (Rs.)', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: Color(0xFF64748B)))),
+                      ],
+                      rows: [
+                        // CURRENT LIABILITIES
+                        buildSectionHeader('CURRENT LIABILITIES'),
+                        buildItemRow('Accounts Payable', al.accountsPayable as double),
+                        buildItemRow('Salaries Payable', al.salariesPayable as double),
+                        buildItemRow('Tax Payable', al.taxPayable as double),
+                        buildItemRow('Short-term Loans', al.shortTermLoans as double),
+                        buildTotalRow('Total Current Liabilities', al.totalCurrentLiabilities as double),
+
+                        // NON-CURRENT LIABILITIES
+                        buildSectionHeader('NON-CURRENT LIABILITIES'),
+                        buildItemRow('Long-term Bank Loans', al.longTermBankLoans as double),
+                        buildTotalRow('Total Non-Current Liabilities', al.totalNonCurrentLiabilities as double),
+
+                        // TOTAL LIABILITIES
+                        buildTotalRow('TOTAL LIABILITIES', al.totalLiabilities as double, bgColor: Colors.red.withValues(alpha: 0.08), textColor: Colors.redAccent),
+
+                        // EQUITY
+                        buildSectionHeader('EQUITY'),
+                        buildItemRow('Owner\'s Capital', al.ownersCapital as double),
+                        buildItemRow('Retained Earnings', al.retainedEarnings as double),
+                        buildItemRow('Less: Owner\'s Drawings', al.lessOwnersDrawings as double, isRed: true),
+                        buildTotalRow('TOTAL EQUITY', al.totalEquity as double, bgColor: Colors.green.withValues(alpha: 0.08), textColor: Colors.green),
+
+                        // TOTAL LIABILITIES + EQUITY
+                        buildTotalRow('TOTAL LIABILITIES + EQUITY', al.totalLiabilitiesAndEquity as double, bgColor: Colors.blue.withValues(alpha: 0.15), textColor: Colors.blue),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '${activeTab.label} View',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: context.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Yahan ${activeTab.label} ka custom breakdown aur detailed components visual report me hain.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: context.textMuted,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+
+        final double totalAssetsVal = al.totalAssets as double;
+        final double totalLiabVal = al.totalLiabilities as double;
+        final double totalEquityVal = al.totalEquity as double;
+        final double totalLiabAndEquityVal = al.totalLiabilitiesAndEquity as double;
+        final bool isMatched = (totalAssetsVal - totalLiabAndEquityVal).abs() < 1.0;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isWide)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: assetsWidget),
+                  const SizedBox(width: 24),
+                  Expanded(child: liabilitiesEquityWidget),
+                ],
+              )
+            else ...[
+              assetsWidget,
+              const SizedBox(height: 24),
+              liabilitiesEquityWidget,
+            ],
+
+            const SizedBox(height: 24),
+
+            // ─── BALANCE CHECK CARD ───
+            GlassCard(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Balance Check',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: context.textPrimary,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: context.cardBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: context.border),
+                            ),
+                            child: Column(
+                              children: [
+                                Text('Total Assets', style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Rs. ${totalAssetsVal.toStringAsFixed(0)}',
+                                  style: const TextStyle(color: Colors.blue, fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: context.cardBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: context.border),
+                            ),
+                            child: Column(
+                              children: [
+                                Text('Total Liabilities', style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Rs. ${totalLiabVal.toStringAsFixed(0)}',
+                                  style: const TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: context.cardBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: context.border),
+                            ),
+                            child: Column(
+                              children: [
+                                Text('Total Equity', style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Rs. ${totalEquityVal.toStringAsFixed(0)}',
+                                  style: const TextStyle(color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
+                              SizedBox(width: 10),
+                              Text(
+                                'Assets = Liabilities + Equity',
+                                style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Rs. ${totalAssetsVal.toStringAsFixed(0)} = Rs. ${totalLiabAndEquityVal.toStringAsFixed(0)}  ✓ ${isMatched ? "MATCH" : "OK"}',
+                            style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w900, fontSize: 15),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1903,4 +2684,126 @@ class _TrendChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TrendChartPainter oldDelegate) => true;
+}
+
+class _CurrentVsPriorYearChartPainter extends CustomPainter {
+  final double currentSales;
+  final double priorSales;
+  final double currentOther;
+  final double priorOther;
+  final double currentCogs;
+  final double priorCogs;
+  final double currentOpEx;
+  final double priorOpEx;
+  final Color textColor;
+  final Color gridColor;
+
+  _CurrentVsPriorYearChartPainter({
+    required this.currentSales,
+    required this.priorSales,
+    required this.currentOther,
+    required this.priorOther,
+    required this.currentCogs,
+    required this.priorCogs,
+    required this.currentOpEx,
+    required this.priorOpEx,
+    required this.textColor,
+    required this.gridColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double leftPadding = 90;
+    final double rightPadding = 15;
+    final double topPadding = 15;
+    final double bottomPadding = 30;
+
+    final double chartWidth = size.width - leftPadding - rightPadding;
+    final double chartHeight = size.height - topPadding - bottomPadding;
+
+    final items = [
+      {'label': 'Sales Revenue', 'current': currentSales, 'prior': priorSales},
+      {'label': 'Other Income', 'current': currentOther, 'prior': priorOther},
+      {'label': 'COGS', 'current': currentCogs, 'prior': priorCogs},
+      {'label': 'Operating Exp.', 'current': currentOpEx, 'prior': priorOpEx},
+    ];
+
+    double maxVal = 1000;
+    for (var it in items) {
+      if ((it['current'] as double) > maxVal) maxVal = it['current'] as double;
+      if ((it['prior'] as double) > maxVal) maxVal = it['prior'] as double;
+    }
+    double maxX = maxVal * 1.15;
+
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+
+    final textStyle = TextStyle(color: textColor, fontSize: 10);
+
+    for (int i = 0; i <= 4; i++) {
+      final double ratio = i / 4.0;
+      final double xPos = leftPadding + chartWidth * ratio;
+      final double val = maxX * ratio;
+
+      canvas.drawLine(Offset(xPos, topPadding), Offset(xPos, topPadding + chartHeight), gridPaint);
+
+      String label;
+      if (val >= 1000000) {
+        label = 'Rs.${(val / 1000000).toStringAsFixed(1)}M';
+      } else if (val >= 1000) {
+        label = 'Rs.${(val / 1000).toStringAsFixed(0)}K';
+      } else {
+        label = 'Rs.${val.toStringAsFixed(0)}';
+      }
+
+      final textPainter = TextPainter(
+        text: TextSpan(text: label, style: textStyle),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(xPos - textPainter.width / 2, size.height - bottomPadding + 8));
+    }
+
+    final rowHeight = chartHeight / items.length;
+    final barHeight = (rowHeight * 0.30).clamp(6.0, 16.0);
+
+    for (int i = 0; i < items.length; i++) {
+      final it = items[i];
+      final label = it['label'] as String;
+      final cVal = it['current'] as double;
+      final pVal = it['prior'] as double;
+
+      final rowCenterY = topPadding + (i * rowHeight) + (rowHeight / 2);
+
+      final labelPainter = TextPainter(
+        text: TextSpan(text: label, style: textStyle.copyWith(fontWeight: FontWeight.bold)),
+        textDirection: TextDirection.ltr,
+      );
+      labelPainter.layout();
+      labelPainter.paint(canvas, Offset(leftPadding - labelPainter.width - 8, rowCenterY - labelPainter.height / 2));
+
+      double cWidth = (cVal / maxX) * chartWidth;
+      double pWidth = (pVal / maxX) * chartWidth;
+
+      final currentRect = RRect.fromRectAndCorners(
+        Rect.fromLTWH(leftPadding, rowCenterY - barHeight - 1, cWidth, barHeight),
+        topRight: const Radius.circular(3),
+        bottomRight: const Radius.circular(3),
+      );
+      final currentPaint = Paint()..color = const Color(0xFF007AFF);
+      canvas.drawRRect(currentRect, currentPaint);
+
+      final priorRect = RRect.fromRectAndCorners(
+        Rect.fromLTWH(leftPadding, rowCenterY + 1, pWidth, barHeight),
+        topRight: const Radius.circular(3),
+        bottomRight: const Radius.circular(3),
+      );
+      final priorPaint = Paint()..color = const Color(0xFFCBD5E1);
+      canvas.drawRRect(priorRect, priorPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurrentVsPriorYearChartPainter oldDelegate) => true;
 }

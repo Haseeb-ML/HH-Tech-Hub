@@ -3,6 +3,8 @@ class ExpenseRecord {
     'Rent',
     'Salaries',
     'Bills',
+    'Internet',
+    'Electricity',
     'Supplies',
     'Refreshments',
     'Travel',
@@ -15,7 +17,7 @@ class ExpenseRecord {
   final String date; // ISO-8601 Date
   final double amount;
   final String accountId; // Debit source account
-  final String category; // 'Rent', 'Salaries', 'Bills', 'Supplies', 'Refreshments', 'Travel', 'Office Inventory', 'Assets Management', 'Other'
+  final String category; // 'Rent', 'Salaries', 'Bills', 'Internet', 'Electricity', 'Supplies', 'Refreshments', 'Travel', 'Office Inventory', 'Assets Management', 'Other'
   final String vendorName; // Optional
   final String description;
   final bool isPersonalExpense;
@@ -74,6 +76,8 @@ class ExpenseRecord {
     if (lower == 'misc' || lower == 'other' || lower == 'miscellaneous') return 'Other';
     if (lower == 'office inventory') return 'Office Inventory';
     if (lower == 'assets management' || lower == 'asset management') return 'Assets Management';
+    if (lower == 'internet' || lower == 'wifi' || lower == 'net') return 'Internet';
+    if (lower == 'electricity' || lower == 'power' || lower == 'electric') return 'Electricity';
 
     final exactMatch = validCategories.firstWhere(
       (category) => category.toLowerCase() == lower,

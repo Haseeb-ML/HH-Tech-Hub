@@ -34,8 +34,10 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
       case 5:
         return 'Inventory & Assets';
       case 6:
-        return 'Reports & Analytics';
+        return 'Finance Reports';
       case 7:
+        return 'Reports & Analytics';
+      case 8:
         return 'Administration';
       default:
         return 'Dashboard';
@@ -203,7 +205,7 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                           Switch(
                             value: isAutoExplain,
                             onChanged: (val) => ref.read(autoExplainProvider.notifier).toggle(val),
-                            activeColor: context.primaryColor,
+                            activeThumbColor: context.primaryColor,
                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                         ],

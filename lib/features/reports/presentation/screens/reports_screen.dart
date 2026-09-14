@@ -7,13 +7,10 @@ import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
 
 // Import providers
-import 'package:software_house_erp/features/finance/income/presentation/providers/income_provider.dart';
-import 'package:software_house_erp/features/finance/expenses/presentation/providers/expenses_provider.dart';
 import 'package:software_house_erp/features/hr/employees/presentation/providers/employees_provider.dart';
 import 'package:software_house_erp/features/projects/projects/presentation/providers/projects_provider.dart';
 import 'package:software_house_erp/features/inventory/assets/presentation/providers/assets_provider.dart';
 import 'package:software_house_erp/features/inventory/inventory/presentation/providers/inventory_provider.dart';
-import 'package:software_house_erp/features/hr/salaries/presentation/providers/salaries_provider.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -23,27 +20,7 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
-  int _activeTab = 0; // 0: Financials, 1: Projects, 2: Resources
-  String _reportPeriod = 'This Month';
-  String _reportFocus = 'Overview';
-
-  bool _isInSelectedPeriod(String dateValue) {
-    final date = DateTime.tryParse(dateValue);
-    if (date == null) return false;
-    final now = DateTime.now();
-    switch (_reportPeriod) {
-      case 'This Month':
-        return date.year == now.year && date.month == now.month;
-      case 'Last Month':
-        final lastMonth = DateTime(now.year, now.month - 1);
-        return date.year == lastMonth.year && date.month == lastMonth.month;
-      case 'This Year':
-        return date.year == now.year;
-      case 'All Time':
-      default:
-        return true;
-    }
-  }
+  int _activeTab = 0; // 0: Projects, 1: Resources
 
   @override
   Widget build(BuildContext context) {
@@ -51,21 +28,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final theme = Theme.of(context);
     
     // Watch all data providers for real-time aggregation
-    final incomeState = ref.watch(incomeProvider);
-    final expensesState = ref.watch(expensesProvider);
     final projectsState = ref.watch(projectsProvider);
     final employeesState = ref.watch(employeesProvider);
     final assetsState = ref.watch(assetsProvider);
     final inventoryState = ref.watch(inventoryProvider);
-    final salariesState = ref.watch(salariesProvider);
 
-    final isLoading = incomeState.isLoading ||
-        expensesState.isLoading ||
-        projectsState.isLoading ||
+    final isLoading = projectsState.isLoading ||
         employeesState.isLoading ||
         assetsState.isLoading ||
-        inventoryState.isLoading ||
-        salariesState.isLoading;
+        inventoryState.isLoading;
 
     // Construct dynamic export data based on active tab
     String exportTitle;
@@ -74,24 +45,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     List<List<dynamic>> exportRows;
 
     if (_activeTab == 0) {
-      exportTitle = 'Financial Summary Report';
-      exportFileName = 'financial_summary_report';
-      exportHeaders = ['Transaction ID', tr('Type'), tr('Category'), tr('Description'), 'Amount', tr('Date')];
-      // Only include payroll that has been actually processed (payslips issued)
-        final processedPayroll = salariesState.salaries
-          .where((s) => s.status == 'Paid' && _isInSelectedPeriod(s.paymentDate))
-          .fold<double>(0, (sum, s) => sum + s.netPaid);
-      exportRows = [
-        ...incomeState.incomes
-          .where((i) => _isInSelectedPeriod(i.date))
-          .map((i) => [i.id, tr('Income'), 'Revenue (${i.clientName})', i.description, 'Rs. ${i.amount.toStringAsFixed(0)}', i.date]),
-        ...expensesState.expenses
-          .where((e) => !e.isPersonalExpense && _isInSelectedPeriod(e.date))
-          .map((e) => [e.id, 'Expense', e.category, e.description, 'Rs. ${e.amount.toStringAsFixed(0)}', e.date]),
-        if (processedPayroll > 0)
-          ['PAYROLL', 'Expense', 'Staff Payroll', 'Processed Payroll (Issued Payslips)', 'Rs. ${processedPayroll.toStringAsFixed(0)}', DateTime.now().toLocal().toString().substring(0, 10)],
-      ]..sort((a, b) => b[5].toString().compareTo(a[5].toString()));
-    } else if (_activeTab == 1) {
       exportTitle = 'Projects Portfolio Report';
       exportFileName = 'projects_portfolio_report';
       exportHeaders = ['Project ID', 'Project Name', 'Client Name', 'Budget', tr('Status'), 'Start Date', 'End Date'];
@@ -177,63 +130,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        if (_activeTab == 0)
-                          Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: 12,
-                            runSpacing: 10,
-                            children: [
-                              SizedBox(
-                                width: 190,
-                                child: DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  value: _reportFocus,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Report View',
-                                    border: OutlineInputBorder(),
-                                    isDense: true,
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(value: 'Overview', child: Text('Overview')),
-                                    DropdownMenuItem(value: 'Income by Client', child: Text('Income by Client', overflow: TextOverflow.ellipsis)),
-                                    DropdownMenuItem(value: 'Expenses by Category', child: Text('Expenses by Category', overflow: TextOverflow.ellipsis)),
-                                    DropdownMenuItem(value: 'Payroll by Employee', child: Text('Payroll by Employee', overflow: TextOverflow.ellipsis)),
-                                    DropdownMenuItem(value: 'Profit / Loss', child: Text('Profit / Loss', overflow: TextOverflow.ellipsis)),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) setState(() => _reportFocus = value);
-                                  },
-                                ),
-                              ),
-                              SizedBox(
-                                width: 160,
-                                child: DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  value: _reportPeriod,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Period',
-                                    border: OutlineInputBorder(),
-                                    isDense: true,
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(value: 'This Month', child: Text('This Month')),
-                                    DropdownMenuItem(value: 'Last Month', child: Text('Last Month')),
-                                    DropdownMenuItem(value: 'This Year', child: Text('This Year')),
-                                    DropdownMenuItem(value: 'All Time', child: Text('All Time')),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) setState(() => _reportPeriod = value);
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        if (_activeTab == 0) const SizedBox(height: 16),
-
                         // Switch Tab Body
                         if (_activeTab == 0)
-                          _buildFinancialsTab(incomeState, expensesState, salariesState)
-                        else if (_activeTab == 1)
                           _buildProjectsTab(projectsState)
                         else
                           _buildResourcesTab(employeesState, assetsState, inventoryState),
@@ -251,7 +149,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
     final tabs = [
-      {'label': tr('Financial Reports'), 'icon': Icons.account_balance_outlined},
       {'label': tr('Projects & Operations'), 'icon': Icons.assignment_turned_in_outlined},
       {'label': tr('Resources & Staffing'), 'icon': Icons.badge_outlined},
     ];
@@ -313,291 +210,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           );
         }),
       ),
-    );
-  }
-
-  // ── FINANCIALS TAB ────────────────────────────────────
-  Widget _buildFinancialsTab(IncomeState incState, ExpensesState expState, SalariesState salState) {
-    final tr = ref.watch(translationProvider);
-    // 1. Calculations
-    final periodIncomes = incState.incomes.where((i) => _isInSelectedPeriod(i.date)).toList();
-    final periodExpenses = expState.expenses
-      .where((e) => !e.isPersonalExpense && _isInSelectedPeriod(e.date))
-      .toList();
-    final periodSalaries = salState.salaries
-      .where((s) => s.status == 'Paid' && _isInSelectedPeriod(s.paymentDate))
-      .toList();
-
-    final totalIncome = periodIncomes.fold<double>(0, (sum, i) => sum + i.amount);
-    
-    // Only count payroll that has been actually processed (payslips issued via Process Payroll)
-    final processedPayroll = periodSalaries.fold<double>(0, (sum, s) => sum + s.netPaid);
-    
-    final directExpenses = periodExpenses.fold<double>(0, (sum, e) => sum + e.amount);
-    final totalExpenses = directExpenses + processedPayroll;
-    
-    final netProfit = totalIncome - totalExpenses;
-    final profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0.0;
-
-    // Group expenses by category
-    final expenseMap = <String, double>{};
-    // Only add Staff Payroll if payroll has been processed
-    if (processedPayroll > 0) {
-      expenseMap['Staff Payroll'] = processedPayroll;
-    }
-    for (var exp in periodExpenses) {
-      expenseMap[exp.category] = (expenseMap[exp.category] ?? 0.0) + exp.amount;
-    }
-    final sortedExpenses = expenseMap.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    final now = DateTime.now();
-    final monthPoints = <DateTime>[];
-    if (_reportPeriod == 'This Month') {
-      monthPoints.add(DateTime(now.year, now.month));
-    } else if (_reportPeriod == 'Last Month') {
-      monthPoints.add(DateTime(now.year, now.month - 1));
-    } else if (_reportPeriod == 'This Year') {
-      for (var month = 1; month <= 12; month++) {
-        monthPoints.add(DateTime(now.year, month));
-      }
-    } else {
-      for (var offset = 11; offset >= 0; offset--) {
-        monthPoints.add(DateTime(now.year, now.month - offset));
-      }
-    }
-
-    final monthNames = const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final monthlyOverview = monthPoints.map((point) {
-      double income = 0;
-      double expenses = 0;
-      for (final item in incState.incomes) {
-        final date = DateTime.tryParse(item.date);
-        if (date != null && date.year == point.year && date.month == point.month) income += item.amount;
-      }
-      for (final item in expState.expenses) {
-        final date = DateTime.tryParse(item.date);
-        if (date != null && !item.isPersonalExpense && date.year == point.year && date.month == point.month) expenses += item.amount;
-      }
-      for (final item in salState.salaries) {
-        final date = DateTime.tryParse(item.paymentDate);
-        if (date != null && item.status == 'Paid' && date.year == point.year && date.month == point.month) expenses += item.netPaid;
-      }
-      return _BarData(label: monthNames[point.month - 1], primaryValue: income, secondaryValue: expenses);
-    }).toList();
-
-    final graphData = <_BarData>[];
-    var graphTitle = 'Report Overview';
-    var graphPrimaryLegend = 'Amount';
-    var graphSecondaryLegend = 'Expenses';
-    var graphIsSingleBar = true;
-    if (_reportFocus == 'Income by Client') {
-      graphTitle = 'Income by Client';
-      graphPrimaryLegend = 'Income';
-      final byClient = <String, double>{};
-      for (final income in periodIncomes) {
-        byClient[income.clientName] = (byClient[income.clientName] ?? 0) + income.amount;
-      }
-      byClient.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value))
-        ..take(8)
-        .forEach((entry) => graphData.add(_BarData(label: entry.key, primaryValue: entry.value, secondaryValue: 0)));
-    } else if (_reportFocus == 'Expenses by Category') {
-      graphTitle = 'Expenses by Category';
-      graphPrimaryLegend = 'Expenses';
-      sortedExpenses.take(8).forEach((entry) => graphData.add(_BarData(label: entry.key, primaryValue: entry.value, secondaryValue: 0)));
-    } else if (_reportFocus == 'Payroll by Employee') {
-      graphTitle = 'Payroll by Employee';
-      graphPrimaryLegend = 'Paid Payroll';
-      final byEmployee = <String, double>{};
-      for (final salary in periodSalaries) {
-        byEmployee[salary.employeeName] = (byEmployee[salary.employeeName] ?? 0) + salary.netPaid;
-      }
-      byEmployee.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value))
-        ..take(8)
-        .forEach((entry) => graphData.add(_BarData(label: entry.key, primaryValue: entry.value, secondaryValue: 0)));
-    } else if (_reportFocus == 'Profit / Loss') {
-      graphTitle = 'Profit / Loss';
-      graphPrimaryLegend = 'Income';
-      graphSecondaryLegend = 'Expenses';
-      graphIsSingleBar = false;
-      graphData.addAll(monthlyOverview);
-    } else {
-      graphTitle = 'Report Overview';
-      graphPrimaryLegend = 'Income';
-      graphSecondaryLegend = 'Expenses';
-      graphIsSingleBar = false;
-      graphData.addAll(monthlyOverview);
-    }
-
-    final showSummary = _reportFocus == 'Overview' || _reportFocus == 'Profit / Loss';
-    final showIncome = _reportFocus == 'Overview' || _reportFocus == 'Income by Client';
-    final showExpenses = _reportFocus == 'Overview' || _reportFocus == 'Expenses by Category';
-    final showPayroll = _reportFocus == 'Overview' || _reportFocus == 'Payroll by Employee';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // KPI Summary Cards
-        Row(
-          children: [
-            Expanded(
-              child: StatCard(
-                title: tr('Total Revenue'),
-                tooltipMessage: "Detailed statistics and information regarding ${tr('Total Revenue')}.",
-                value: 'Rs. ${(totalIncome / 1000).toStringAsFixed(1)}k',
-                icon: Icons.trending_up,
-                iconColor: context.success,
-                iconBgColor: context.successLight,
-                trendText: tr('Accumulated client fees'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: tr('Total Costs'),
-                tooltipMessage: "Detailed statistics and information regarding ${tr('Total Costs')}.",
-                value: 'Rs. ${(totalExpenses / 1000).toStringAsFixed(1)}k',
-                icon: Icons.trending_down,
-                iconColor: context.error,
-                iconBgColor: context.errorLight,
-                trendText: tr('Direct expenses + Salaries'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'Net Revenue',
-                tooltipMessage: 'Detailed statistics and information regarding Net Revenue.',
-                value: 'Rs. ${(netProfit / 1000).toStringAsFixed(1)}k',
-                icon: Icons.account_balance_wallet_outlined,
-                iconColor: netProfit >= 0 ? context.success : context.error,
-                iconBgColor: netProfit >= 0 ? context.successLight : context.errorLight,
-                trendText: tr('Net cash flow margin'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'Profit Margin',
-                tooltipMessage: 'Detailed statistics and information regarding Profit Margin.',
-                value: '${profitMargin.toStringAsFixed(1)}%',
-                icon: Icons.pie_chart_outline_outlined,
-                iconColor: context.info,
-                iconBgColor: context.infoLight,
-                trendText: tr('Revenue margin efficiency'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        if (showSummary)
-          _buildReportSection(
-            context,
-            title: 'Financial Summary',
-            columns: const ['Item', 'Amount', 'Classification'],
-            rows: [
-              ['Total income', _formatReportAmount(totalIncome), 'Revenue'],
-              ['Direct company expenses', _formatReportAmount(directExpenses), 'Expense'],
-              ['Paid payroll', _formatReportAmount(processedPayroll), 'Expense'],
-              ['Total expenses', _formatReportAmount(totalExpenses), 'Expense'],
-              ['Net profit / loss', _formatReportAmount(netProfit), netProfit >= 0 ? 'Profit' : 'Loss'],
-              ['Profit margin', '${profitMargin.toStringAsFixed(2)}%', 'Calculated'],
-            ],
-          ),
-        if (showSummary && (showIncome || showExpenses || showPayroll)) const SizedBox(height: 20),
-        if (showIncome)
-          _buildReportSection(
-            context,
-            title: 'Income Detail',
-            columns: const ['Date', 'Client', 'Invoice', 'Description', 'Amount'],
-            rows: periodIncomes.map((income) => [
-              income.date.split('T').first,
-              income.clientName,
-              income.invoiceNumber,
-              income.description,
-              _formatReportAmount(income.amount),
-            ]).toList(),
-            emptyText: 'No income recorded for this period.',
-          ),
-        if (showIncome && (showExpenses || showPayroll)) const SizedBox(height: 20),
-        if (showExpenses)
-          _buildReportSection(
-            context,
-            title: 'Expense Detail',
-            columns: const ['Date', 'Category', 'Vendor', 'Description', 'Amount'],
-            rows: periodExpenses.map((expense) => [
-              expense.date.split('T').first,
-              expense.category,
-              expense.vendorName,
-              expense.description,
-              _formatReportAmount(expense.amount),
-            ]).toList(),
-            emptyText: 'No company expenses recorded for this period.',
-          ),
-        if (showExpenses && showPayroll) const SizedBox(height: 20),
-        if (showPayroll)
-          _buildReportSection(
-            context,
-            title: 'Payroll Detail',
-            columns: const ['Payment Date', 'Employee', 'Pay Period', 'Status', 'Net Paid'],
-            rows: periodSalaries.map((salary) => [
-              salary.paymentDate.split('T').first,
-              salary.employeeName,
-              salary.payPeriod,
-              salary.status,
-              _formatReportAmount(salary.netPaid),
-            ]).toList(),
-            emptyText: 'No paid payroll recorded for this period.',
-          ),
-        const SizedBox(height: 24),
-        GlassCard(
-          title: '$graphTitle Report Graph',
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: _CustomBarChart(
-              data: graphData,
-              primaryColor: context.success,
-              secondaryColor: context.error,
-              primaryLegend: graphPrimaryLegend,
-              secondaryLegend: graphSecondaryLegend,
-              isSingleBar: graphIsSingleBar,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _formatReportAmount(double amount) => 'Rs. ${amount.toStringAsFixed(2)}';
-
-  Widget _buildReportSection(
-    BuildContext context, {
-    required String title,
-    required List<String> columns,
-    required List<List<String>> rows,
-    String emptyText = 'No records found.',
-  }) {
-    return GlassCard(
-      title: title,
-      child: rows.isEmpty
-          ? Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(emptyText, style: TextStyle(color: context.textSecondary)),
-            )
-          : SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: columns.map((column) => DataColumn(label: Text(column))).toList(),
-                rows: rows.map((row) {
-                  return DataRow(
-                    cells: row.map((value) => DataCell(Text(value))).toList(),
-                  );
-                }).toList(),
-              ),
-            ),
     );
   }
 
