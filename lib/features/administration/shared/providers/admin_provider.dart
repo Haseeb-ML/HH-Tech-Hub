@@ -688,15 +688,52 @@ class AdminNotifier extends Notifier<AdminState> {
       final backupFile = File(backupFilePath);
 
       if (await backupFile.exists()) {
-        final db = ref.read(appDatabaseProvider);
-        await db.close();
+        final ext = p.extension(filename).toLowerCase();
 
-        final dbFile = await getDatabaseFile();
-        if (await dbFile.exists()) {
-          await dbFile.delete();
+        if (ext == '.db') {
+          final db = ref.read(appDatabaseProvider);
+          await db.close();
+
+          final dbFile = await getDatabaseFile();
+          if (await dbFile.exists()) {
+            await dbFile.delete();
+          }
+          await backupFile.copy(dbFile.path);
+        } else if (ext == '.json') {
+          try {
+            final jsonData = await backupFile.readAsString();
+            final Map<String, dynamic> map = jsonDecode(jsonData);
+            final prefs = await SharedPreferences.getInstance();
+            for (var entry in map.entries) {
+              final value = entry.value;
+              if (value is String) {
+                await prefs.setString(entry.key, value);
+              } else if (value is int) {
+                await prefs.setInt(entry.key, value);
+              } else if (value is double) {
+                await prefs.setDouble(entry.key, value);
+              } else if (value is bool) {
+                await prefs.setBool(entry.key, value);
+              } else if (value is List) {
+                await prefs.setStringList(entry.key, List<String>.from(value));
+              }
+            }
+          } catch (_) {}
+
+          final dbFilename = filename.replaceAll('.json', '.db');
+          final dbBackupFile = File(p.join(backupDir.path, dbFilename));
+          if (await dbBackupFile.exists()) {
+            final db = ref.read(appDatabaseProvider);
+            await db.close();
+
+            final dbFile = await getDatabaseFile();
+            if (await dbFile.exists()) {
+              await dbFile.delete();
+            }
+            await dbBackupFile.copy(dbFile.path);
+          }
         }
 
-        await backupFile.copy(dbFile.path);
         _invalidateAllDataProviders();
 
         state = state.copyWith(isLoading: false);
@@ -722,6 +759,76 @@ class AdminNotifier extends Notifier<AdminState> {
     }
   }
 
+  Future<void> exportBackupFile(String filename) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final backupDir = await getBackupsDirectory();
+      final sourcePath = p.join(backupDir.path, filename);
+      final sourceFile = File(sourcePath);
+
+      if (!await sourceFile.exists()) {
+        throw Exception('Backup file does not exist.');
+      }
+
+      final ext = p.extension(filename);
+      final filterStr = ext.toLowerCase() == '.db'
+          ? "SQLite Database (*.db)|*.db"
+          : "JSON Backup (*.json)|*.json";
+
+      final result = await Process.run('powershell', [
+        '-NoProfile',
+        '-Command',
+        '''
+        Add-Type -AssemblyName System.Windows.Forms;
+        \$FileSaver = New-Object System.Windows.Forms.SaveFileDialog;
+        \$FileSaver.Filter = "$filterStr";
+        \$FileSaver.Title = "Save Backup File As";
+        \$FileSaver.FileName = "$filename";
+        \$Show = \$FileSaver.ShowDialog();
+        If (\$Show -eq "OK") {
+            Write-Host \$FileSaver.FileName
+        }
+        '''
+      ]);
+
+      final savePath = result.stdout.toString().trim();
+      if (savePath.isNotEmpty) {
+        await sourceFile.copy(savePath);
+        _logAction('admin@hhtech.com', 'Backup exported to: $savePath', 'System');
+      }
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
+      _logAction('admin@hhtech.com', 'Export backup failed: $e', 'System');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteBackupFile(String id, String filename) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final backupDir = await getBackupsDirectory();
+      final filePath = p.join(backupDir.path, filename);
+      final file = File(filePath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      final dbPairPath = filePath.replaceAll('.json', '.db');
+      final dbPairFile = File(dbPairPath);
+      if (await dbPairFile.exists()) {
+        await dbPairFile.delete();
+      }
+
+      final list = state.backups.where((b) => b.id != id && b.filename != filename).toList();
+      state = state.copyWith(backups: list, isLoading: false);
+      _logAction('admin@hhtech.com', 'Deleted backup file: $filename', 'System');
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
+      _logAction('admin@hhtech.com', 'Delete backup failed: $e', 'System');
+      rethrow;
+    }
+  }
+
   Future<void> importBackup() async {
     state = state.copyWith(isLoading: true);
     try {
@@ -731,8 +838,8 @@ class AdminNotifier extends Notifier<AdminState> {
         '''
         Add-Type -AssemblyName System.Windows.Forms;
         \$FileBrowser = New-Object System.Windows.Forms.OpenFileDialog;
-        \$FileBrowser.Filter = "JSON Backup (*.json)|*.json";
-        \$FileBrowser.Title = "Select JSON Backup";
+        \$FileBrowser.Filter = "Backup Files (*.json;*.db)|*.json;*.db|All Files (*.*)|*.*";
+        \$FileBrowser.Title = "Select ERP Backup File";
         \$Show = \$FileBrowser.ShowDialog();
         If (\$Show -eq "OK") {
             Write-Host \$FileBrowser.FileName
@@ -748,22 +855,9 @@ class AdminNotifier extends Notifier<AdminState> {
 
       final selectedFile = File(filePath);
       if (await selectedFile.exists()) {
-        final jsonData = await selectedFile.readAsString();
-        final Map<String, dynamic> map = jsonDecode(jsonData);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.clear();
-        for (var entry in map.entries) {
-          final value = entry.value;
-          if (value is String) await prefs.setString(entry.key, value);
-          else if (value is int) await prefs.setInt(entry.key, value);
-          else if (value is double) await prefs.setDouble(entry.key, value);
-          else if (value is bool) await prefs.setBool(entry.key, value);
-          else if (value is List) await prefs.setStringList(entry.key, List<String>.from(value));
-        }
+        final ext = p.extension(filePath).toLowerCase();
 
-        final dbFilename = p.basename(filePath).replaceAll('.json', '.db');
-        final dbBackupFile = File(p.join(p.dirname(filePath), dbFilename));
-        if (await dbBackupFile.exists()) {
+        if (ext == '.db') {
           final db = ref.read(appDatabaseProvider);
           await db.close();
 
@@ -771,13 +865,59 @@ class AdminNotifier extends Notifier<AdminState> {
           if (await dbFile.exists()) {
             await dbFile.delete();
           }
-          await dbBackupFile.copy(dbFile.path);
+          await selectedFile.copy(dbFile.path);
+        } else if (ext == '.json') {
+          try {
+            final jsonData = await selectedFile.readAsString();
+            final Map<String, dynamic> map = jsonDecode(jsonData);
+            final prefs = await SharedPreferences.getInstance();
+            for (var entry in map.entries) {
+              final value = entry.value;
+              if (value is String) {
+                await prefs.setString(entry.key, value);
+              } else if (value is int) {
+                await prefs.setInt(entry.key, value);
+              } else if (value is double) {
+                await prefs.setDouble(entry.key, value);
+              } else if (value is bool) {
+                await prefs.setBool(entry.key, value);
+              } else if (value is List) {
+                await prefs.setStringList(entry.key, List<String>.from(value));
+              }
+            }
+          } catch (_) {}
+
+          final dbFilename = p.basename(filePath).replaceAll('.json', '.db');
+          final dbBackupFile = File(p.join(p.dirname(filePath), dbFilename));
+          if (await dbBackupFile.exists()) {
+            final db = ref.read(appDatabaseProvider);
+            await db.close();
+
+            final dbFile = await getDatabaseFile();
+            if (await dbFile.exists()) {
+              await dbFile.delete();
+            }
+            await dbBackupFile.copy(dbFile.path);
+          }
         }
 
         _invalidateAllDataProviders();
 
-        state = state.copyWith(isLoading: false);
-        _logAction('admin@hhtech.com', 'Database imported from: ${p.basename(filePath)}', 'System');
+        final filename = p.basename(filePath);
+        final sizeBytes = await selectedFile.length();
+        final sizeMB = (sizeBytes / (1024 * 1024)).toStringAsFixed(3);
+        final newBackup = AdminBackup(
+          id: 'BCK-IMP-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+          filename: filename,
+          size: '$sizeMB MB',
+          date: DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' '),
+          status: 'Imported',
+          createdBy: 'User Import',
+        );
+
+        final list = List<AdminBackup>.from(state.backups)..add(newBackup);
+        state = state.copyWith(backups: list, isLoading: false);
+        _logAction('admin@hhtech.com', 'Database imported from: $filename', 'System');
       } else {
         throw Exception('Selected file does not exist.');
       }

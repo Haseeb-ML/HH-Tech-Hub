@@ -307,41 +307,113 @@ class BackupScreen extends ConsumerWidget {
                                   ),
                                   DataCell(Text(backup.createdBy, style: TextStyle(color: context.textSecondary, fontSize: 13))),
                                   DataCell(
-                                    TextButton.icon(
-                                      onPressed: () async {
-                                        final messenger = ScaffoldMessenger.of(context);
-                                        final successColor = context.success;
-                                        final confirm = await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) => AlertDialog(
-                                            title: const Text('Restore System Database'),
-                                            content: Text('${tr("Are you sure you want to restore the system state from")} "${backup.filename}"? ${tr("This will rollback recent transactions.")}'),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context, false),
-                                                child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        TextButton.icon(
+                                          onPressed: () async {
+                                            final messenger = ScaffoldMessenger.of(context);
+                                            final successColor = context.success;
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                backgroundColor: context.cardBg,
+                                                title: Text('Restore System Database', style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.bold)),
+                                                content: Text('${tr("Are you sure you want to restore the system state from")} "${backup.filename}"? ${tr("This will rollback recent transactions.")}', style: TextStyle(color: context.textSecondary)),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () => Navigator.pop(context, false),
+                                                    child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                                                  ),
+                                                  ElevatedButton(
+                                                    onPressed: () => Navigator.pop(context, true),
+                                                    style: ElevatedButton.styleFrom(backgroundColor: context.primaryColor, foregroundColor: Colors.white),
+                                                    child: const Text('Restore'),
+                                                  ),
+                                                ],
                                               ),
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(context, true),
-                                                child: Text('Restore', style: TextStyle(color: context.primaryColor)),
+                                            );
+                                            if (confirm == true) {
+                                              await ref.read(adminProvider.notifier).triggerRestore(backup.filename);
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text('${tr("System restored from")} "${backup.filename}" ${tr("successfully.")}'),
+                                                  behavior: SnackBarBehavior.floating,
+                                                  backgroundColor: successColor,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          icon: const Icon(Icons.settings_backup_restore, size: 14),
+                                          label: const Text('Restore', style: TextStyle(fontSize: 12)),
+                                          style: TextButton.styleFrom(foregroundColor: context.primaryColor),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          tooltip: 'Export / Download Backup',
+                                          icon: Icon(Icons.download, size: 16, color: context.info),
+                                          onPressed: () async {
+                                            final messenger = ScaffoldMessenger.of(context);
+                                            final successColor = context.success;
+                                            final errorColor = context.error;
+                                            try {
+                                              await ref.read(adminProvider.notifier).exportBackupFile(backup.filename);
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text(tr('Backup file exported successfully.')),
+                                                  behavior: SnackBarBehavior.floating,
+                                                  backgroundColor: successColor,
+                                                ),
+                                              );
+                                            } catch (e) {
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text('${tr("Export failed")}: $e'),
+                                                  behavior: SnackBarBehavior.floating,
+                                                  backgroundColor: errorColor,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                        ),
+                                        IconButton(
+                                          tooltip: 'Delete Backup',
+                                          icon: Icon(Icons.delete_outline, size: 16, color: context.error),
+                                          onPressed: () async {
+                                            final messenger = ScaffoldMessenger.of(context);
+                                            final successColor = context.success;
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                backgroundColor: context.cardBg,
+                                                title: Text('Delete Backup File', style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.bold)),
+                                                content: Text('Are you sure you want to delete backup file "${backup.filename}"?', style: TextStyle(color: context.textSecondary)),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () => Navigator.pop(context, false),
+                                                    child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                                                  ),
+                                                  ElevatedButton(
+                                                    onPressed: () => Navigator.pop(context, true),
+                                                    style: ElevatedButton.styleFrom(backgroundColor: context.error, foregroundColor: Colors.white),
+                                                    child: Text(tr('Delete')),
+                                                  ),
+                                                ],
                                               ),
-                                            ],
-                                          ),
-                                        );
-                                        if (confirm == true) {
-                                          await ref.read(adminProvider.notifier).triggerRestore(backup.filename);
-                                          messenger.showSnackBar(
-                                            SnackBar(
-                                              content: Text('${tr("System restored from")} "${backup.filename}" ${tr("successfully.")}'),
-                                              behavior: SnackBarBehavior.floating,
-                                              backgroundColor: successColor,
-                                            ),
-                                          );
-                                        }
-                                      },
-                                      icon: const Icon(Icons.settings_backup_restore, size: 14),
-                                      label: const Text('Restore', style: TextStyle(fontSize: 12)),
-                                      style: TextButton.styleFrom(foregroundColor: context.primaryColor),
+                                            );
+                                            if (confirm == true) {
+                                              await ref.read(adminProvider.notifier).deleteBackupFile(backup.id, backup.filename);
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text(tr('Backup file deleted successfully.')),
+                                                  behavior: SnackBarBehavior.floating,
+                                                  backgroundColor: successColor,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
