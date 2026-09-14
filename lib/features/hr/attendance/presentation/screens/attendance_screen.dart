@@ -1540,6 +1540,43 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
     super.dispose();
   }
 
+  String _formatCurrentTime() {
+    final now = TimeOfDay.now();
+    final hour = now.hourOfPeriod == 0 ? 12 : now.hourOfPeriod;
+    final minute = now.minute.toString().padLeft(2, '0');
+    final period = now.period == DayPeriod.am ? 'AM' : 'PM';
+    return '${hour.toString().padLeft(2, '0')}:$minute $period';
+  }
+
+  Future<void> _selectTime(TextEditingController controller) async {
+    TimeOfDay initial = const TimeOfDay(hour: 9, minute: 0);
+    if (controller.text.isNotEmpty) {
+      try {
+        final parts = controller.text.trim().split(' ');
+        final timeParts = parts[0].split(':');
+        int h = int.parse(timeParts[0]);
+        int m = int.parse(timeParts[1]);
+        if (parts.length > 1 && parts[1].toUpperCase() == 'PM' && h < 12) h += 12;
+        if (parts.length > 1 && parts[1].toUpperCase() == 'AM' && h == 12) h = 0;
+        initial = TimeOfDay(hour: h, minute: m);
+      } catch (_) {}
+    }
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initial,
+    );
+
+    if (picked != null) {
+      final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+      final minute = picked.minute.toString().padLeft(2, '0');
+      final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
+      setState(() {
+        controller.text = '${hour.toString().padLeft(2, '0')}:$minute $period';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1594,7 +1631,16 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                   if (val != null) {
                     setState(() {
                       _status = val;
-                      if (!const {'Present', 'Late', 'Half Day', 'Work From Home', 'Official Visit'}.contains(val)) {
+                      if (const {'Present', 'Work From Home', 'Official Visit'}.contains(val)) {
+                        if (_checkInController.text.isEmpty) _checkInController.text = '09:00 AM';
+                        if (_checkOutController.text.isEmpty) _checkOutController.text = '06:00 PM';
+                      } else if (val == 'Half Day') {
+                        if (_checkInController.text.isEmpty) _checkInController.text = '09:00 AM';
+                        if (_checkOutController.text.isEmpty) _checkOutController.text = '01:30 PM';
+                      } else if (val == 'Late') {
+                        if (_checkInController.text.isEmpty) _checkInController.text = '09:30 AM';
+                        if (_checkOutController.text.isEmpty) _checkOutController.text = '06:00 PM';
+                      } else {
                         _checkInController.clear();
                         _checkOutController.clear();
                       }
@@ -1604,7 +1650,7 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
               ),
               const SizedBox(height: 16),
 
-              if (const {'Present', 'Half Day', 'Work From Home', 'Official Visit'}.contains(_status)) ...[
+              if (const {'Present', 'Late', 'Half Day', 'Work From Home', 'Official Visit'}.contains(_status)) ...[
                 Row(
                   children: [
                     Expanded(
@@ -1614,8 +1660,16 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                           _buildLabel('Check-In Time'),
                           TextFormField(
                             controller: _checkInController,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('e.g. 09:00 AM'),
+                            readOnly: true,
+                            onTap: () => _selectTime(_checkInController),
+                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                            decoration: _buildInputDecoration('e.g. 09:00 AM').copyWith(
+                              suffixIcon: IconButton(
+                                icon: Icon(Icons.access_time, color: context.primaryColor, size: 18),
+                                onPressed: () => _selectTime(_checkInController),
+                                tooltip: 'Pick Check-In Time',
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -1628,13 +1682,63 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                           _buildLabel('Check-Out Time'),
                           TextFormField(
                             controller: _checkOutController,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('e.g. 06:00 PM'),
+                            readOnly: true,
+                            onTap: () => _selectTime(_checkOutController),
+                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                            decoration: _buildInputDecoration('e.g. 06:00 PM').copyWith(
+                              suffixIcon: IconButton(
+                                icon: Icon(Icons.access_time, color: context.primaryColor, size: 18),
+                                onPressed: () => _selectTime(_checkOutController),
+                                tooltip: 'Pick Check-Out Time',
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+
+                // Quick Preset Shortcut Chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.schedule, size: 14),
+                        label: const Text('09:00 AM - 06:00 PM', style: TextStyle(fontSize: 11)),
+                        backgroundColor: context.primaryColor.withValues(alpha: 0.1),
+                        side: BorderSide(color: context.primaryColor.withValues(alpha: 0.3)),
+                        onPressed: () {
+                          setState(() {
+                            _checkInController.text = '09:00 AM';
+                            _checkOutController.text = '06:00 PM';
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      ActionChip(
+                        avatar: const Icon(Icons.login, size: 14, color: Colors.green),
+                        label: const Text('In: Now', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          setState(() {
+                            _checkInController.text = _formatCurrentTime();
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      ActionChip(
+                        avatar: const Icon(Icons.logout, size: 14, color: Colors.orange),
+                        label: const Text('Out: Now', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          setState(() {
+                            _checkOutController.text = _formatCurrentTime();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
               ],
