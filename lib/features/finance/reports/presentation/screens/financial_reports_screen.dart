@@ -208,8 +208,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       label: Text(label),
       selected: isSelected,
       onSelected: (_) {
-        ref.read(reportFilterProvider.notifier).state =
-            ref.read(reportFilterProvider).copyWith(dateRange: range);
+        ref.read(reportFilterProvider.notifier).setDateRange(range);
       },
       selectedColor: context.primaryColor.withValues(alpha: 0.15),
       backgroundColor: context.cardBg,

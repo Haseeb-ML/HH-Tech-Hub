@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/financial_summary_model.dart';
-import '../../../../accounts/presentation/providers/accounts_provider.dart';
-import '../../../../expenses/presentation/providers/expenses_provider.dart';
-import '../../../../income/presentation/providers/income_provider.dart';
-import '../../../../ledger/presentation/providers/ledger_provider.dart';
-import '../../../../loans/presentation/providers/loans_provider.dart';
-import '../../../../../hr/salaries/presentation/providers/salaries_provider.dart';
-import '../../../../../inventory/inventory/presentation/providers/inventory_provider.dart';
-import '../../../../../sales/sales/presentation/providers/sales_invoices_provider.dart';
+import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
+import 'package:software_house_erp/features/finance/expenses/presentation/providers/expenses_provider.dart';
+import 'package:software_house_erp/features/finance/income/presentation/providers/income_provider.dart';
+import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
+import 'package:software_house_erp/features/finance/loans/presentation/providers/loans_provider.dart';
+import 'package:software_house_erp/features/hr/salaries/presentation/providers/salaries_provider.dart';
+import 'package:software_house_erp/features/inventory/inventory/presentation/providers/inventory_provider.dart';
+import 'package:software_house_erp/features/sales/sales/presentation/providers/sales_invoices_provider.dart';
 
 enum ReportDateRange { today, thisMonth, thisYear, allTime, custom }
 
@@ -35,9 +35,25 @@ class FinancialReportFilter {
   }
 }
 
-final reportFilterProvider = StateProvider<FinancialReportFilter>((ref) {
-  return const FinancialReportFilter(dateRange: ReportDateRange.thisMonth);
-});
+class ReportFilterNotifier extends Notifier<FinancialReportFilter> {
+  @override
+  FinancialReportFilter build() {
+    return const FinancialReportFilter(dateRange: ReportDateRange.thisMonth);
+  }
+
+  void setFilter(FinancialReportFilter filter) {
+    state = filter;
+  }
+
+  void setDateRange(ReportDateRange range) {
+    state = state.copyWith(dateRange: range);
+  }
+}
+
+final reportFilterProvider =
+    NotifierProvider<ReportFilterNotifier, FinancialReportFilter>(
+  ReportFilterNotifier.new,
+);
 
 class FinancialReportState {
   final ProfitLossSummary profitLoss;
@@ -67,7 +83,7 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
   final salesInvoicesState = ref.watch(salesInvoicesProvider);
 
   final now = DateTime.now();
-  DateTime startDate;
+  DateTime startDate = DateTime(now.year, now.month, 1);
   DateTime endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
   switch (filter.dateRange) {
@@ -112,10 +128,10 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
   final filteredExpenses = expensesState.expenses.where((e) => isWithinRange(e.date)).toList();
   final expenseRecordsTotal = filteredExpenses.fold<double>(0.0, (sum, e) => sum + e.amount);
 
-  final filteredSalaries = salariesState.records.where((s) => isWithinRange(s.paymentDate ?? s.monthYear)).toList();
+  final filteredSalaries = salariesState.salaries.where((s) => isWithinRange(s.paymentDate)).toList();
   final salaryPaidTotal = filteredSalaries
       .where((s) => s.status == 'Paid')
-      .fold<double>(0.0, (sum, s) => sum + s.netSalary);
+      .fold<double>(0.0, (sum, s) => sum + s.netPaid);
 
   final directCreditLedger = ledgerState.entries.where((e) =>
       isWithinRange(e.date) &&
@@ -199,7 +215,7 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
   // Accounts Receivable (Unpaid invoices + unpaid income records)
   final unpaidInvoicesAR = salesInvoicesState.invoices
       .where((inv) => inv.status.toLowerCase() != 'paid')
-      .fold<double>(0.0, (sum, inv) => sum + inv.dueAmount);
+      .fold<double>(0.0, (sum, inv) => sum + inv.total);
   final unpaidIncomeAR = incomeState.incomes
       .where((inc) => inc.status.toLowerCase() == 'pending' || inc.status.toLowerCase() == 'unpaid')
       .fold<double>(0.0, (sum, inc) => sum + inc.amount);
@@ -212,14 +228,13 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
 
   // Accounts Payable & Short term liabilities
   final unpaidExpensesAP = expensesState.expenses
-      .where((exp) => exp.status.toLowerCase() == 'pending' || exp.status.toLowerCase() == 'unpaid')
       .fold<double>(0.0, (sum, exp) => sum + exp.amount);
   final shortTermLoans = loansState.loans
       .where((l) => l.type == 'Borrowed' && l.status != 'Settled')
-      .fold<double>(0.0, (sum, l) => sum + l.remainingAmount);
-  final salariesPayable = salariesState.records
+      .fold<double>(0.0, (sum, l) => sum + l.remainingBalance);
+  final salariesPayable = salariesState.salaries
       .where((s) => s.status.toLowerCase() != 'paid')
-      .fold<double>(0.0, (sum, s) => sum + s.netSalary);
+      .fold<double>(0.0, (sum, s) => sum + s.netPaid);
 
   final totalCurrentLiabilities = unpaidExpensesAP + shortTermLoans + salariesPayable;
   final workingCapital = totalCurrentAssets - totalCurrentLiabilities;
