@@ -144,50 +144,30 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Page Title Header + Integrated Export Data Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  // Page Title Header
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            activeTab.label,
-                            style: theme.textTheme.displaySmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: context.textPrimary,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'View and analyze corporate ${activeTab.label.toLowerCase()} performance and metrics.',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: context.textSecondary,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        activeTab.label,
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: context.textPrimary,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                      // Standard Export Data Button (with PDF & Excel options inside dropdown)
-                      ExportButton(
-                        title: '${activeTab.label} Report',
-                        fileName: '${activeTab.label.toLowerCase().replaceAll(' ', '_')}_report',
-                        headers: const ['Metric / Item', 'Value / Amount (Rs.)', 'Notes'],
-                        rows: [
-                          ['Total Revenue', 'Rs. ${pl.totalRevenue.toStringAsFixed(2)}', 'Operational income'],
-                          ['Total Expenses', 'Rs. ${pl.totalExpenses.toStringAsFixed(2)}', 'Direct expenses + Salaries'],
-                          ['Net Profit', 'Rs. ${pl.netProfit.toStringAsFixed(2)}', 'Bottom line'],
-                          ['Cash & Bank Balance', 'Rs. ${al.cashAndBankBalance.toStringAsFixed(2)}', 'Liquid funds'],
-                          ['Accounts Receivable', 'Rs. ${al.accountsReceivable.toStringAsFixed(2)}', 'Outstanding income'],
-                          ['Accounts Payable', 'Rs. ${al.accountsPayable.toStringAsFixed(2)}', 'Outstanding bills'],
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        'View and analyze corporate ${activeTab.label.toLowerCase()} performance and metrics.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: context.textSecondary,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
 
-                  // Period & View Focus Filters Header Row
+                  // Period Filters Header Row
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -199,35 +179,6 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                         _buildPeriodFilterChip(context, ref, 'This Year', ReportDateRange.thisYear, currentFilter.dateRange),
                         const SizedBox(width: 8),
                         _buildPeriodFilterChip(context, ref, 'All Time', ReportDateRange.allTime, currentFilter.dateRange),
-
-                        const SizedBox(width: 16),
-                        Container(width: 1, height: 24, color: context.border),
-                        const SizedBox(width: 16),
-
-                        ...['Overview', 'Income', 'Expenses', 'Payroll', 'Profit/Loss'].map((focus) {
-                          final isSelected = _summaryFocus == focus;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: ChoiceChip(
-                              label: Text(focus),
-                              selected: isSelected,
-                              onSelected: (_) => setState(() => _summaryFocus = focus),
-                              selectedColor: context.primaryColor,
-                              backgroundColor: context.cardBg,
-                              labelStyle: TextStyle(
-                                color: isSelected ? Colors.white : context.textSecondary,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                fontSize: 13,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              side: BorderSide(
-                                color: isSelected ? context.primaryColor : context.border,
-                              ),
-                            ),
-                          );
-                        }),
                       ],
                     ),
                   ),
@@ -383,9 +334,41 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
             ),
           ],
         ),
+        const SizedBox(height: 20),
+
+        // Focus View Filter Chips positioned below Total Assets & Total Liabilities cards
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: ['Overview', 'Income', 'Expenses', 'Payroll', 'Profit/Loss'].map((focus) {
+              final isSelected = _summaryFocus == focus;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChoiceChip(
+                  label: Text(focus),
+                  selected: isSelected,
+                  onSelected: (_) => setState(() => _summaryFocus = focus),
+                  selectedColor: context.primaryColor,
+                  backgroundColor: context.cardBg,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : context.textSecondary,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 13,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  side: BorderSide(
+                    color: isSelected ? context.primaryColor : context.border,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
         const SizedBox(height: 24),
 
-        // ── Render Specific Dynamic Full-Width Breakdown Table Based On Selected Focus Button ──
+        // Render Specific Dynamic Full-Width Breakdown Table Based On Selected Focus Button
         if (_summaryFocus == 'Overview')
           _buildOverviewBreakdownCard(context, currentFilter)
         else if (_summaryFocus == 'Income')
@@ -404,7 +387,6 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   //  1. OVERVIEW — FULL-WIDTH BREAKDOWN TABLE (Matching Mockup Screenshot)
   // ═══════════════════════════════════════════════════════════
   Widget _buildOverviewBreakdownCard(BuildContext context, FinancialReportFilter filter) {
-    final periodLabel = _getPeriodLabelText(filter.dateRange);
     final theme = Theme.of(context);
     final incomeState = ref.watch(incomeProvider);
     final expensesState = ref.watch(expensesProvider);
@@ -507,25 +489,51 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Card Title Header matching Screenshot
+                // Card Title Header with Overview — Monthly Breakdown & Export Data Button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Overview — $periodLabel Breakdown',
+                      'Overview — Monthly Breakdown',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: context.textPrimary,
                         fontSize: 16,
                       ),
                     ),
-                    Text(
-                      'Jan–${months[currentMonthIndex - 1].substring(0, 3)} ${now.year}',
-                      style: TextStyle(
-                        color: context.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          'Jan–${months[currentMonthIndex - 1].substring(0, 3)} ${now.year}',
+                          style: TextStyle(
+                            color: context.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ExportButton(
+                          title: 'Overview Report',
+                          fileName: 'overview_monthly_breakdown_report',
+                          headers: const ['PERIOD', 'REVENUE (Rs.)', 'EXPENSES (Rs.)', 'NET PROFIT / LOSS (Rs.)', 'MARGIN %'],
+                          rows: [
+                            ...displayRows.map((r) => [
+                              r['period'].toString(),
+                              'Rs. ${(r['revenue'] as double).toStringAsFixed(0)}',
+                              'Rs. ${(r['expenses'] as double).toStringAsFixed(0)}',
+                              'Rs. ${(r['netProfit'] as double).toStringAsFixed(0)}',
+                              '${(r['margin'] as double).toStringAsFixed(1)}%',
+                            ]),
+                            [
+                              'YEAR TOTAL (YTD)',
+                              'Rs. ${ytdRevenue.toStringAsFixed(0)}',
+                              'Rs. ${ytdExpenses.toStringAsFixed(0)}',
+                              'Rs. ${ytdNetProfit.toStringAsFixed(0)}',
+                              '${ytdMargin.toStringAsFixed(1)}%',
+                            ]
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -654,13 +662,31 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Income — $periodLabel Breakdown',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: context.textPrimary,
-                fontSize: 16,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Income — $periodLabel Breakdown',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                    fontSize: 16,
+                  ),
+                ),
+                ExportButton(
+                  title: 'Income Breakdown Report',
+                  fileName: 'income_breakdown_report',
+                  headers: const ['DATE', 'CLIENT NAME', 'INVOICE #', 'DESCRIPTION', 'AMOUNT (Rs.)', 'STATUS'],
+                  rows: incomes.map((inc) => [
+                    inc.date.split('T').first,
+                    inc.clientName,
+                    inc.invoiceNumber.isNotEmpty ? inc.invoiceNumber : inc.id,
+                    inc.description,
+                    'Rs. ${inc.amount.toStringAsFixed(2)}',
+                    inc.status,
+                  ]).toList(),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             const Divider(),
@@ -737,13 +763,31 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Expenses — $periodLabel Breakdown',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: context.textPrimary,
-                fontSize: 16,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Expenses — $periodLabel Breakdown',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                    fontSize: 16,
+                  ),
+                ),
+                ExportButton(
+                  title: 'Expenses Breakdown Report',
+                  fileName: 'expenses_breakdown_report',
+                  headers: const ['DATE', 'CATEGORY', 'VENDOR / BENEFICIARY', 'DESCRIPTION', 'AMOUNT (Rs.)', 'CLASSIFICATION'],
+                  rows: expenses.map((exp) => [
+                    exp.date.split('T').first,
+                    exp.category,
+                    exp.vendorName.isNotEmpty ? exp.vendorName : '-',
+                    exp.description,
+                    'Rs. ${exp.amount.toStringAsFixed(2)}',
+                    exp.isPersonalExpense ? 'Personal Draw' : 'Company Expense',
+                  ]).toList(),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             const Divider(),
@@ -820,13 +864,31 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Payroll — $periodLabel Breakdown',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: context.textPrimary,
-                fontSize: 16,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Payroll — $periodLabel Breakdown',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                    fontSize: 16,
+                  ),
+                ),
+                ExportButton(
+                  title: 'Payroll Breakdown Report',
+                  fileName: 'payroll_breakdown_report',
+                  headers: const ['PAYMENT DATE', 'EMPLOYEE NAME', 'PAY PERIOD', 'BASE SALARY (Rs.)', 'NET PAID (Rs.)', 'STATUS'],
+                  rows: salaries.map((sal) => [
+                    sal.paymentDate.split('T').first,
+                    sal.employeeName,
+                    sal.payPeriod,
+                    'Rs. ${sal.baseSalary.toStringAsFixed(2)}',
+                    'Rs. ${sal.netPaid.toStringAsFixed(2)}',
+                    sal.status,
+                  ]).toList(),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             const Divider(),
@@ -906,13 +968,29 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Profit & Loss — $periodLabel Breakdown',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: context.textPrimary,
-                fontSize: 16,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Profit & Loss — $periodLabel Breakdown',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                    fontSize: 16,
+                  ),
+                ),
+                ExportButton(
+                  title: 'Profit & Loss Breakdown Report',
+                  fileName: 'profit_loss_breakdown_report',
+                  headers: const ['CLASSIFICATION', 'CATEGORY / ITEM', 'PERIOD AMOUNT (Rs.)', 'MARGIN %'],
+                  rows: [
+                    ['Gross Income', 'Total Client Revenue & Deposits', 'Rs. ${pl.totalRevenue.toStringAsFixed(2)}', '100.0%'],
+                    ['Operating Cost', 'Company Direct Expenses + Staff Payroll', 'Rs. ${pl.totalExpenses.toStringAsFixed(2)}', '${pl.totalRevenue > 0 ? ((pl.totalExpenses / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}%'],
+                    ['Net Profit / Loss', 'Net Revenue minus Operating Costs', 'Rs. ${pl.netProfit.toStringAsFixed(2)}', '${pl.totalRevenue > 0 ? ((pl.netProfit / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}%'],
+                    ['Working Capital', 'Current Assets minus Liabilities', 'Rs. ${al.workingCapital.toStringAsFixed(2)}', al.workingCapital >= 0 ? 'Healthy' : 'Deficit'],
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             const Divider(),
@@ -980,6 +1058,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       ),
     );
   }
+
 
   Widget _buildTabPlaceholderView(BuildContext context, ReportTabItem activeTab) {
     return GlassCard(
