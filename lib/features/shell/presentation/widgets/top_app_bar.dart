@@ -7,6 +7,7 @@ import 'package:software_house_erp/features/administration/shared/providers/admi
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'spotlight_search_dialog.dart';
 import 'package:software_house_erp/core/widgets/explain_tooltip.dart';
+import 'package:software_house_erp/core/services/cloud_sync_service.dart';
 
 class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final StatefulNavigationShell navigationShell;
@@ -209,6 +210,113 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                         ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 12),
+
+              // Firebase Cloud Sync Indicator & Trigger
+              Consumer(
+                builder: (context, ref, child) {
+                  final syncState = ref.watch(cloudSyncStateProvider);
+                  final isSyncing = syncState.status == SyncStatus.syncing;
+                  final isOffline = syncState.status == SyncStatus.offline;
+
+                  final Color statusColor = isSyncing
+                      ? Colors.amber
+                      : (isOffline ? Colors.grey : const Color(0xFF10B981));
+                  final IconData iconData = isSyncing
+                      ? Icons.sync
+                      : (isOffline
+                          ? Icons.cloud_off_rounded
+                          : Icons.cloud_done_rounded);
+                  final String label = isSyncing
+                      ? 'Syncing...'
+                      : (isOffline ? 'Offline' : 'Cloud Synced');
+                  final String tooltipMsg = isSyncing
+                      ? 'Syncing with Firebase Cloud...'
+                      : (isOffline
+                          ? 'Offline Mode (Local Storage Active). Click to retry Cloud Sync.'
+                          : 'Firebase Cloud Connected. Click to Sync Now.');
+
+                  return Tooltip(
+                    message: tooltipMsg,
+                    child: InkWell(
+                      onTap: isSyncing
+                          ? null
+                          : () async {
+                              await ref
+                                  .read(cloudSyncStateProvider.notifier)
+                                  .syncNow();
+                              if (context.mounted) {
+                                final current =
+                                    ref.read(cloudSyncStateProvider);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Row(
+                                      children: [
+                                        Icon(
+                                          current.isOnline
+                                              ? Icons.cloud_done
+                                              : Icons.cloud_off,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(current.message ??
+                                            'Sync completed'),
+                                      ],
+                                    ),
+                                    duration: const Duration(seconds: 2),
+                                    backgroundColor: const Color(0xFF0F172A),
+                                  ),
+                                );
+                              }
+                            },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: statusColor.withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isSyncing)
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(statusColor),
+                                ),
+                              )
+                            else
+                              Icon(
+                                iconData,
+                                size: 16,
+                                color: statusColor,
+                              ),
+                            const SizedBox(width: 6),
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: statusColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );

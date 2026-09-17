@@ -4,7 +4,7 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/database_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/services/cloud_sync_service.dart';
 
 class ThemeColors {
   final Color scaffoldBg;
@@ -110,15 +110,12 @@ const Map<String, ThemeColors> backgroundThemes = {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Supabase with user credentials
-  await Supabase.initialize(
-    url: 'YOUR_SUPABASE_URL',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY',
-  );
-
   final container = ProviderContainer();
-  // Initialize SQLite Database
+  // Initialize SQLite Database (Offline-First Local Storage)
   await container.read(databaseServiceProvider).initialize();
+
+  // Initialize and start Firebase Cloud Sync (Online Multi-device Realtime Sync)
+  container.read(cloudSyncServiceProvider);
 
   runApp(
     UncontrolledProviderScope(
