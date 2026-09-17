@@ -7,20 +7,27 @@ import '../../../accounts/presentation/providers/accounts_provider.dart';
 import '../../../ledger/presentation/providers/ledger_provider.dart';
 import '../../../ledger/domain/entities/ledger_entry.dart';
 import '../../../../projects/projects/presentation/providers/projects_provider.dart';
-import '../../../../projects/projects/domain/entities/project.dart';
-
+import '../../../../clients/clients/presentation/providers/clients_provider.dart';
 
 class IncomeState {
   final List<IncomeRecord> incomes;
   final bool isLoading;
   final String searchQuery;
   final String clientFilter; // 'All' or clientId
+  final String accountIdFilter; // 'All' or accountId
+  final String statusFilter; // 'All', 'Received', 'Pending'
+  final String? fromDateFilter; // YYYY-MM-DD
+  final String? toDateFilter; // YYYY-MM-DD
 
   const IncomeState({
     required this.incomes,
     required this.isLoading,
     required this.searchQuery,
     required this.clientFilter,
+    this.accountIdFilter = 'All',
+    this.statusFilter = 'All',
+    this.fromDateFilter,
+    this.toDateFilter,
   });
 
   IncomeState copyWith({
@@ -28,12 +35,21 @@ class IncomeState {
     bool? isLoading,
     String? searchQuery,
     String? clientFilter,
+    String? accountIdFilter,
+    String? statusFilter,
+    String? fromDateFilter,
+    String? toDateFilter,
+    bool clearDates = false,
   }) {
     return IncomeState(
       incomes: incomes ?? this.incomes,
       isLoading: isLoading ?? this.isLoading,
       searchQuery: searchQuery ?? this.searchQuery,
       clientFilter: clientFilter ?? this.clientFilter,
+      accountIdFilter: accountIdFilter ?? this.accountIdFilter,
+      statusFilter: statusFilter ?? this.statusFilter,
+      fromDateFilter: clearDates ? null : (fromDateFilter ?? this.fromDateFilter),
+      toDateFilter: clearDates ? null : (toDateFilter ?? this.toDateFilter),
     );
   }
 
@@ -50,13 +66,32 @@ class IncomeState {
     });
 
     return list.where((i) {
-      final matchesSearch = i.description.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          i.clientName.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          i.invoiceNumber.toLowerCase().contains(searchQuery.toLowerCase());
+      final q = searchQuery.trim().toLowerCase();
+      final matchesSearch = q.isEmpty ||
+          i.description.toLowerCase().contains(q) ||
+          i.clientName.toLowerCase().contains(q) ||
+          i.invoiceNumber.toLowerCase().contains(q) ||
+          i.id.toLowerCase().contains(q);
 
       final matchesClient = clientFilter == 'All' || i.clientId == clientFilter;
+      final matchesAccount = accountIdFilter == 'All' || i.accountId == accountIdFilter;
+      final matchesStatus = statusFilter == 'All' || i.status.toLowerCase() == statusFilter.toLowerCase();
 
-      return matchesSearch && matchesClient;
+      bool matchesDate = true;
+      if (fromDateFilter != null && fromDateFilter!.isNotEmpty) {
+        final recordDate = i.date.length >= 10 ? i.date.substring(0, 10) : i.date;
+        if (recordDate.compareTo(fromDateFilter!) < 0) {
+          matchesDate = false;
+        }
+      }
+      if (toDateFilter != null && toDateFilter!.isNotEmpty) {
+        final recordDate = i.date.length >= 10 ? i.date.substring(0, 10) : i.date;
+        if (recordDate.compareTo(toDateFilter!) > 0) {
+          matchesDate = false;
+        }
+      }
+
+      return matchesSearch && matchesClient && matchesAccount && matchesStatus && matchesDate;
     }).toList();
   }
 }
@@ -77,6 +112,8 @@ class IncomeNotifier extends Notifier<IncomeState> {
       isLoading: true,
       searchQuery: '',
       clientFilter: 'All',
+      accountIdFilter: 'All',
+      statusFilter: 'All',
     );
   }
 
@@ -97,6 +134,31 @@ class IncomeNotifier extends Notifier<IncomeState> {
     state = state.copyWith(clientFilter: filter);
   }
 
+  void setAccountIdFilter(String id) {
+    state = state.copyWith(accountIdFilter: id);
+  }
+
+  void setStatusFilter(String status) {
+    state = state.copyWith(statusFilter: status);
+  }
+
+  void setDateRange(String? from, String? to) {
+    state = state.copyWith(
+      fromDateFilter: from,
+      toDateFilter: to,
+    );
+  }
+
+  void clearFilters() {
+    state = state.copyWith(
+      searchQuery: '',
+      clientFilter: 'All',
+      accountIdFilter: 'All',
+      statusFilter: 'All',
+      clearDates: true,
+    );
+  }
+
   Future<void> addIncome(IncomeRecord record) async {
     state = state.copyWith(isLoading: true);
     await _repository.addIncome(record);
@@ -110,33 +172,41 @@ class IncomeNotifier extends Notifier<IncomeState> {
     await ref.read(accountsProvider.notifier).adjustBalance(record.accountId, record.amount);
 
     // 2. Adjust project payment fields if selected
-    if (record.projectId != null) {
+    if (record.projectId != null && record.projectId!.isNotEmpty) {
       final projectsState = ref.read(projectsProvider);
       final project = projectsState.projects.where((p) => p.id == record.projectId).firstOrNull;
       if (project != null) {
-        Project updatedProject = project;
+        double adv = project.advancedPayment;
+        double part = project.partialPayments;
+        double fin = project.finalPayment;
+
         if (record.projectPaymentType == 'Advance') {
-          final newAdv = project.advancedPayment + record.amount;
-          final newTotal = newAdv + project.partialPayments + project.finalPayment;
-          final newStatus = newTotal >= project.budget ? 'Fully Paid' : (newTotal > 0 ? 'Partially Paid' : 'Pending');
-          updatedProject = project.copyWith(advancedPayment: newAdv, paymentStatus: newStatus);
-        } else if (record.projectPaymentType == 'Partial') {
-          final newPart = project.partialPayments + record.amount;
-          final newTotal = project.advancedPayment + newPart + project.finalPayment;
-          final newStatus = newTotal >= project.budget ? 'Fully Paid' : 'Partially Paid';
-          updatedProject = project.copyWith(partialPayments: newPart, paymentStatus: newStatus);
+          adv += record.amount;
         } else if (record.projectPaymentType == 'Final' || record.projectPaymentType == 'Full') {
-          final newFin = project.finalPayment + record.amount;
-          final newTotal = project.advancedPayment + project.partialPayments + newFin;
-          final newStatus = newTotal >= project.budget ? 'Fully Paid' : 'Partially Paid';
-          updatedProject = project.copyWith(finalPayment: newFin, paymentStatus: newStatus);
+          fin += record.amount;
         } else {
-          final newAdv = project.advancedPayment + record.amount;
-          final newTotal = newAdv + project.partialPayments + project.finalPayment;
-          final newStatus = newTotal >= project.budget ? 'Fully Paid' : (newTotal > 0 ? 'Partially Paid' : 'Pending');
-          updatedProject = project.copyWith(advancedPayment: newAdv, paymentStatus: newStatus);
+          part += record.amount;
         }
+
+        final totalRecv = adv + part + fin;
+        final newStatus = totalRecv >= project.budget ? 'Fully Paid' : (totalRecv > 0 ? 'Partially Paid' : 'Pending');
+        final updatedProject = project.copyWith(
+          advancedPayment: adv,
+          partialPayments: part,
+          finalPayment: fin,
+          paymentStatus: newStatus,
+        );
         await ref.read(projectsProvider.notifier).updateProject(updatedProject);
+      }
+    }
+
+    // 3. Adjust client payment
+    if (record.clientId.isNotEmpty) {
+      final clientsState = ref.read(clientsProvider);
+      final client = clientsState.clients.where((c) => c.id == record.clientId).firstOrNull;
+      if (client != null) {
+        final newAdv = client.advancedPayment + record.amount;
+        await ref.read(clientsProvider.notifier).updateClient(client.copyWith(advancedPayment: newAdv));
       }
     }
 
@@ -157,9 +227,11 @@ class IncomeNotifier extends Notifier<IncomeState> {
       }
     }
 
-    // 3. Add General Ledger entry (Debit / Inflow)
-    String paymentTypeText = 'Advance Payment';
-    if (record.projectPaymentType == 'Partial') {
+    // 4. Add General Ledger entry (Debit / Inflow)
+    String paymentTypeText = record.projectPaymentType ?? 'Payment';
+    if (record.projectPaymentType == 'Advance') {
+      paymentTypeText = 'Advance Payment';
+    } else if (record.projectPaymentType == 'Partial') {
       paymentTypeText = 'Partial Payment';
     } else if (record.projectPaymentType == 'Final' || record.projectPaymentType == 'Full') {
       paymentTypeText = 'Full Payment';
@@ -167,13 +239,13 @@ class IncomeNotifier extends Notifier<IncomeState> {
 
     // For project payments, resolve proper description
     String ledgerDesc = record.description;
-    if (record.projectId != null && record.projectName != null) {
+    if (record.projectId != null && record.projectName != null && record.projectName!.isNotEmpty) {
       ledgerDesc = '${record.projectName} - ${record.clientName}';
     }
 
     String ledgerRef = record.invoiceNumber.isNotEmpty 
         ? record.invoiceNumber 
-        : (record.projectId != null ? paymentTypeText : record.clientName);
+        : (record.projectId != null && record.projectId!.isNotEmpty ? record.projectId! : '—');
 
     final ledgerEntry = LedgerEntry(
       id: 'led_inc_${record.id}',
@@ -181,12 +253,136 @@ class IncomeNotifier extends Notifier<IncomeState> {
       accountId: record.accountId,
       accountName: accountName,
       type: 'Debit',
-      category: 'Client Income',
+      category: record.projectId != null && record.projectId!.isNotEmpty ? 'Project Payment' : record.incomeType,
       amount: record.amount,
       reference: ledgerRef,
       description: ledgerDesc,
+      installmentType: paymentTypeText,
     );
     await ref.read(ledgerProvider.notifier).addLedgerEntry(ledgerEntry);
+
+    final updated = await _repository.getIncomes();
+    state = state.copyWith(incomes: updated, isLoading: false);
+  }
+
+  Future<void> updateIncome(IncomeRecord oldRecord, IncomeRecord newRecord) async {
+    state = state.copyWith(isLoading: true);
+    await _repository.updateIncome(newRecord);
+
+    // 1. Bank Account balance adjustment
+    if (oldRecord.accountId == newRecord.accountId) {
+      final diff = newRecord.amount - oldRecord.amount;
+      if (diff != 0) {
+        await ref.read(accountsProvider.notifier).adjustBalance(newRecord.accountId, diff);
+      }
+    } else {
+      await ref.read(accountsProvider.notifier).adjustBalance(oldRecord.accountId, -oldRecord.amount);
+      await ref.read(accountsProvider.notifier).adjustBalance(newRecord.accountId, newRecord.amount);
+    }
+
+    // 2. Project payments rollback from old & apply to new
+    if (oldRecord.projectId != null && oldRecord.projectId!.isNotEmpty) {
+      final oldProj = ref.read(projectsProvider).projects.where((p) => p.id == oldRecord.projectId).firstOrNull;
+      if (oldProj != null) {
+        double adv = oldProj.advancedPayment;
+        double part = oldProj.partialPayments;
+        double fin = oldProj.finalPayment;
+        if (oldRecord.projectPaymentType == 'Advance') {
+          adv = (adv - oldRecord.amount).clamp(0.0, double.infinity);
+        } else if (oldRecord.projectPaymentType == 'Final' || oldRecord.projectPaymentType == 'Full') {
+          fin = (fin - oldRecord.amount).clamp(0.0, double.infinity);
+        } else {
+          part = (part - oldRecord.amount).clamp(0.0, double.infinity);
+        }
+        final totalRecv = adv + part + fin;
+        final newStatus = totalRecv >= oldProj.budget ? 'Fully Paid' : (totalRecv > 0 ? 'Partially Paid' : 'Pending');
+        await ref.read(projectsProvider.notifier).updateProject(oldProj.copyWith(
+          advancedPayment: adv,
+          partialPayments: part,
+          finalPayment: fin,
+          paymentStatus: newStatus,
+        ));
+      }
+    }
+
+    if (newRecord.projectId != null && newRecord.projectId!.isNotEmpty) {
+      final freshProjects = ref.read(projectsProvider).projects;
+      final newProj = freshProjects.where((p) => p.id == newRecord.projectId).firstOrNull;
+      if (newProj != null) {
+        double adv = newProj.advancedPayment;
+        double part = newProj.partialPayments;
+        double fin = newProj.finalPayment;
+        if (newRecord.projectPaymentType == 'Advance') {
+          adv += newRecord.amount;
+        } else if (newRecord.projectPaymentType == 'Final' || newRecord.projectPaymentType == 'Full') {
+          fin += newRecord.amount;
+        } else {
+          part += newRecord.amount;
+        }
+        final totalRecv = adv + part + fin;
+        final newStatus = totalRecv >= newProj.budget ? 'Fully Paid' : (totalRecv > 0 ? 'Partially Paid' : 'Pending');
+        await ref.read(projectsProvider.notifier).updateProject(newProj.copyWith(
+          advancedPayment: adv,
+          partialPayments: part,
+          finalPayment: fin,
+          paymentStatus: newStatus,
+        ));
+      }
+    }
+
+    // 3. Client payments rollback from old & apply to new
+    if (oldRecord.clientId.isNotEmpty) {
+      final oldClient = ref.read(clientsProvider).clients.where((c) => c.id == oldRecord.clientId).firstOrNull;
+      if (oldClient != null) {
+        final newAdv = (oldClient.advancedPayment - oldRecord.amount).clamp(0.0, double.infinity);
+        await ref.read(clientsProvider.notifier).updateClient(oldClient.copyWith(advancedPayment: newAdv));
+      }
+    }
+    if (newRecord.clientId.isNotEmpty) {
+      final freshClients = ref.read(clientsProvider).clients;
+      final newClient = freshClients.where((c) => c.id == newRecord.clientId).firstOrNull;
+      if (newClient != null) {
+        final newAdv = newClient.advancedPayment + newRecord.amount;
+        await ref.read(clientsProvider.notifier).updateClient(newClient.copyWith(advancedPayment: newAdv));
+      }
+    }
+
+    // 4. Update Ledger Entry
+    final accounts = ref.read(accountsProvider).accounts;
+    final account = accounts.where((a) => a.id == newRecord.accountId).firstOrNull;
+    final accountName = account?.name ?? 'Unknown Account';
+
+    String paymentTypeText = newRecord.projectPaymentType ?? 'Payment';
+    if (newRecord.projectPaymentType == 'Advance') {
+      paymentTypeText = 'Advance Payment';
+    } else if (newRecord.projectPaymentType == 'Partial') {
+      paymentTypeText = 'Partial Payment';
+    } else if (newRecord.projectPaymentType == 'Final' || newRecord.projectPaymentType == 'Full') {
+      paymentTypeText = 'Full Payment';
+    }
+
+    String ledgerDesc = newRecord.description;
+    if (newRecord.projectId != null && newRecord.projectName != null && newRecord.projectName!.isNotEmpty) {
+      ledgerDesc = '${newRecord.projectName} - ${newRecord.clientName}';
+    }
+
+    String ledgerRef = newRecord.invoiceNumber.isNotEmpty
+        ? newRecord.invoiceNumber
+        : (newRecord.projectId != null && newRecord.projectId!.isNotEmpty ? newRecord.projectId! : '—');
+
+    final ledgerEntry = LedgerEntry(
+      id: 'led_inc_${newRecord.id}',
+      date: newRecord.date,
+      accountId: newRecord.accountId,
+      accountName: accountName,
+      type: 'Debit',
+      category: newRecord.projectId != null && newRecord.projectId!.isNotEmpty ? 'Project Payment' : newRecord.incomeType,
+      amount: newRecord.amount,
+      reference: ledgerRef,
+      description: ledgerDesc,
+      installmentType: paymentTypeText,
+    );
+    await ref.read(ledgerProvider.notifier).updateLedgerEntry(ledgerEntry);
 
     final updated = await _repository.getIncomes();
     state = state.copyWith(incomes: updated, isLoading: false);
@@ -204,28 +400,46 @@ class IncomeNotifier extends Notifier<IncomeState> {
     await ref.read(accountsProvider.notifier).adjustBalance(record.accountId, -record.amount);
 
     // 2. Rollback project payment fields if selected
-    if (record.projectId != null) {
+    if (record.projectId != null && record.projectId!.isNotEmpty) {
       final projectsState = ref.read(projectsProvider);
       final project = projectsState.projects.where((p) => p.id == record.projectId).firstOrNull;
       if (project != null) {
-        Project updatedProject = project;
+        double adv = project.advancedPayment;
+        double part = project.partialPayments;
+        double fin = project.finalPayment;
         if (record.projectPaymentType == 'Advance') {
-          updatedProject = project.copyWith(advancedPayment: project.advancedPayment - record.amount);
-        } else if (record.projectPaymentType == 'Partial') {
-          updatedProject = project.copyWith(partialPayments: project.partialPayments - record.amount);
-        } else if (record.projectPaymentType == 'Final') {
-          updatedProject = project.copyWith(finalPayment: project.finalPayment - record.amount);
+          adv = (adv - record.amount).clamp(0.0, double.infinity);
+        } else if (record.projectPaymentType == 'Final' || record.projectPaymentType == 'Full') {
+          fin = (fin - record.amount).clamp(0.0, double.infinity);
         } else {
-          updatedProject = project.copyWith(advancedPayment: project.advancedPayment - record.amount);
+          part = (part - record.amount).clamp(0.0, double.infinity);
         }
+        final totalRecv = adv + part + fin;
+        final newStatus = totalRecv >= project.budget ? 'Fully Paid' : (totalRecv > 0 ? 'Partially Paid' : 'Pending');
+        final updatedProject = project.copyWith(
+          advancedPayment: adv,
+          partialPayments: part,
+          finalPayment: fin,
+          paymentStatus: newStatus,
+        );
         await ref.read(projectsProvider.notifier).updateProject(updatedProject);
       }
     }
 
-    // 3. Remove General Ledger entry
+    // 3. Rollback client payment
+    if (record.clientId.isNotEmpty) {
+      final clientsState = ref.read(clientsProvider);
+      final client = clientsState.clients.where((c) => c.id == record.clientId).firstOrNull;
+      if (client != null) {
+        final newAdv = (client.advancedPayment - record.amount).clamp(0.0, double.infinity);
+        await ref.read(clientsProvider.notifier).updateClient(client.copyWith(advancedPayment: newAdv));
+      }
+    }
+
+    // 4. Remove General Ledger entry
     await ref.read(ledgerProvider.notifier).deleteLedgerEntry('led_inc_${record.id}');
 
-    // 4. Delete income record
+    // 5. Delete income record
     await _repository.deleteIncome(id);
 
     final updated = await _repository.getIncomes();

@@ -10,6 +10,7 @@ import 'package:software_house_erp/features/inventory/inventory/presentation/pro
 import 'package:software_house_erp/features/sales/sales/presentation/providers/sales_invoices_provider.dart';
 import 'package:software_house_erp/features/sales/purchases/presentation/providers/purchase_orders_provider.dart';
 import 'package:software_house_erp/features/inventory/assets/presentation/providers/assets_provider.dart';
+import 'package:software_house_erp/features/projects/projects/presentation/providers/projects_provider.dart';
 
 enum ReportDateRange { today, thisMonth, thisYear, allTime, custom }
 
@@ -152,6 +153,17 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
            (dt.isBefore(endDate) || dt.isAtSameMomentAs(endDate));
   }
 
+  // Prior Year Date Range
+  final priorStartDate = DateTime(startDate.year - 1, startDate.month, startDate.day, startDate.hour, startDate.minute, startDate.second);
+  final priorEndDate = DateTime(endDate.year - 1, endDate.month, endDate.day, endDate.hour, endDate.minute, endDate.second);
+
+  bool isWithinPriorRange(String dateStr) {
+    final dt = parseDate(dateStr);
+    if (dt == null) return false;
+    return (dt.isAfter(priorStartDate) || dt.isAtSameMomentAs(priorStartDate)) &&
+           (dt.isBefore(priorEndDate) || dt.isAtSameMomentAs(priorEndDate));
+  }
+
   // 1. REVENUE / INCOME CALCULATIONS
   final filteredIncomes = incomeState.incomes.where((i) => isWithinRange(i.date)).toList();
   final filteredSalesInvoices = salesInvoicesState.invoices.where((inv) => isWithinRange(inv.date)).toList();
@@ -186,20 +198,47 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
     otherRevenue = 0.0;
   }
 
+  // Dynamic Revenue Categories Breakdown
+  final Map<String, double> revenueMap = {};
+  if (salesRevenue > 0) {
+    revenueMap['Sales Revenue / Invoices'] = (revenueMap['Sales Revenue / Invoices'] ?? 0.0) + salesRevenue;
+  }
+  for (final inc in filteredIncomes) {
+    String categoryKey = 'General Income';
+    if (inc.projectId != null && inc.projectId!.isNotEmpty) {
+      final pType = inc.projectPaymentType ?? 'Partial';
+      categoryKey = 'Project $pType Payment';
+    } else if (inc.description.isNotEmpty) {
+      categoryKey = inc.description;
+    }
+    revenueMap[categoryKey] = (revenueMap[categoryKey] ?? 0.0) + inc.amount;
+  }
+  if (directDebitTotal > 0) {
+    revenueMap['Direct / Capital Inflows'] = (revenueMap['Direct / Capital Inflows'] ?? 0.0) + directDebitTotal;
+  }
+
+  final List<RevenueCategorySummary> revenueCategorySummaries = revenueMap.entries.map((entry) {
+    final pct = totalRevenue > 0 ? (entry.value / totalRevenue) * 100 : 0.0;
+    return RevenueCategorySummary(
+      category: entry.key,
+      amount: entry.value,
+      percentage: pct,
+    );
+  }).toList()..sort((a, b) => b.amount.compareTo(a.amount));
+
   // 2. COST OF GOODS SOLD (COGS)
   double closingInventory = inventoryState.items.fold<double>(0.0, (sum, item) => sum + (item.pricePerUnit * item.quantity));
   double purchases = purchaseOrdersState.orders
       .where((po) => isWithinRange(po.date) && po.status.toLowerCase() != 'cancelled')
       .fold<double>(0.0, (sum, po) => sum + po.total);
-  double openingInventory = closingInventory > 0 ? closingInventory * 0.85 : 0.0;
-  double totalCogs = (openingInventory + purchases > closingInventory) ? (openingInventory + purchases - closingInventory) : purchases;
+  double openingInventory = 0.0; // Actual recorded opening inventory or 0
 
   final filteredExpenses = expensesState.expenses.where((e) => isWithinRange(e.date)).toList();
-  if (totalCogs == 0) {
-    totalCogs = filteredExpenses
-        .where((e) => e.category.toLowerCase().contains('cogs') || e.category.toLowerCase().contains('cost') || e.category.toLowerCase().contains('purchase'))
-        .fold<double>(0.0, (sum, e) => sum + e.amount);
-  }
+  double directCogsExpenses = filteredExpenses
+      .where((e) => e.category.toLowerCase().contains('cogs') || e.category.toLowerCase().contains('cost of goods') || e.category.toLowerCase().contains('direct cost'))
+      .fold<double>(0.0, (sum, e) => sum + e.amount);
+
+  double totalCogs = purchases + directCogsExpenses;
 
   double grossProfit = totalRevenue - totalCogs;
   double grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0.0;
@@ -269,16 +308,17 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
         final isBank = cat.contains('bank') || cat.contains('fee');
         final isCogs = cat.contains('cogs') || cat.contains('cost') || cat.contains('purchase');
         final isInt = cat.contains('interest') || cat.contains('loan');
-        return !isSal && !isRent && !isUtil && !isNet && !isTrans && !isMkt && !isAdmin && !isRep && !isDep && !isBank && !isCogs && !isInt;
+        final isTax = cat.contains('tax');
+        return !isSal && !isRent && !isUtil && !isNet && !isTrans && !isMkt && !isAdmin && !isRep && !isDep && !isBank && !isCogs && !isInt && !isTax;
       })
       .fold<double>(0.0, (sum, e) => sum + e.amount) + directCreditTotal;
 
-  double expenseRecordsTotal = filteredExpenses.fold<double>(0.0, (sum, e) => sum + e.amount);
-  double totalExpenses = expenseRecordsTotal + salaryPaidTotal + directCreditTotal;
+  double opexFromExpenses = filteredExpenses
+      .where((e) => !e.category.toLowerCase().contains('cogs') && !e.category.toLowerCase().contains('cost of goods') && !e.category.toLowerCase().contains('interest') && !e.category.toLowerCase().contains('loan') && !e.category.toLowerCase().contains('tax'))
+      .fold<double>(0.0, (sum, e) => sum + e.amount);
 
-  double accountedOpEx = salariesWages + rentOccupancy + electricityUtilities + internetTelecom + transportLogistics + marketingAdvertising + officeAdmin + repairsMaintenance + depreciation + bankCharges + otherExpenses;
-  double miscellaneous = totalExpenses > (accountedOpEx + totalCogs) ? (totalExpenses - accountedOpEx - totalCogs) : 0.0;
-  double totalOpEx = accountedOpEx + miscellaneous;
+  double totalOpEx = opexFromExpenses + salaryPaidTotal + directCreditTotal;
+  double miscellaneous = 0.0;
 
   // 4. OPERATING PROFIT (EBIT)
   double operatingProfit = grossProfit - totalOpEx;
@@ -291,14 +331,23 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
 
   // 6. NET PROFIT & TAX
   double netProfitPreTax = operatingProfit - totalFinanceCosts;
-  double taxProvision = netProfitPreTax > 0 ? (netProfitPreTax * 0.15) : 0.0;
+
+  double actualTaxExpense = filteredExpenses
+      .where((e) => e.category.toLowerCase().contains('tax'))
+      .fold<double>(0.0, (sum, e) => sum + e.amount);
+  bool hasTaxData = actualTaxExpense > 0;
+  double taxProvision = hasTaxData ? actualTaxExpense : 0.0;
+
   double netProfitAfterTax = netProfitPreTax - taxProvision;
   double netMargin = totalRevenue > 0 ? (netProfitAfterTax / totalRevenue) * 100 : 0.0;
   double netProfit = netProfitAfterTax;
 
+  double totalExpenses = totalOpEx + totalCogs + totalFinanceCosts + taxProvision;
+
   // Expense Categories Breakdown
   final Map<String, double> categoryMap = {};
   for (final e in filteredExpenses) {
+    if (e.category.toLowerCase().contains('cogs') || e.category.toLowerCase().contains('cost of goods')) continue;
     categoryMap[e.category] = (categoryMap[e.category] ?? 0.0) + e.amount;
   }
   if (salaryPaidTotal > 0) {
@@ -309,13 +358,69 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
   }
 
   final List<ExpenseCategorySummary> categorySummaries = categoryMap.entries.map((entry) {
-    final pct = totalExpenses > 0 ? (entry.value / totalExpenses) * 100 : 0.0;
+    final pct = totalOpEx > 0 ? (entry.value / totalOpEx) * 100 : 0.0;
     return ExpenseCategorySummary(
       category: entry.key,
       amount: entry.value,
       percentage: pct,
     );
   }).toList()..sort((a, b) => b.amount.compareTo(a.amount));
+
+  // 7. PRIOR YEAR ACTUAL DATA CALCULATION
+  final priorIncomes = incomeState.incomes.where((i) => isWithinPriorRange(i.date)).toList();
+  final priorSalesInvoices = salesInvoicesState.invoices.where((inv) => isWithinPriorRange(inv.date)).toList();
+  final priorExpenses = expensesState.expenses.where((e) => isWithinPriorRange(e.date)).toList();
+  final priorSalaries = salariesState.salaries.where((s) => isWithinPriorRange(s.paymentDate)).toList();
+  final priorPurchaseOrders = purchaseOrdersState.orders.where((po) => isWithinPriorRange(po.date) && po.status.toLowerCase() != 'cancelled').toList();
+
+  bool hasPriorYearData = priorIncomes.isNotEmpty || priorSalesInvoices.isNotEmpty || priorExpenses.isNotEmpty || priorSalaries.isNotEmpty || priorPurchaseOrders.isNotEmpty;
+  Map<String, double> priorYearAmounts = {};
+
+  if (hasPriorYearData) {
+    double priorSalesRev = priorSalesInvoices.where((inv) => inv.status.toLowerCase() == 'paid').fold(0.0, (s, i) => s + i.total);
+    double priorIncTot = priorIncomes.fold(0.0, (s, i) => s + i.amount);
+    double priorRev = priorSalesRev + priorIncTot;
+
+    double priorPurchases = priorPurchaseOrders.fold(0.0, (s, po) => s + po.total);
+    double priorDirectCogs = priorExpenses.where((e) => e.category.toLowerCase().contains('cogs') || e.category.toLowerCase().contains('cost')).fold(0.0, (s, e) => s + e.amount);
+    double priorCogs = priorPurchases + priorDirectCogs;
+
+    double priorGross = priorRev - priorCogs;
+
+    double priorSalariesPaid = priorSalaries.where((s) => s.status == 'Paid').fold(0.0, (s, e) => s + e.netPaid);
+    double priorOpExExpenses = priorExpenses.where((e) => !e.category.toLowerCase().contains('cogs') && !e.category.toLowerCase().contains('interest') && !e.category.toLowerCase().contains('tax')).fold(0.0, (s, e) => s + e.amount);
+    double priorOpEx = priorOpExExpenses + priorSalariesPaid;
+
+    double priorOpProfit = priorGross - priorOpEx;
+    double priorFin = priorExpenses.where((e) => e.category.toLowerCase().contains('interest') || e.category.toLowerCase().contains('loan')).fold(0.0, (s, e) => s + e.amount);
+    double priorPreTax = priorOpProfit - priorFin;
+    double priorTax = priorExpenses.where((e) => e.category.toLowerCase().contains('tax')).fold(0.0, (s, e) => s + e.amount);
+    double priorAfterTax = priorPreTax - priorTax;
+
+    priorYearAmounts = {
+      'totalRevenue': priorRev,
+      'salesRevenue': priorSalesRev,
+      'totalCogs': priorCogs,
+      'grossProfit': priorGross,
+      'totalOpEx': priorOpEx,
+      'operatingProfit': priorOpProfit,
+      'totalFinanceCosts': priorFin,
+      'netProfitPreTax': priorPreTax,
+      'taxProvision': priorTax,
+      'netProfitAfterTax': priorAfterTax,
+      'salariesWages': priorSalariesPaid + priorExpenses.where((e) => e.category.toLowerCase().contains('salari') || e.category.toLowerCase().contains('pay')).fold(0.0, (s, e) => s + e.amount),
+      'rentOccupancy': priorExpenses.where((e) => e.category.toLowerCase().contains('rent')).fold(0.0, (s, e) => s + e.amount),
+      'electricityUtilities': priorExpenses.where((e) => e.category.toLowerCase().contains('electric') || e.category.toLowerCase().contains('power') || e.category.toLowerCase().contains('utility')).fold(0.0, (s, e) => s + e.amount),
+      'internetTelecom': priorExpenses.where((e) => e.category.toLowerCase().contains('internet') || e.category.toLowerCase().contains('telecom')).fold(0.0, (s, e) => s + e.amount),
+      'transportLogistics': priorExpenses.where((e) => e.category.toLowerCase().contains('travel') || e.category.toLowerCase().contains('transport')).fold(0.0, (s, e) => s + e.amount),
+      'marketingAdvertising': priorExpenses.where((e) => e.category.toLowerCase().contains('market') || e.category.toLowerCase().contains('advert')).fold(0.0, (s, e) => s + e.amount),
+      'officeAdmin': priorExpenses.where((e) => e.category.toLowerCase().contains('office') || e.category.toLowerCase().contains('admin')).fold(0.0, (s, e) => s + e.amount),
+      'repairsMaintenance': priorExpenses.where((e) => e.category.toLowerCase().contains('repair') || e.category.toLowerCase().contains('maint')).fold(0.0, (s, e) => s + e.amount),
+      'depreciation': priorExpenses.where((e) => e.category.toLowerCase() == 'depreciation').fold(0.0, (s, e) => s + e.amount),
+      'bankCharges': priorExpenses.where((e) => e.category.toLowerCase().contains('bank') || e.category.toLowerCase().contains('fee')).fold(0.0, (s, e) => s + e.amount),
+      'otherExpenses': priorExpenses.where((e) => e.category.toLowerCase().contains('other')).fold(0.0, (s, e) => s + e.amount),
+    };
+  }
 
   final profitLossSummary = ProfitLossSummary(
     totalRevenue: totalRevenue,
@@ -347,11 +452,15 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
     totalFinanceCosts: totalFinanceCosts,
     netProfitPreTax: netProfitPreTax,
     taxProvision: taxProvision,
+    hasTaxData: hasTaxData,
     netProfitAfterTax: netProfitAfterTax,
     netMargin: netMargin,
     totalExpenses: totalExpenses,
     netProfit: netProfit,
     expenseCategories: categorySummaries,
+    revenueCategories: revenueCategorySummaries,
+    hasPriorYearData: hasPriorYearData,
+    priorYearAmounts: priorYearAmounts,
   );
 
   // 3. CASH FLOW CALCULATIONS
@@ -392,7 +501,16 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
     netCashFlow: netCashFlow,
   );
 
-  // 4. ASSETS & LIABILITIES (PURE REAL SYSTEM DATA - NO DUMMY FALLBACKS)
+  // 4. ASSETS & LIABILITIES (PURE REAL SYSTEM DATA - AS OF POINT-IN-TIME)
+  final asOfDate = endDate;
+
+  bool isUpToAsOfDate(String dateStr) {
+    final dt = parseDate(dateStr);
+    if (dt == null) return true;
+    return dt.isBefore(asOfDate) || dt.isAtSameMomentAs(asOfDate);
+  }
+
+  // 1. Cash & Bank Accounts (excluding Personal accounts)
   final companyAccounts = accountsState.accounts.where((a) => a.accountScope != 'Personal' && a.status == 'Active').toList();
   final cashInHand = companyAccounts
       .where((a) => a.type.toLowerCase().contains('cash'))
@@ -402,24 +520,39 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
       .fold<double>(0.0, (sum, a) => sum + a.balance);
   final cashAndBankBalance = cashInHand + bankAccounts;
 
-  // Accounts Receivable (Unpaid invoices + pending income records)
+  // 2. Accounts Receivable (Outstanding project receivables + unpaid invoices up to asOfDate)
+  final projectsState = ref.watch(projectsProvider);
+  double projectReceivablesTotal = 0.0;
+  for (final project in projectsState.projects) {
+    if (project.status == 'Completed') continue;
+    final projectIncomes = incomeState.incomes.where((i) => i.projectId == project.id && isUpToAsOfDate(i.date)).toList();
+    final double actualReceived = projectIncomes.isNotEmpty
+        ? projectIncomes.fold(0.0, (sum, i) => sum + i.amount)
+        : (project.advancedPayment + project.partialPayments + project.finalPayment);
+    final double remaining = (project.budget - actualReceived).clamp(0.0, double.infinity);
+    projectReceivablesTotal += remaining;
+  }
+
   final unpaidInvoicesAR = salesInvoicesState.invoices
-      .where((inv) => inv.status.toLowerCase() != 'paid')
+      .where((inv) => isUpToAsOfDate(inv.date) && inv.status.toLowerCase() != 'paid')
       .fold<double>(0.0, (sum, inv) => sum + inv.total);
   final unpaidIncomeAR = incomeState.incomes
-      .where((inc) => inc.status.toLowerCase() == 'pending' || inc.status.toLowerCase() == 'unpaid')
+      .where((inc) => isUpToAsOfDate(inc.date) && (inc.status.toLowerCase() == 'pending' || inc.status.toLowerCase() == 'unpaid'))
       .fold<double>(0.0, (sum, inc) => sum + inc.amount);
-  final accountsReceivable = unpaidInvoicesAR + unpaidIncomeAR;
+  final accountsReceivable = projectReceivablesTotal + unpaidInvoicesAR + unpaidIncomeAR;
 
-  // Inventory Stock Value
-  final inventoryValue = inventoryState.items.fold<double>(0.0, (sum, item) => sum + (item.pricePerUnit * item.quantity));
+  // 3. Inventory Stock Value up to asOfDate
+  final inventoryValue = inventoryState.items
+      .where((item) => isUpToAsOfDate(item.lastRestockedDate))
+      .fold<double>(0.0, (sum, item) => sum + (item.pricePerUnit * item.quantity));
+
+  // 4. Advances & Prepayments
   final advancesPrepayments = 0.0;
 
   final totalCurrentAssets = cashAndBankBalance + accountsReceivable + inventoryValue + advancesPrepayments;
 
-  // Non-Current Assets (Real data directly from Asset Management & Office Inventory modules)
+  // 5. Non-Current Assets (Hardware & Fixed Assets) up to asOfDate
   final List<dynamic> nonCurrentAssetItems = [];
-
   double computersItEquipment = 0.0;
   double furnitureFixtures = 0.0;
   double vehicles = 0.0;
@@ -428,6 +561,7 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
 
   for (final asset in assetsState.assets) {
     if (asset.status == 'Retired') continue;
+    if (!isUpToAsOfDate(asset.purchaseDate.toString())) continue;
     nonCurrentAssetItems.add(asset);
 
     final nameLower = asset.name.toLowerCase();
@@ -447,6 +581,7 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
   }
 
   for (final item in inventoryState.items) {
+    if (!isUpToAsOfDate(item.lastRestockedDate)) continue;
     final itemVal = item.pricePerUnit * item.quantity;
     if (itemVal <= 0) continue;
     nonCurrentAssetItems.add({
@@ -464,29 +599,74 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
       : grossNonCurrentAssets;
   final totalAssets = totalCurrentAssets + totalNonCurrentAssets;
 
-  // Current Liabilities (Real system data)
+  // 6. Current Liabilities
   final accountsPayable = purchaseOrdersState.orders
-      .where((po) => po.status.toLowerCase() == 'pending' || po.status.toLowerCase() == 'ordered')
+      .where((po) => isUpToAsOfDate(po.date) && (po.status.toLowerCase() == 'pending' || po.status.toLowerCase() == 'ordered'))
       .fold<double>(0.0, (sum, po) => sum + po.total);
-  final shortTermLoans = loansState.loans
-      .where((l) => l.type == 'Borrowed' && l.status != 'Settled')
-      .fold<double>(0.0, (sum, l) => sum + l.remainingBalance);
+
+  // Short-term Loans Breakdown
+  double bankLoanAmount = 0.0;
+  double ownerLoanAmount = 0.0;
+  double otherLoanAmount = 0.0;
+
+  for (final loan in loansState.loans) {
+    if (!isUpToAsOfDate(loan.startDate)) continue;
+    if (loan.status == 'Settled') continue;
+
+    final lender = loan.borrowerName.toLowerCase();
+    final type = loan.type.toLowerCase();
+    final description = loan.description.toLowerCase();
+
+    final remaining = loan.remainingBalance > 0 ? loan.remainingBalance : loan.amount;
+
+    if (type == 'borrowed') {
+      if (lender.contains('bank') || lender.contains('finance') || description.contains('bank')) {
+        bankLoanAmount += remaining;
+      } else if (lender.contains('owner') || lender.contains('director') || lender.contains('proprietor') || description.contains('owner')) {
+        ownerLoanAmount += remaining;
+      } else {
+        otherLoanAmount += remaining;
+      }
+    }
+  }
+
+  // Also include Owner Contributions / Due to Owner from General Ledger entries up to asOfDate
+  final ownerContributionsFromLedger = ledgerState.entries
+      .where((e) => isUpToAsOfDate(e.date) && (e.category == 'Personal Deposit' || e.category == 'Owner Loan' || e.category == 'Due to Owner'))
+      .fold<double>(0.0, (sum, e) => sum + e.amount);
+  ownerLoanAmount += ownerContributionsFromLedger;
+
+  final shortTermLoans = bankLoanAmount + ownerLoanAmount + otherLoanAmount;
+
   final salariesPayable = salariesState.salaries
-      .where((s) => s.status.toLowerCase() != 'paid')
+      .where((s) => isUpToAsOfDate(s.paymentDate) && s.status.toLowerCase() != 'paid')
       .fold<double>(0.0, (sum, s) => sum + s.netPaid);
   final taxPayable = profitLossSummary.taxProvision;
 
   final totalCurrentLiabilities = accountsPayable + salariesPayable + taxPayable + shortTermLoans;
 
-  // Non-Current Liabilities (Real data)
+  // Non-Current Liabilities
   final longTermBankLoans = 0.0;
   final totalNonCurrentLiabilities = longTermBankLoans;
   final totalLiabilities = totalCurrentLiabilities + totalNonCurrentLiabilities;
 
-  // Equity (Real System Data)
-  final retainedEarnings = profitLossSummary.netProfit;
+  // 7. Equity Section
+  // Retained Earnings = ACCUMULATED Net Profit from inception up to asOfDate
+  final historicalIncomes = incomeState.incomes.where((i) => isUpToAsOfDate(i.date)).fold<double>(0.0, (sum, i) => sum + i.amount);
+  final historicalSalesInvoices = salesInvoicesState.invoices.where((inv) => isUpToAsOfDate(inv.date) && inv.status.toLowerCase() == 'paid').fold<double>(0.0, (sum, inv) => sum + inv.total);
+  final historicalDirectDebits = ledgerState.entries.where((e) => isUpToAsOfDate(e.date) && e.type == 'Debit' && (e.category == 'Personal Deposit' || e.category == 'Company Deposit')).fold<double>(0.0, (sum, e) => sum + e.amount);
+  final historicalRevenue = historicalIncomes + historicalSalesInvoices + historicalDirectDebits;
+
+  final historicalExpenses = expensesState.expenses.where((e) => isUpToAsOfDate(e.date)).fold<double>(0.0, (sum, e) => sum + e.amount);
+  final historicalSalaries = salariesState.salaries.where((s) => isUpToAsOfDate(s.paymentDate) && s.status == 'Paid').fold<double>(0.0, (sum, s) => sum + s.netPaid);
+  final historicalPurchases = purchaseOrdersState.orders.where((po) => isUpToAsOfDate(po.date) && po.status.toLowerCase() != 'cancelled').fold<double>(0.0, (sum, po) => sum + po.total);
+  final historicalDirectCredits = ledgerState.entries.where((e) => isUpToAsOfDate(e.date) && e.type == 'Credit' && e.category == 'Other Expense').fold<double>(0.0, (sum, e) => sum + e.amount);
+  final historicalTotalCosts = historicalExpenses + historicalSalaries + historicalPurchases + historicalDirectCredits;
+
+  final retainedEarnings = historicalRevenue - historicalTotalCosts;
+
   final lessOwnersDrawings = expensesState.expenses
-      .where((e) => e.isPersonalExpense && isWithinRange(e.date))
+      .where((e) => e.isPersonalExpense && isUpToAsOfDate(e.date))
       .fold<double>(0.0, (sum, e) => sum + e.amount);
 
   final totalEquity = totalAssets - totalLiabilities;
@@ -515,6 +695,9 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
     salariesPayable: salariesPayable,
     taxPayable: taxPayable,
     shortTermLoans: shortTermLoans,
+    bankLoanAmount: bankLoanAmount,
+    ownerLoanAmount: ownerLoanAmount,
+    otherLoanAmount: otherLoanAmount,
     totalCurrentLiabilities: totalCurrentLiabilities,
     longTermBankLoans: longTermBankLoans,
     totalNonCurrentLiabilities: totalNonCurrentLiabilities,
@@ -526,6 +709,7 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
     totalLiabilitiesAndEquity: totalLiabilitiesAndEquity,
     workingCapital: workingCapital,
     assetManagementList: nonCurrentAssetItems,
+    asOfDate: asOfDate,
   );
 
   return FinancialReportState(

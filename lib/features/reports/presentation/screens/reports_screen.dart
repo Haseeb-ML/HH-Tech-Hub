@@ -8,9 +8,11 @@ import 'package:software_house_erp/core/widgets/export_button.dart';
 
 // Import providers
 import 'package:software_house_erp/features/hr/employees/presentation/providers/employees_provider.dart';
+import 'package:software_house_erp/features/hr/employees/presentation/providers/departments_provider.dart';
 import 'package:software_house_erp/features/projects/projects/presentation/providers/projects_provider.dart';
 import 'package:software_house_erp/features/inventory/assets/presentation/providers/assets_provider.dart';
 import 'package:software_house_erp/features/inventory/inventory/presentation/providers/inventory_provider.dart';
+import 'package:software_house_erp/features/hr/attendance/presentation/providers/attendance_provider.dart';
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -365,20 +367,30 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   // ── RESOURCES & HR TAB ────────────────────────────────
   Widget _buildResourcesTab(EmployeesState empState, AssetsState assetState, InventoryState invState) {
     final tr = ref.watch(translationProvider);
+    final attendanceState = ref.watch(attendanceProvider);
     // 1. Calculations
     final employees = empState.employees;
     final totalStaff = employees.length;
+
+    int totalPresentDays = 0;
+    int totalHalfDays = 0;
+    int totalWorkingDaysSum = 0;
+    for (final s in attendanceState.monthlySummaries) {
+      totalPresentDays += s.presentDays;
+      totalHalfDays += s.halfDays;
+      totalWorkingDaysSum += s.workingDays;
+    }
+    final overallAttendanceRate = totalWorkingDaysSum > 0
+        ? ((totalPresentDays + (totalHalfDays * 0.5)) / totalWorkingDaysSum * 100).clamp(0.0, 100.0)
+        : 0.0;
     
     // Department Headcounts
+    final allSavedDepts = ref.watch(departmentsProvider);
     final deptCount = <String, int>{
-      'Mobile Apps': 0,
-      'Design': 0,
-      'Quality Assurance': 0,
-      'Management': 0,
-      'Web Development': 0,
+      for (final d in allSavedDepts) d: 0,
     };
     for (var emp in employees) {
-      if (emp.status == 'Active') {
+      if (emp.status == 'Active' && emp.department.trim().isNotEmpty) {
         deptCount[emp.department] = (deptCount[emp.department] ?? 0) + 1;
       }
     }
@@ -486,12 +498,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildCircularIndicator(
+                        value: overallAttendanceRate / 100,
+                        title: tr('Staff Attendance'),
+                        subtitle: tr('Monthly Attendance Rate'),
+                        color: overallAttendanceRate >= 80 ? context.success : context.warning,
+                      ),
+                      _buildCircularIndicator(
                         value: assetState.assets.isNotEmpty
                             ? assetState.assets.where((a) => a.condition != 'Damaged' && a.condition != 'Fair').length / assetState.assets.length
                             : 0.0,
                         title: tr('Asset Quality'),
                         subtitle: tr('Ratio in Good/New condition'),
-                        color: context.success,
+                        color: context.info,
                       ),
                       _buildCircularIndicator(
                         value: invState.items.isNotEmpty
@@ -499,7 +517,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             : 0.0,
                         title: tr('Stock Health'),
                         subtitle: tr('Ratio of healthy inventory lines'),
-                        color: context.info,
+                        color: const Color(0xFF0D9488),
                       ),
                     ],
                   ),

@@ -1,6 +1,19 @@
 import 'package:flutter/foundation.dart';
 
 @immutable
+class RevenueCategorySummary {
+  final String category;
+  final double amount;
+  final double percentage;
+
+  const RevenueCategorySummary({
+    required this.category,
+    required this.amount,
+    required this.percentage,
+  });
+}
+
+@immutable
 class ExpenseCategorySummary {
   final String category;
   final double amount;
@@ -48,12 +61,17 @@ class ProfitLossSummary {
   final double totalFinanceCosts;
   final double netProfitPreTax;
   final double taxProvision;
+  final bool hasTaxData;
   final double netProfitAfterTax;
   final double netMargin;
 
   final double totalExpenses;
   final double netProfit;
   final List<ExpenseCategorySummary> expenseCategories;
+  final List<RevenueCategorySummary> revenueCategories;
+
+  final bool hasPriorYearData;
+  final Map<String, double> priorYearAmounts;
 
   const ProfitLossSummary({
     required this.totalRevenue,
@@ -85,11 +103,15 @@ class ProfitLossSummary {
     this.totalFinanceCosts = 0.0,
     this.netProfitPreTax = 0.0,
     this.taxProvision = 0.0,
+    this.hasTaxData = false,
     this.netProfitAfterTax = 0.0,
     this.netMargin = 0.0,
     required this.totalExpenses,
     required this.netProfit,
     required this.expenseCategories,
+    this.revenueCategories = const [],
+    this.hasPriorYearData = false,
+    this.priorYearAmounts = const {},
   });
 
   bool get isProfitable => netProfit >= 0;
@@ -141,6 +163,11 @@ class AssetsLiabilitiesSummary {
   final double salariesPayable;
   final double taxPayable;
   final double shortTermLoans;
+
+  final double bankLoanAmount;
+  final double ownerLoanAmount;
+  final double otherLoanAmount;
+
   final double totalCurrentLiabilities;
 
   final double longTermBankLoans;
@@ -155,6 +182,7 @@ class AssetsLiabilitiesSummary {
 
   final double workingCapital;
   final List<dynamic> assetManagementList;
+  final DateTime? asOfDate;
 
   const AssetsLiabilitiesSummary({
     this.cashInHand = 0.0,
@@ -176,6 +204,9 @@ class AssetsLiabilitiesSummary {
     required this.salariesPayable,
     this.taxPayable = 0.0,
     required this.shortTermLoans,
+    this.bankLoanAmount = 0.0,
+    this.ownerLoanAmount = 0.0,
+    this.otherLoanAmount = 0.0,
     required this.totalCurrentLiabilities,
     this.longTermBankLoans = 0.0,
     this.totalNonCurrentLiabilities = 0.0,
@@ -187,5 +218,6 @@ class AssetsLiabilitiesSummary {
     this.totalLiabilitiesAndEquity = 0.0,
     required this.workingCapital,
     this.assetManagementList = const [],
+    this.asOfDate,
   });
 }

@@ -9,8 +9,10 @@ import '../providers/ledger_provider.dart';
 import '../../../accounts/presentation/providers/accounts_provider.dart';
 import '../../domain/entities/ledger_entry.dart';
 import '../../../../projects/projects/presentation/providers/projects_provider.dart';
+import '../../../../projects/projects/presentation/screens/projects_screen.dart';
 import '../../../income/presentation/providers/income_provider.dart';
 import '../../../expenses/presentation/providers/expenses_provider.dart';
+import 'package:software_house_erp/features/finance/shared/widgets/transaction_detail_dialog.dart';
 class LedgerScreen extends ConsumerWidget {
   const LedgerScreen({super.key});
 
@@ -19,8 +21,9 @@ class LedgerScreen extends ConsumerWidget {
     final tr = ref.watch(translationProvider);
     final state = ref.watch(ledgerProvider);
     final accountsState = ref.watch(accountsProvider);
+    final clientAccounts = ref.watch(clientAccountsProvider);
     final incomes = ref.watch(incomeProvider).incomes;
-    final expenses = ref.watch(expensesProvider).expenses.where((e) => !e.isPersonalExpense).toList();
+    final expenses = ref.watch(expensesProvider).expenses;
     final theme = Theme.of(context);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -28,7 +31,10 @@ class LedgerScreen extends ConsumerWidget {
     });
 
     // Build account lookup map
-    final accountMap = {for (var a in accountsState.accounts) a.id: a.name};
+    final accountMap = {
+      for (var a in accountsState.accounts) a.id: a.name,
+      for (var ca in clientAccounts) ca.id: ca.name,
+    };
 
     // Compile real entries from IncomeRecords
     final allProjectsList = ref.watch(projectsProvider).projects;
@@ -67,24 +73,74 @@ class LedgerScreen extends ConsumerWidget {
         }
       }
 
-      // Determine accurate Payment Method (Online / Cash / Bank)
-      String pMethod = 'Bank';
       final matchedProj = allProjectsList.where((p) => p.id == inc.projectId).firstOrNull;
-      final paymentSource = matchedProj?.clientPaymentSource.toLowerCase() ?? '';
-      final accName = (accountMap[inc.accountId] ?? '').toLowerCase();
 
-      if (paymentSource.contains('easypaisa') || paymentSource.contains('jazzcash') || paymentSource.contains('online') || accName.contains('wallet') || accName.contains('easypaisa')) {
-        pMethod = 'Online';
-      } else if (paymentSource.contains('cash') || accName.contains('cash')) {
-        pMethod = 'Cash';
-      } else if (paymentSource.contains('bank') || accName.contains('bank') || accName.contains('meezan') || accName.contains('hbl')) {
-        pMethod = 'Bank';
+      // Match Client Account from clientAccountsProvider
+      ClientAccount? matchedClientAccount;
+      if (matchedProj != null) {
+        matchedClientAccount = clientAccounts.where((ca) =>
+            ca.id == matchedProj.clientPaymentSource ||
+            ca.name == matchedProj.clientPaymentSource ||
+            (matchedProj.clientPaymentSource.contains(ca.name)) ||
+            (matchedProj.clientId.isNotEmpty && ca.clientId == matchedProj.clientId)
+        ).firstOrNull;
+      }
+      if (matchedClientAccount == null && inc.clientId.isNotEmpty) {
+        matchedClientAccount = clientAccounts.where((ca) => ca.clientId == inc.clientId).firstOrNull;
+      }
+
+      // Determine accurate Payment Method (Bank / Cash / Online)
+      String pMethod = 'Bank';
+      if (matchedClientAccount != null) {
+        if (matchedClientAccount.paymentMethod == 'Bank') {
+          pMethod = 'Bank';
+        } else if (matchedClientAccount.paymentMethod == 'Wallet' || matchedClientAccount.paymentMethod == 'Online') {
+          pMethod = 'Online';
+        } else if (matchedClientAccount.paymentMethod == 'Cash') {
+          pMethod = 'Cash';
+        }
       } else {
-        // Assign distinct payment methods based on index/id for variety if unspecified
-        final hash = inc.id.hashCode.abs() % 3;
-        if (hash == 0) pMethod = 'Online';
-        else if (hash == 1) pMethod = 'Bank';
-        else pMethod = 'Cash';
+        final paymentSource = (matchedProj?.clientPaymentSource ?? '').toLowerCase();
+        final accName = (accountMap[inc.accountId] ?? '').toLowerCase();
+
+        if (paymentSource.contains('easypaisa') || paymentSource.contains('jazzcash') || paymentSource.contains('wallet') || paymentSource.contains('online') || accName.contains('wallet') || accName.contains('easypaisa')) {
+          pMethod = 'Online';
+        } else if (paymentSource.contains('cash') || (accName.contains('cash') && !paymentSource.contains('bank'))) {
+          pMethod = 'Cash';
+        } else {
+          // Default to Bank for project and client payments
+          pMethod = 'Bank';
+        }
+      }
+
+      // Determine accurate Account Name & Account ID
+      String actualAccountId = inc.accountId;
+      String actualAccountName = accountMap[inc.accountId] ?? '';
+
+      if (matchedClientAccount != null) {
+        actualAccountId = matchedClientAccount.id;
+        actualAccountName = matchedClientAccount.name;
+        if (matchedClientAccount.bankName.isNotEmpty && !actualAccountName.toLowerCase().contains(matchedClientAccount.bankName.toLowerCase())) {
+          actualAccountName = '${matchedClientAccount.name} (${matchedClientAccount.bankName})';
+        }
+      } else if (matchedProj != null && matchedProj.clientPaymentSource.isNotEmpty && matchedProj.clientPaymentSource != 'Cash') {
+        actualAccountName = matchedProj.clientPaymentSource;
+      } else if (matchedProj != null && matchedProj.bankAccountName.isNotEmpty && (pMethod != 'Bank' || !matchedProj.bankAccountName.toLowerCase().contains('cash'))) {
+        actualAccountName = matchedProj.bankAccountName;
+      } else if (actualAccountName.isEmpty || (pMethod == 'Bank' && actualAccountName.toLowerCase().contains('cash'))) {
+        actualAccountName = pMethod == 'Bank' ? 'Bank Account' : (pMethod == 'Cash' ? 'Cash Account' : 'Online Wallet');
+      }
+
+      // Determine clean, meaningful Reference
+      String actualRef = '';
+      if (inc.invoiceNumber.isNotEmpty) {
+        actualRef = inc.invoiceNumber;
+      } else if (inc.projectId != null && inc.projectId!.isNotEmpty) {
+        actualRef = inc.projectId!;
+      } else if (matchedProj != null && matchedProj.name.isNotEmpty) {
+        actualRef = matchedProj.name;
+      } else {
+        actualRef = '—';
       }
 
       String isoDate = inc.date.isNotEmpty ? inc.date : DateTime.now().toIso8601String();
@@ -108,12 +164,13 @@ class LedgerScreen extends ConsumerWidget {
       return LedgerEntry(
         id: 'led_inc_${inc.id}',
         date: isoDate,
-        accountId: inc.accountId,
-        accountName: accountMap[inc.accountId] ?? 'Bank/Cash Account',
+        accountId: actualAccountId,
+        accountName: actualAccountName,
         type: 'Debit',
-        category: pMethod, // Payment Method (Cash/Bank/Online)
+        category: pMethod, // Payment Method (Bank / Cash / Online)
         amount: inc.amount,
-        reference: installmentText, // Advance Payment / Partial Payment
+        reference: actualRef, // Clean linked reference (no random fake strings)
+        installmentType: installmentText,
         description: desc,
       );
     });
@@ -150,8 +207,12 @@ class LedgerScreen extends ConsumerWidget {
     // Only use real income/expense records (no duplicate legacy entries)
     // Filter out any state.entries that overlap with income/expense IDs
     final incExpIds = <String>{};
-    for (final inc in incomes) incExpIds.add('led_inc_${inc.id}');
-    for (final exp in expenses) incExpIds.add('led_exp_${exp.id}');
+    for (final inc in incomes) {
+      incExpIds.add('led_inc_${inc.id}');
+    }
+    for (final exp in expenses) {
+      incExpIds.add('led_exp_${exp.id}');
+    }
     final uniqueStaticEntries = state.entries.where((e) => !incExpIds.contains(e.id)).map((e) {
       if (e.date.length == 10) {
         final idNumStr = e.id.replaceAll(RegExp(r'[^0-9]'), '');
@@ -169,7 +230,32 @@ class LedgerScreen extends ConsumerWidget {
       }
       return e;
     }).toList();
-    final allEntries = [...uniqueStaticEntries, ...realIncomeEntries, ...realExpenseEntries];
+
+    // Include Opening Balance entries for all accounts (Company & Personal) if not already present
+    final existingIds = <String>{
+      ...incExpIds,
+      ...uniqueStaticEntries.map((e) => e.id),
+    };
+    final openingBalanceEntries = accountsState.accounts
+        .where((a) => a.openingBalance > 0 && !existingIds.contains('led_opening_${a.id}'))
+        .map((a) => LedgerEntry(
+              id: 'led_opening_${a.id}',
+              date: a.openingBalanceDate.isNotEmpty ? a.openingBalanceDate : DateTime.now().toIso8601String(),
+              accountId: a.id,
+              accountName: a.name,
+              type: 'Debit',
+              category: 'Opening Balance',
+              amount: a.openingBalance,
+              reference: 'Opening Balance',
+              description: 'Opening balance deposited for ${a.name}',
+            ));
+
+    final allEntries = [
+      ...uniqueStaticEntries,
+      ...realIncomeEntries,
+      ...realExpenseEntries,
+      ...openingBalanceEntries,
+    ];
 
     // Filter entries
     final filteredEntries = allEntries.where((e) {
@@ -283,13 +369,13 @@ class LedgerScreen extends ConsumerWidget {
                                 StatCard(
                                   title: "Today's Income",
                                   tooltipMessage: "Detailed statistics and information regarding Today's Income.",
-                                  value: '+ Rs. ${todayInflow.toStringAsFixed(0)}',
+                                  value: 'Rs. ${todayInflow.toStringAsFixed(0)}',
                                   trendText: 'Received today',
                                 ),
                                 StatCard(
                                   title: "Today's Expenses",
                                   tooltipMessage: "Detailed statistics and information regarding Today's Expenses.",
-                                  value: '- Rs. ${todayOutflow.toStringAsFixed(0)}',
+                                  value: 'Rs. ${todayOutflow.toStringAsFixed(0)}',
                                   trendText: 'Spent today',
                                 ),
                                 StatCard(
@@ -404,7 +490,7 @@ class LedgerScreen extends ConsumerWidget {
                                         style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
                                         items: [
                                           const DropdownMenuItem(value: 'All', child: Text('All Accounts')),
-                                          ...accountsState.accounts.map((a) => DropdownMenuItem(value: a.id, child: Text(a.name))),
+                                          ...accountMap.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))),
                                         ],
                                         onChanged: (val) {
                                           if (val != null) {
@@ -670,10 +756,25 @@ class _LedgerListTile extends ConsumerWidget {
       timeStr = '12:00 PM';
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      color: context.cardBg,
-      child: Row(
+    return InkWell(
+      onTap: () {
+        TransactionDetailDialog.show(
+          context,
+          id: entry.id,
+          title: entry.description,
+          category: entry.category,
+          description: entry.description,
+          amount: entry.amount,
+          date: entry.date,
+          type: entry.type,
+          accountName: entry.accountName,
+          reference: entry.reference,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        color: context.cardBg,
+        child: Row(
         children: [
           // 1. Type
           Expanded(
@@ -709,12 +810,14 @@ class _LedgerListTile extends ConsumerWidget {
                   // Only income records have installment labels such as Advance Payment.
                   // Other debit rows must retain their real category/reference.
                   isDebit
-                      ? (entry.id.startsWith('led_inc_')
-                          ? entry.reference
-                          : (entry.category.isNotEmpty ? entry.category : entry.reference))
+                      ? (entry.installmentType.isNotEmpty
+                          ? entry.installmentType
+                          : (entry.id.startsWith('led_inc_')
+                              ? 'Payment Received'
+                              : (entry.category.isNotEmpty ? entry.category : (entry.reference.isNotEmpty && entry.reference != '—' ? entry.reference : 'Inflow'))))
                       : (entry.reference.contains('Expense') || entry.reference.contains('Outflow')
                           ? entry.category
-                          : entry.reference),
+                          : (entry.category.isNotEmpty ? entry.category : entry.reference)),
                   style: TextStyle(color: context.textMuted, fontSize: 11, fontWeight: FontWeight.w500),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -758,7 +861,12 @@ class _LedgerListTile extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text('Bank Account', style: TextStyle(color: context.textMuted, fontSize: 11)),
+                Text(
+                  entry.category == 'Cash'
+                      ? 'Cash Account'
+                      : (entry.category == 'Online' ? 'Online Wallet' : 'Bank Account'),
+                  style: TextStyle(color: context.textMuted, fontSize: 11),
+                ),
               ],
             ),
           ),
@@ -788,7 +896,15 @@ class _LedgerListTile extends ConsumerWidget {
           Expanded(
             flex: 2,
             child: Text(
-              (entry.reference.isNotEmpty && !entry.reference.contains('Payment')) ? 'Ref: ${entry.reference}' : 'Ref: #INC-${entry.id.replaceAll('led_inc_', '').takeLast(4)}',
+              (entry.reference.isNotEmpty &&
+                      entry.reference != '—' &&
+                      !entry.reference.contains('Expense Outflow') &&
+                      !entry.reference.contains('Payment Received') &&
+                      !entry.reference.contains('Advance Payment') &&
+                      !entry.reference.contains('Partial Payment') &&
+                      !entry.reference.contains('Full Payment'))
+                  ? (entry.reference.startsWith('Ref:') ? entry.reference : 'Ref: ${entry.reference}')
+                  : '—',
               style: TextStyle(color: context.textSecondary, fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -801,7 +917,7 @@ class _LedgerListTile extends ConsumerWidget {
             child: Align(
               alignment: Alignment.centerRight,
               child: Text(
-                '${isDebit ? '+' : '-'} Rs. ${entry.amount.toStringAsFixed(2)}',
+                'Rs. ${entry.amount.toStringAsFixed(2)}',
                 style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
@@ -867,13 +983,8 @@ class _LedgerListTile extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
-extension StringExtension on String {
-  String takeLast(int n) {
-    if (length <= n) return this;
-    return substring(length - n);
-  }
-}

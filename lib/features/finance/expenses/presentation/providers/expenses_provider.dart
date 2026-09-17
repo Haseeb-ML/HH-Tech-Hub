@@ -6,7 +6,6 @@ import '../../data/repositories/expense_repository_impl.dart';
 import '../../../accounts/presentation/providers/accounts_provider.dart';
 import '../../../ledger/presentation/providers/ledger_provider.dart';
 import '../../../ledger/domain/entities/ledger_entry.dart';
-import '../../../loans/domain/entities/loan_record.dart';
 import '../../../loans/presentation/providers/loans_provider.dart';
 
 class ExpensesState {
@@ -14,12 +13,18 @@ class ExpensesState {
   final bool isLoading;
   final String searchQuery;
   final String categoryFilter; // 'All' or specific category
+  final String accountIdFilter; // 'All' or specific accountId
+  final String? fromDateFilter; // 'YYYY-MM-DD' or null
+  final String? toDateFilter; // 'YYYY-MM-DD' or null
 
   const ExpensesState({
     required this.expenses,
     required this.isLoading,
     required this.searchQuery,
     required this.categoryFilter,
+    this.accountIdFilter = 'All',
+    this.fromDateFilter,
+    this.toDateFilter,
   });
 
   ExpensesState copyWith({
@@ -27,26 +32,87 @@ class ExpensesState {
     bool? isLoading,
     String? searchQuery,
     String? categoryFilter,
+    String? accountIdFilter,
+    String? fromDateFilter,
+    String? toDateFilter,
+    bool clearDates = false,
   }) {
     return ExpensesState(
       expenses: expenses ?? this.expenses,
       isLoading: isLoading ?? this.isLoading,
       searchQuery: searchQuery ?? this.searchQuery,
       categoryFilter: categoryFilter ?? this.categoryFilter,
+      accountIdFilter: accountIdFilter ?? this.accountIdFilter,
+      fromDateFilter: clearDates ? null : (fromDateFilter ?? this.fromDateFilter),
+      toDateFilter: clearDates ? null : (toDateFilter ?? this.toDateFilter),
     );
+  }
+
+  bool _isCategoryMatch(String recordCategory, String filterCategory) {
+    if (filterCategory == 'All') return true;
+    if (recordCategory == filterCategory) return true;
+
+    final rLower = recordCategory.toLowerCase().trim();
+    final fLower = filterCategory.toLowerCase().trim();
+
+    // Electricity & Utilities matching
+    if ((fLower.contains('electric') || fLower.contains('utilit')) &&
+        (rLower.contains('electric') || rLower.contains('utilit'))) {
+      return true;
+    }
+
+    // Salaries & Payroll matching
+    if ((fLower.contains('salar') || fLower.contains('payroll')) &&
+        (rLower.contains('salar') || rLower.contains('payroll'))) {
+      return true;
+    }
+
+    // Rent & Occupancy matching
+    if (fLower.contains('rent') && rLower.contains('rent')) {
+      return true;
+    }
+
+    // Internet & Telecom matching
+    if ((fLower.contains('internet') || fLower.contains('telecom')) &&
+        (rLower.contains('internet') || rLower.contains('telecom'))) {
+      return true;
+    }
+
+    return false;
   }
 
   List<ExpenseRecord> get filteredExpenses {
     final sorted = ExpenseRecord.sortExpensesNewestFirst(expenses);
 
     return sorted.where((e) {
-      final matchesSearch = e.description.toLowerCase().contains(searchQuery.toLowerCase()) ||
+      final matchesSearch = searchQuery.isEmpty ||
+          e.description.toLowerCase().contains(searchQuery.toLowerCase()) ||
           e.vendorName.toLowerCase().contains(searchQuery.toLowerCase()) ||
           e.category.toLowerCase().contains(searchQuery.toLowerCase());
 
-      final matchesCategory = categoryFilter == 'All' || e.category == categoryFilter;
+      final matchesCategory = _isCategoryMatch(e.category, categoryFilter);
 
-      return matchesSearch && matchesCategory;
+      final matchesAccount = accountIdFilter == 'All' || e.accountId == accountIdFilter;
+
+      bool matchesDate = true;
+      if (fromDateFilter != null && fromDateFilter!.isNotEmpty) {
+        final eDate = DateTime.tryParse(e.date);
+        final fDate = DateTime.tryParse(fromDateFilter!);
+        if (eDate != null && fDate != null) {
+          final startOfDay = DateTime(fDate.year, fDate.month, fDate.day);
+          if (eDate.isBefore(startOfDay)) matchesDate = false;
+        }
+      }
+      if (matchesDate && toDateFilter != null && toDateFilter!.isNotEmpty) {
+        final eDate = DateTime.tryParse(e.date);
+        final tDate = DateTime.tryParse(toDateFilter!);
+        if (eDate != null && tDate != null) {
+          final endOfDay = DateTime(tDate.year, tDate.month, tDate.day, 23, 59, 59);
+          if (eDate.isAfter(endOfDay)) matchesDate = false;
+        }
+      }
+
+      return matchesSearch && matchesCategory && matchesAccount && matchesDate;
     }).toList();
   }
 }
@@ -67,6 +133,7 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
       isLoading: true,
       searchQuery: '',
       categoryFilter: 'All',
+      accountIdFilter: 'All',
     );
   }
 
@@ -197,6 +264,23 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
     state = state.copyWith(categoryFilter: filter);
   }
 
+  void setAccountIdFilter(String accountId) {
+    state = state.copyWith(accountIdFilter: accountId);
+  }
+
+  void setDateRange(String? fromDate, String? toDate) {
+    state = state.copyWith(fromDateFilter: fromDate, toDateFilter: toDate);
+  }
+
+  void clearFilters() {
+    state = state.copyWith(
+      searchQuery: '',
+      categoryFilter: 'All',
+      accountIdFilter: 'All',
+      clearDates: true,
+    );
+  }
+
   Future<void> addExpense(ExpenseRecord record) async {
     state = state.copyWith(isLoading: true);
 
@@ -244,42 +328,8 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
     );
     await ref.read(ledgerProvider.notifier).addLedgerEntry(ledgerEntry);
 
-    // 3. Handle Auto-Loans for Company/Personal cross-transactions
-    if (!recordToSave.isPersonalExpense && !isCompanyAccount) {
-      final loanId = 'loan_exp_${recordToSave.id}';
-      final autoLoan = LoanRecord(
-        id: loanId,
-        borrowerName: 'Company',
-        type: 'Borrowed',
-        amount: recordToSave.amount,
-        remainingBalance: recordToSave.amount,
-        startDate: isoDate,
-        endDate: '',
-        status: 'Active',
-        description: '[AutoExpense] Company expense paid by Personal Account. [PersonalAccount:${account!.id}|$accountName]',
-        repayments: const [],
-      );
-      await ref.read(loansRepositoryProvider).addLoan(autoLoan);
-      await ref.read(loansProvider.notifier).loadLoans();
-    } else if (recordToSave.isPersonalExpense && isCompanyAccount) {
-      final loanId = 'loan_exp_${recordToSave.id}';
-      final autoLoan = LoanRecord(
-        id: loanId,
-        borrowerName: 'Owner (Drawings)',
-        type: 'Lent',
-        amount: recordToSave.amount,
-        remainingBalance: recordToSave.amount,
-        startDate: isoDate,
-        endDate: '',
-        status: 'Active',
-        description: '[AutoExpense] Personal expense paid by Company Account.',
-        accountId: recordToSave.accountId,
-        accountName: accountName,
-        repayments: const [],
-      );
-      await ref.read(loansRepositoryProvider).addLoan(autoLoan);
-      await ref.read(loansProvider.notifier).loadLoans();
-    }
+    // 3. Ledger entry already recorded above.
+    // Auto-loans are not created for regular expenses to keep Loans module clean.
 
     final updated = await _repository.getExpenses();
     state = state.copyWith(expenses: updated, isLoading: false);
@@ -327,57 +377,13 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
     );
     await ref.read(ledgerProvider.notifier).updateLedgerEntry(ledgerEntry);
 
-    // Update Auto-Loan if it exists
+    // If a legacy auto-loan existed for this expense, remove it
     final loanId = 'loan_exp_${newRecord.id}';
     final loans = await ref.read(loansRepositoryProvider).getLoans();
     final existingLoan = loans.where((l) => l.id == loanId).firstOrNull;
-
-    if (!newRecord.isPersonalExpense && !isCompanyAccount) {
-      final autoLoan = LoanRecord(
-        id: loanId,
-        borrowerName: 'Company',
-        type: 'Borrowed',
-        amount: newRecord.amount,
-        remainingBalance: newRecord.amount,
-        startDate: newRecord.date,
-        endDate: '',
-        status: 'Active',
-        description: '[AutoExpense] Company expense paid by Personal Account. [PersonalAccount:${account!.id}|$accountName]',
-        repayments: existingLoan?.repayments ?? const [],
-      );
-      if (existingLoan != null) {
-        await ref.read(loansRepositoryProvider).updateLoan(autoLoan);
-      } else {
-        await ref.read(loansRepositoryProvider).addLoan(autoLoan);
-      }
+    if (existingLoan != null) {
+      await ref.read(loansRepositoryProvider).deleteLoan(loanId);
       await ref.read(loansProvider.notifier).loadLoans();
-    } else if (newRecord.isPersonalExpense && isCompanyAccount) {
-      final autoLoan = LoanRecord(
-        id: loanId,
-        borrowerName: 'Owner (Drawings)',
-        type: 'Lent',
-        amount: newRecord.amount,
-        remainingBalance: newRecord.amount,
-        startDate: newRecord.date,
-        endDate: '',
-        status: 'Active',
-        description: '[AutoExpense] Personal expense paid by Company Account.',
-        accountId: newRecord.accountId,
-        accountName: accountName,
-        repayments: existingLoan?.repayments ?? const [],
-      );
-      if (existingLoan != null) {
-        await ref.read(loansRepositoryProvider).updateLoan(autoLoan);
-      } else {
-        await ref.read(loansRepositoryProvider).addLoan(autoLoan);
-      }
-      await ref.read(loansProvider.notifier).loadLoans();
-    } else {
-      // If it changed to not need a loan, delete the auto-loan
-      if (existingLoan != null) {
-        await ref.read(loansRepositoryProvider).deleteLoan(loanId);
-        await ref.read(loansProvider.notifier).loadLoans();
-      }
     }
 
     final updated = await _repository.getExpenses();

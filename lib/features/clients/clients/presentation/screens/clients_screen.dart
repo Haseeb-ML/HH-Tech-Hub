@@ -9,6 +9,8 @@ import 'package:software_house_erp/core/widgets/export_button.dart';
 import '../providers/clients_provider.dart';
 import '../../domain/entities/client.dart';
 import '../../../../projects/projects/presentation/providers/projects_provider.dart';
+import '../../../../finance/income/presentation/providers/income_provider.dart';
+import '../../../../finance/accounts/presentation/providers/accounts_provider.dart';
 
 class ClientsScreen extends ConsumerWidget {
   const ClientsScreen({super.key});
@@ -24,11 +26,15 @@ class ClientsScreen extends ConsumerWidget {
     final totalClients = state.clients.length;
     final activeClients = state.clients.where((c) => c.status == 'Active').length;
     final leadClients = state.clients.where((c) => c.status == 'Lead').length;
+    final allIncomes = ref.watch(incomeProvider).incomes;
     final totalRevenue = state.clients.fold<double>(0, (sum, c) {
       final cProjects = projects.where((p) => p.clientId == c.id).toList();
-      final advanced = cProjects.isNotEmpty
-          ? cProjects.fold<double>(0.0, (sum, p) => sum + p.advancedPayment + p.partialPayments + p.finalPayment)
-          : c.advancedPayment;
+      final clientIncomes = allIncomes.where((i) => i.clientId == c.id || (i.projectId != null && cProjects.any((p) => p.id == i.projectId))).toList();
+      final advanced = clientIncomes.isNotEmpty
+          ? clientIncomes.fold<double>(0.0, (s, i) => s + i.amount)
+          : (cProjects.isNotEmpty
+              ? cProjects.fold<double>(0.0, (s, p) => s + (p.advancedPayment + p.partialPayments + p.finalPayment))
+              : c.advancedPayment);
       return sum + advanced;
     });
 
@@ -87,9 +93,12 @@ class ClientsScreen extends ConsumerWidget {
                                   ],
                                   rows: state.filteredClients.map((client) {
                                     final cProjects = projects.where((p) => p.clientId == client.id).toList();
-                                    final advanced = cProjects.isNotEmpty
-                                        ? cProjects.fold<double>(0.0, (sum, p) => sum + p.advancedPayment + p.partialPayments + p.finalPayment)
-                                        : client.advancedPayment;
+                                    final clientIncomes = allIncomes.where((i) => i.clientId == client.id || (i.projectId != null && cProjects.any((p) => p.id == i.projectId))).toList();
+                                    final advanced = clientIncomes.isNotEmpty
+                                        ? clientIncomes.fold<double>(0.0, (s, i) => s + i.amount)
+                                        : (cProjects.isNotEmpty
+                                            ? cProjects.fold<double>(0.0, (s, p) => s + (p.advancedPayment + p.partialPayments + p.finalPayment))
+                                            : client.advancedPayment);
                                     final full = cProjects.isNotEmpty
                                         ? cProjects.fold<double>(0.0, (sum, p) => sum + p.budget)
                                         : client.fullPayment;
@@ -333,9 +342,13 @@ class ClientsScreen extends ConsumerWidget {
     final projects = ref.watch(projectsProvider).projects;
     final cProjects = projects.where((p) => p.clientId == client.id).toList();
     final pCount = cProjects.isNotEmpty ? cProjects.length : client.totalProjects;
-    final advanced = cProjects.isNotEmpty
-        ? cProjects.fold<double>(0.0, (sum, p) => sum + p.advancedPayment + p.partialPayments + p.finalPayment)
-        : client.advancedPayment;
+    final allIncomes = ref.watch(incomeProvider).incomes;
+    final clientIncomes = allIncomes.where((i) => i.clientId == client.id || (i.projectId != null && cProjects.any((p) => p.id == i.projectId))).toList();
+    final advanced = clientIncomes.isNotEmpty
+        ? clientIncomes.fold<double>(0.0, (sum, i) => sum + i.amount)
+        : (cProjects.isNotEmpty
+            ? cProjects.fold<double>(0.0, (sum, p) => sum + (p.advancedPayment + p.partialPayments + p.finalPayment))
+            : client.advancedPayment);
     final full = cProjects.isNotEmpty
         ? cProjects.fold<double>(0.0, (sum, p) => sum + p.budget)
         : client.fullPayment;
@@ -779,12 +792,12 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel('Contact Person', isRequired: true),
+                          _buildLabel('Contact Person (Optional)'),
                           TextFormField(
                             controller: _contactController,
                             style: TextStyle(color: context.textPrimary),
                             decoration: _buildInputDecoration('Enter full name'),
-                            validator: (val) => val == null || val.trim().isEmpty ? 'Please enter contact name' : null,
+                            validator: null,
                           ),
                         ],
                       ),
@@ -860,49 +873,28 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel(tr('Status')),
-                          DropdownButtonFormField<String>(
-                            value: _status,
-                            dropdownColor: context.cardBg,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('Select status'),
-                            items: [tr('Active'), 'Lead', 'Inactive'].map((s) {
-                              return DropdownMenuItem<String>(
-                                value: s,
-                                child: Text(s),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _status = val;
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel(tr('Total Projects')),
-                          TextFormField(
-                            controller: _projectsController,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('0'),
-                          ),
-                        ],
-                      ),
+                    _buildLabel(tr('Status')),
+                    DropdownButtonFormField<String>(
+                      initialValue: _status,
+                      dropdownColor: context.cardBg,
+                      style: TextStyle(color: context.textPrimary),
+                      decoration: _buildInputDecoration('Select status'),
+                      items: [tr('Active'), 'Lead', 'Inactive'].map((s) {
+                        return DropdownMenuItem<String>(
+                          value: s,
+                          child: Text(s),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() {
+                            _status = val;
+                          });
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -951,7 +943,7 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                             phone: _phoneController.text.trim(),
                             status: _status,
                             industry: _industryController.text.trim(),
-                            totalProjects: int.tryParse(_projectsController.text) ?? 0,
+                            totalProjects: widget.client?.totalProjects ?? 0,
                             advancedPayment: widget.client?.advancedPayment ?? 0.0,
                             fullPayment: widget.client?.fullPayment ?? 0.0,
                           );
@@ -1210,7 +1202,7 @@ class _EditClientDialogState extends ConsumerState<_EditClientDialog> {
                         children: [
                           _buildLabel(tr('Status')),
                           DropdownButtonFormField<String>(
-                            value: _status,
+                            initialValue: _status,
                             dropdownColor: context.cardBg,
                             style: TextStyle(color: context.textPrimary),
                             decoration: _buildInputDecoration('Select status'),
@@ -1368,9 +1360,14 @@ class _ViewClientDetailsDialog extends ConsumerWidget {
     final projects = ref.watch(projectsProvider).projects;
     final cProjects = projects.where((p) => p.clientId == client.id).toList();
     final pCount = cProjects.isNotEmpty ? cProjects.length : client.totalProjects;
-    final advanced = cProjects.isNotEmpty
-        ? cProjects.fold<double>(0.0, (sum, p) => sum + p.advancedPayment + p.partialPayments + p.finalPayment)
-        : client.advancedPayment;
+    final allIncomes = ref.watch(incomeProvider).incomes;
+    final accounts = ref.watch(accountsProvider).accounts;
+    final clientIncomes = allIncomes.where((i) => i.clientId == client.id || (i.projectId != null && cProjects.any((p) => p.id == i.projectId))).toList();
+    final received = clientIncomes.isNotEmpty
+        ? clientIncomes.fold<double>(0.0, (s, i) => s + i.amount)
+        : (cProjects.isNotEmpty
+            ? cProjects.fold<double>(0.0, (sum, p) => sum + (p.advancedPayment + p.partialPayments + p.finalPayment))
+            : client.advancedPayment);
     final full = cProjects.isNotEmpty
         ? cProjects.fold<double>(0.0, (sum, p) => sum + p.budget)
         : client.fullPayment;
@@ -1392,110 +1389,235 @@ class _ViewClientDetailsDialog extends ConsumerWidget {
       backgroundColor: context.cardBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 500,
+        width: 520,
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  tr('Client Details'),
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: context.textPrimary,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close),
-                  color: context.textSecondary,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-            
-            // Client Name & Status
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    client.name,
-                    style: theme.textTheme.headlineSmall?.copyWith(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    tr('Client Details'),
+                    style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: context.textPrimary,
                     ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusBg,
-                    borderRadius: BorderRadius.circular(20),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    color: context.textSecondary,
                   ),
-                  child: Text(
-                    tr(client.status),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 16),
+              
+              // Client Name & Status
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      client.name,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: context.textPrimary,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              client.industry,
-              style: TextStyle(
-                color: context.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 24),
-            
-            _buildDetailRow(context, Icons.person_outline, tr('Contact Person'), client.contactPerson),
-            const SizedBox(height: 12),
-            _buildDetailRow(context, Icons.email_outlined, tr('Email Address'), client.email.isEmpty ? 'N/A' : client.email),
-            const SizedBox(height: 12),
-            _buildDetailRow(context, Icons.phone_outlined, tr('Phone Number'), client.phone),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 24),
-            
-            // Stats Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildStatItem(context, tr('Total Projects'), '$pCount Active'),
-                _buildStatItem(context, tr('Full Payment'), 'Rs. ${full.toStringAsFixed(0)}'),
-                _buildStatItem(context, tr('Advanced Payment'), 'Rs. ${advanced.toStringAsFixed(0)}'),
-                _buildStatItem(context, tr('Remaining Payment'), 'Rs. ${(full - advanced).toStringAsFixed(0)}'),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: context.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusBg,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      tr(client.status),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  child: Text(tr('Close')),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                client.industry,
+                style: TextStyle(
+                  color: context.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 24),
+              
+              _buildDetailRow(context, Icons.person_outline, tr('Contact Person'), client.contactPerson),
+              const SizedBox(height: 12),
+              _buildDetailRow(context, Icons.email_outlined, tr('Email Address'), client.email.isEmpty ? 'N/A' : client.email),
+              const SizedBox(height: 12),
+              _buildDetailRow(context, Icons.phone_outlined, tr('Phone Number'), client.phone),
+              const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 24),
+              
+              // Stats Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildStatItem(context, tr('Total Projects'), '$pCount Active'),
+                  _buildStatItem(context, tr('Full Payment'), 'Rs. ${full.toStringAsFixed(0)}'),
+                  _buildStatItem(context, tr('Received Payment'), 'Rs. ${received.toStringAsFixed(0)}'),
+                  _buildStatItem(context, tr('Remaining Payment'), 'Rs. ${(full - received).clamp(0.0, double.infinity).toStringAsFixed(0)}'),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 16),
+
+              // Payment History Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.receipt_long, size: 18, color: context.primaryColor),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Payment History',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: context.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${clientIncomes.length} ${clientIncomes.length == 1 ? "Payment" : "Payments"}',
+                      style: TextStyle(
+                        color: context.primaryColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (clientIncomes.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: context.border),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'No payment transactions recorded yet.',
+                      style: TextStyle(color: context.textSecondary, fontSize: 13),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 180),
+                  decoration: BoxDecoration(
+                    color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: context.border),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.all(8),
+                    itemCount: clientIncomes.length,
+                    separatorBuilder: (context, idx) => const Divider(height: 1),
+                    itemBuilder: (context, idx) {
+                      final inc = clientIncomes[idx];
+                      final acc = accounts.where((a) => a.id == inc.accountId).firstOrNull;
+                      final accLabel = acc != null ? '${acc.name} (${acc.bankName})' : 'Account';
+                      final title = (inc.projectName != null && inc.projectName!.isNotEmpty)
+                          ? inc.projectName!
+                          : inc.incomeType;
+                      final dateStr = inc.date.split('T').first;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 13,
+                              backgroundColor: context.successLight,
+                              child: Icon(Icons.arrow_downward, size: 13, color: context.success),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                      color: context.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '$dateStr • $accLabel',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: context.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              '+Rs. ${inc.amount.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: context.success,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: context.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: Text(tr('Close')),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

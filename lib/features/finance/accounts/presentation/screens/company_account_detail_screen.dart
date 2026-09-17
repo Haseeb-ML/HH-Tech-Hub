@@ -12,6 +12,7 @@ import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:software_house_erp/features/finance/loans/presentation/providers/loans_provider.dart';
 import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
 import 'package:software_house_erp/core/utils/export_helper.dart';
+import 'package:software_house_erp/features/finance/shared/widgets/transaction_detail_dialog.dart';
 import '../widgets/company_account_transaction_dialog.dart';
 
 class CompanyAccountDetailScreen extends ConsumerStatefulWidget {
@@ -625,7 +626,7 @@ class _CompanyAccountDetailScreenState
                           final item1 = buildItem(
                             icon: Icons.arrow_downward,
                             label: "Today's Inflow",
-                            value: '+ Rs. ${todayInflow.toStringAsFixed(0)}',
+                            value: 'Rs. ${todayInflow.toStringAsFixed(0)}',
                             iconBg: context.isDarkMode
                                 ? const Color(0xFF064E3B)
                                 : const Color(0xFFDCFCE7),
@@ -640,7 +641,7 @@ class _CompanyAccountDetailScreenState
                           final item2 = buildItem(
                             icon: Icons.arrow_upward,
                             label: "Today's Outflow",
-                            value: '- Rs. ${todayExpense.toStringAsFixed(0)}',
+                            value: 'Rs. ${todayExpense.toStringAsFixed(0)}',
                             iconBg: context.isDarkMode
                                 ? const Color(0xFF7F1D1D)
                                 : const Color(0xFFFEE2E2),
@@ -656,7 +657,7 @@ class _CompanyAccountDetailScreenState
                             icon: Icons.drag_handle,
                             label: "Today's Net",
                             value:
-                                '${todayNet >= 0 ? '+' : '-'} Rs. ${todayNet.abs().toStringAsFixed(0)}',
+                                'Rs. ${todayNet.abs().toStringAsFixed(0)}',
                             iconBg: context.isDarkMode
                                 ? const Color(0xFF78350F)
                                 : const Color(0xFFFEF3C7),
@@ -1055,128 +1056,147 @@ class _CompanyAccountDetailScreenState
                             ? context.successLight
                             : context.errorLight;
 
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 14),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 1,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                        color: bgColor,
-                                        borderRadius:
-                                            BorderRadius.circular(6)),
-                                    child: Icon(
-                                      isIncome
-                                          ? Icons.arrow_downward
-                                          : Icons.arrow_upward,
-                                      size: 14,
-                                      color: color,
+                        return InkWell(
+                          onTap: () {
+                            TransactionDetailDialog.show(
+                              context,
+                              id: tx.id,
+                              title: tx.description,
+                              category: tx.category,
+                              description: tx.description,
+                              amount: tx.amount,
+                              date: tx.date,
+                              type: tx.type,
+                              accountName: account.name,
+                              accountScope: 'Company',
+                              reference: tx.reference,
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 14),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 1,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                          color: bgColor,
+                                          borderRadius:
+                                              BorderRadius.circular(6)),
+                                      child: Icon(
+                                        isIncome
+                                            ? Icons.arrow_downward
+                                            : Icons.arrow_upward,
+                                        size: 14,
+                                        color: color,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      tx.description,
-                                      style: TextStyle(
-                                        color: context.textPrimary,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
+                                Expanded(
+                                  flex: 3,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        tx.description,
+                                        style: TextStyle(
+                                          color: context.textPrimary,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      tx.reference.isNotEmpty &&
-                                              tx.reference != '-' &&
-                                              tx.reference != tx.description
-                                          ? '${tx.category} • ${tx.reference}'
-                                          : tx.category,
-                                      style: TextStyle(
-                                        color: context.textMuted,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w400,
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        tx.reference.isNotEmpty &&
+                                                tx.reference != '-' &&
+                                                tx.reference != tx.description
+                                            ? '${tx.category} • ${tx.reference}'
+                                            : tx.category,
+                                        style: TextStyle(
+                                          color: context.textMuted,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: _buildDateAndTimeCell(
-                                    context, tx.date, tx.id),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  account.name,
-                                  style: TextStyle(
-                                      color: context.textSecondary,
-                                      fontSize: 12),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: context.isDarkMode
-                                        ? const Color(0xFF1E293B)
-                                        : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border:
-                                        Border.all(color: context.border),
+                                    ],
                                   ),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: _buildDateAndTimeCell(
+                                      context, tx.date, tx.id),
+                                ),
+                                Expanded(
+                                  flex: 2,
                                   child: Text(
-                                    tx.category,
+                                    account.name,
                                     style: TextStyle(
                                         color: context.textSecondary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500),
+                                        fontSize: 12),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  tx.reference,
-                                  style: TextStyle(
-                                      color: context.textSecondary,
-                                      fontSize: 11),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: context.isDarkMode
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border:
+                                          Border.all(color: context.border),
+                                    ),
+                                    child: Text(
+                                      tx.category,
+                                      style: TextStyle(
+                                          color: context.textSecondary,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              Expanded(
-                                flex: 2,
-                                child: Align(
-                                  alignment: Alignment.centerRight,
+                                Expanded(
+                                  flex: 2,
                                   child: Text(
-                                    '${isIncome ? '+' : '-'} Rs. ${tx.amount.toStringAsFixed(2)}',
+                                    tx.reference,
                                     style: TextStyle(
-                                        color: context.textPrimary,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 13),
+                                        color: context.textSecondary,
+                                        fontSize: 11),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                              ),
-                            ],
+                                Expanded(
+                                  flex: 2,
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      'Rs. ${tx.amount.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                          color: isIncome
+                                              ? context.success
+                                              : context.error,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },

@@ -727,7 +727,8 @@ class _AddAssetDialogState extends ConsumerState<_AddAssetDialog> {
   final _serialController = TextEditingController();
   final _costController = TextEditingController();
   String _type = 'Hardware';
-  String _condition = 'Good';
+  String _purchaseAssetType = 'Company';
+  String _condition = 'None';
   String? _selectedAccountId;
 
   @override
@@ -888,33 +889,23 @@ class _AddAssetDialogState extends ConsumerState<_AddAssetDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Row 4: Asset Condition
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel(context, 'Asset Condition', isRequired: true),
-                        DropdownButtonFormField<String>(
-                          value: _condition,
-                          dropdownColor: context.cardBg,
-                          style: TextStyle(color: context.textPrimary, fontSize: 13),
-                          decoration: _buildInputDecoration(context, ''),
-                          items: [
-                            DropdownMenuItem(value: 'New', child: Text(tr('New'))),
-                            DropdownMenuItem(value: 'Good', child: Text('Good')),
-                            DropdownMenuItem(value: 'Fair', child: Text('Fair')),
-                            DropdownMenuItem(value: 'Damaged', child: Text('Damaged')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _condition = val);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+              // Asset Condition (Optional)
+              _buildLabel(context, 'Asset Condition (Optional)', isRequired: false),
+              DropdownButtonFormField<String>(
+                value: _condition,
+                dropdownColor: context.cardBg,
+                style: TextStyle(color: context.textPrimary, fontSize: 13),
+                decoration: _buildInputDecoration(context, ''),
+                items: [
+                  DropdownMenuItem(value: 'None', child: Text('None')),
+                  DropdownMenuItem(value: 'New', child: Text(tr('New'))),
+                  DropdownMenuItem(value: 'Good', child: Text('Good')),
+                  DropdownMenuItem(value: 'Fair', child: Text('Fair')),
+                  DropdownMenuItem(value: 'Damaged', child: Text('Damaged')),
                 ],
+                onChanged: (val) {
+                  if (val != null) setState(() => _condition = val);
+                },
               ),
               const SizedBox(height: 24),
 
@@ -950,11 +941,12 @@ class _AddAssetDialogState extends ConsumerState<_AddAssetDialog> {
                           id: 'AST-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
                           name: _nameController.text.trim(),
                           type: _type,
+                          purchaseAssetType: _purchaseAssetType,
                           serialNumber: _serialController.text.trim(),
                           purchaseDate: DateTime.now().toIso8601String().substring(0, 10),
                           cost: totalCost,
                           status: 'Available',
-                          condition: _condition,
+                          condition: _condition.isEmpty ? 'None' : _condition,
                         );
                         Navigator.pop(context, {
                           'asset': newAsset,

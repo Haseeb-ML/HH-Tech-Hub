@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'dart:convert';
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'database/database_connection.dart';
+export 'database/database_connection.dart';
 
 part 'database_service.g.dart';
 
@@ -349,7 +347,7 @@ abstract class DatabaseService {
   PurchaseOrdersTable, ProductsTable, SalesInvoicesTable
 ])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase() : super(openConnection());
   @override int get schemaVersion => 2; // Bump version!
   
   @override
@@ -384,28 +382,6 @@ class AppDatabase extends _$AppDatabase {
   }
   Future<List<StockAlertsTableData>> getAllStockAlerts() => select(stockAlertsTable).get();
   Future<int> addStockAlert(StockAlertsTableCompanion entry) => into(stockAlertsTable).insert(entry);
-}
-
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'erp_local.db'));
-    return NativeDatabase(file);
-  });
-}
-
-Future<File> getDatabaseFile() async {
-  final dbFolder = await getApplicationDocumentsDirectory();
-  return File(p.join(dbFolder.path, 'erp_local.db'));
-}
-
-Future<Directory> getBackupsDirectory() async {
-  final dbFolder = await getApplicationDocumentsDirectory();
-  final backupDir = Directory(p.join(dbFolder.path, 'erp_backups'));
-  if (!await backupDir.exists()) {
-    await backupDir.create(recursive: true);
-  }
-  return backupDir;
 }
 
 class DriftDatabaseService implements DatabaseService {

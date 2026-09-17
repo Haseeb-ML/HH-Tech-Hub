@@ -1,6 +1,5 @@
 import 'package:software_house_erp/core/services/database_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../../../core/services/database_service.dart';
 import '../../domain/entities/project_task.dart';
 import '../../domain/repositories/tasks_repository.dart';
 import '../../data/repositories/tasks_repository_impl.dart';

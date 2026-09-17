@@ -1,7 +1,6 @@
 import 'package:software_house_erp/core/services/database_service.dart';
 import '../../domain/entities/project.dart';
 import '../../domain/repositories/projects_repository.dart';
-import 'package:drift/drift.dart';
 
 class ProjectsRepositoryImpl implements ProjectsRepository {
   final DriftDatabaseService _dbService;

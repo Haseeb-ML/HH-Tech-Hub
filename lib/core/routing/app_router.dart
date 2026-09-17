@@ -29,8 +29,6 @@ import '../../features/hr/advances/presentation/screens/advances_screen.dart';
 import '../../features/inventory/inventory/presentation/screens/inventory_screen.dart';
 import '../../features/inventory/assets/presentation/screens/assets_screen.dart';
 import '../../features/reports/presentation/screens/reports_screen.dart';
-import '../../features/administration/users/presentation/screens/users_screen.dart';
-import '../../features/administration/roles/presentation/screens/roles_screen.dart';
 import '../../features/administration/settings/presentation/screens/settings_screen.dart';
 import '../../features/administration/backup/presentation/screens/backup_screen.dart';
 import '../../features/administration/audit_logs/presentation/screens/audit_logs_screen.dart';
@@ -215,14 +213,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           // 8. Administration & Security Branch
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: '/administration/users',
-                builder: (context, state) => const UsersScreen(),
-              ),
-              GoRoute(
-                path: '/administration/roles',
-                builder: (context, state) => const RolesScreen(),
-              ),
               GoRoute(
                 path: '/administration/settings',
                 builder: (context, state) => const SettingsScreen(),

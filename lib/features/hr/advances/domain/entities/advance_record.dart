@@ -16,7 +16,7 @@ class AdvanceRecord {
     required this.amount,
     required this.requestDate,
     required this.reason,
-    required this.repaymentMonths,
+    this.repaymentMonths = 1,
     required this.amountRepaid,
     required this.status,
   });

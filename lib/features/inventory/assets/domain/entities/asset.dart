@@ -2,11 +2,12 @@ class Asset {
   final String id;
   final String name;
   final String type; // 'Hardware', 'Software', 'Other'
+  final String purchaseAssetType; // 'Company', 'Personal'
   final String serialNumber;
   final String purchaseDate;
   final double cost;
   final String status; // 'Available', 'Assigned', 'Under Maintenance', 'Retired'
-  final String condition; // 'New', 'Good', 'Fair', 'Damaged'
+  final String condition; // 'None', 'New', 'Good', 'Fair', 'Damaged'
   final String? assignedToId; // ID of Employee if assigned
   final String? assignedToName; // Name of Employee if assigned
 
@@ -14,6 +15,7 @@ class Asset {
     required this.id,
     required this.name,
     required this.type,
+    this.purchaseAssetType = 'Company',
     required this.serialNumber,
     required this.purchaseDate,
     required this.cost,
@@ -27,6 +29,7 @@ class Asset {
     String? id,
     String? name,
     String? type,
+    String? purchaseAssetType,
     String? serialNumber,
     String? purchaseDate,
     double? cost,
@@ -39,6 +42,7 @@ class Asset {
       id: id ?? this.id,
       name: name ?? this.name,
       type: type ?? this.type,
+      purchaseAssetType: purchaseAssetType ?? this.purchaseAssetType,
       serialNumber: serialNumber ?? this.serialNumber,
       purchaseDate: purchaseDate ?? this.purchaseDate,
       cost: cost ?? this.cost,
@@ -54,6 +58,7 @@ class Asset {
       'id': id,
       'name': name,
       'type': type,
+      'purchaseAssetType': purchaseAssetType,
       'serialNumber': serialNumber,
       'purchaseDate': purchaseDate,
       'cost': cost,
@@ -69,11 +74,12 @@ class Asset {
       id: map['id'] ?? '',
       name: map['name'] ?? '',
       type: map['type'] ?? 'Hardware',
+      purchaseAssetType: map['purchaseAssetType'] ?? 'Company',
       serialNumber: map['serialNumber'] ?? '',
       purchaseDate: map['purchaseDate'] ?? '',
       cost: (map['cost'] as num?)?.toDouble() ?? 0.0,
       status: map['status'] ?? 'Available',
-      condition: map['condition'] ?? 'Good',
+      condition: map['condition'] ?? 'None',
       assignedToId: map['assignedToId'],
       assignedToName: map['assignedToName'],
     );

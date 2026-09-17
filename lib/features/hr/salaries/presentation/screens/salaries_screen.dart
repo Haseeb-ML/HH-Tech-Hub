@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/widgets/explain_tooltip.dart';
 import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
+import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
 import '../providers/salaries_provider.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../../../advances/presentation/providers/advances_provider.dart';
 import '../../domain/entities/salary_record.dart';
+import '../../../attendance/domain/entities/attendance_record.dart';
+import '../../../attendance/presentation/providers/attendance_provider.dart';
 
 class SalariesScreen extends ConsumerWidget {
   const SalariesScreen({super.key});
@@ -18,9 +22,28 @@ class SalariesScreen extends ConsumerWidget {
     final state = ref.watch(salariesProvider);
     final theme = Theme.of(context);
 
-    // Calculate total payroll paid for May 2026
     final totalPaid = state.totalPayoutsThisMonth;
     final totalPayslips = state.filteredSalaries.length;
+
+    final nowMonth = DateFormat('MMMM yyyy').format(DateTime.now());
+    final payrollTitle = state.salaries.isNotEmpty
+        ? '${state.salaries.first.payPeriod} Payroll'
+        : '$nowMonth Payroll';
+
+    // Dynamic Pay Period filter list based on actual salary records
+    final List<String> availablePeriods = ['All'];
+    for (final s in state.salaries) {
+      if (!availablePeriods.contains(s.payPeriod)) {
+        availablePeriods.add(s.payPeriod);
+      }
+    }
+    if (!availablePeriods.contains(nowMonth)) {
+      availablePeriods.add(nowMonth);
+    }
+
+    final selectedFilter = availablePeriods.contains(state.periodFilter)
+        ? state.periodFilter
+        : 'All';
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -111,8 +134,8 @@ class SalariesScreen extends ConsumerWidget {
                             ExplainTooltip(
                               message: 'Monthly Payroll: Total amount paid out to employees for the current payroll month.',
                               child: StatCard(
-                                title: 'May 2026 Payroll',
-                                tooltipMessage: 'Detailed statistics and information regarding May 2026 Payroll.',
+                                title: payrollTitle,
+                                tooltipMessage: 'Detailed statistics and information regarding $payrollTitle.',
                                 value: 'Rs. ${totalPaid.toStringAsFixed(0)}',
                                 icon: Icons.check_circle_outline,
                                 iconColor: context.success,
@@ -143,9 +166,9 @@ class SalariesScreen extends ConsumerWidget {
                             child: ExplainTooltip(
                               message: 'Monthly Payroll: Total amount paid out to employees for the current payroll month.',
                               child: StatCard(
-                                title: 'May 2026 Payroll',
-                                tooltipMessage: 'Detailed statistics and information regarding May 2026 Payroll.',
-                                value: '\$${totalPaid.toStringAsFixed(0)}',
+                                title: payrollTitle,
+                                tooltipMessage: 'Detailed statistics and information regarding $payrollTitle.',
+                                value: 'Rs. ${totalPaid.toStringAsFixed(0)}',
                                 icon: Icons.check_circle_outline,
                                 iconColor: context.success,
                                 iconBgColor: context.successLight,
@@ -196,7 +219,7 @@ class SalariesScreen extends ConsumerWidget {
                               SizedBox(
                                 width: 180,
                                 child: DropdownButtonFormField<String>(
-                                  value: state.periodFilter,
+                                  value: selectedFilter,
                                   dropdownColor: context.cardBg,
                                   style: TextStyle(color: context.textPrimary, fontSize: 13),
                                   decoration: InputDecoration(
@@ -212,11 +235,12 @@ class SalariesScreen extends ConsumerWidget {
                                       borderSide: BorderSide(color: context.border),
                                     ),
                                   ),
-                                  items: const [
-                                    DropdownMenuItem(value: 'All', child: Text('All Pay Periods')),
-                                    DropdownMenuItem(value: 'May 2026', child: Text('May 2026')),
-                                    DropdownMenuItem(value: 'April 2026', child: Text('April 2026')),
-                                  ],
+                                  items: availablePeriods.map((period) {
+                                    return DropdownMenuItem(
+                                      value: period,
+                                      child: Text(period == 'All' ? 'All Pay Periods' : period),
+                                    );
+                                  }).toList(),
                                   onChanged: (val) {
                                     if (val != null) {
                                       ref.read(salariesProvider.notifier).setPeriodFilter(val);
@@ -429,6 +453,8 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
   final _formKey = GlobalKey<FormState>();
   String? _selectedEmployeeId;
   String? _selectedEmployeeName;
+  String? _selectedAccountId;
+  String? _selectedAccountName;
   late List<String> _payPeriodOptions;
   late String _payPeriod;
   double _baseSalary = 0.0;
@@ -440,6 +466,91 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
   // Salary advance details
   double _advanceDeduction = 0.0;
   bool _hasActiveAdvance = false;
+
+  // Attendance details for pay period
+  bool _isLoadingAttendance = false;
+  int _attPresent = 0;
+  int _attAbsent = 0;
+  int _attLeave = 0;
+  int _attHalfDay = 0;
+  int _attLate = 0;
+  double _calculatedAbsentDeduction = 0.0;
+  bool _appliedAbsentDeduction = false;
+
+  Future<void> _fetchAttendanceForPeriod() async {
+    if (_selectedEmployeeId == null) return;
+    setState(() => _isLoadingAttendance = true);
+
+    try {
+      final parts = _payPeriod.split(' ');
+      if (parts.length >= 2) {
+        final monthName = parts[0];
+        final year = parts[1];
+        final monthNames = [
+          'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        final monthIdx = monthNames.indexOf(monthName) + 1;
+        if (monthIdx > 0) {
+          final yearMonth = '$year-${monthIdx.toString().padLeft(2, '0')}';
+          final repo = ref.read(attendanceRepositoryProvider);
+          final logs = await repo.getAttendanceForMonth(yearMonth);
+          final empLogs = logs.where((l) => l.employeeId == _selectedEmployeeId).toList();
+          final settings = ref.read(attendanceSettingsProvider).value;
+          final workStart = settings?.workStartMinutes ?? 540;
+          final grace = settings?.graceMinutes ?? 15;
+
+          final present = empLogs.where((l) => l.status == AttendanceStatus.present).length;
+          final absent = empLogs.where((l) => l.status == AttendanceStatus.absent).length;
+          final leave = empLogs.where((l) => l.status == AttendanceStatus.leave).length;
+          final halfDay = empLogs.where((l) => l.status == AttendanceStatus.halfDay).length;
+          final lateCount = empLogs.where((l) => l.status == AttendanceStatus.present && l.isLate(workStartMinutes: workStart, graceMinutes: grace)).length;
+
+          final workingDays = empLogs.where((l) => l.status != AttendanceStatus.off && l.status != AttendanceStatus.holiday).length;
+          final effectiveDays = workingDays > 0 ? workingDays : 26;
+          final perDaySalary = _baseSalary / effectiveDays;
+          final absentDeduction = (absent * perDaySalary) + (halfDay * 0.5 * perDaySalary);
+
+          if (mounted) {
+            setState(() {
+              _attPresent = present;
+              _attAbsent = absent;
+              _attLeave = leave;
+              _attHalfDay = halfDay;
+              _attLate = lateCount;
+              _calculatedAbsentDeduction = absentDeduction;
+              _appliedAbsentDeduction = false;
+              _isLoadingAttendance = false;
+            });
+          }
+          return;
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() => _isLoadingAttendance = false);
+    }
+  }
+
+  Widget _buildAttendancePill(String label, Color fg, Color bg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: fg.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: fg,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -470,8 +581,9 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    // Fetch active employees
+    // Fetch active employees & accounts
     final employees = ref.watch(employeesProvider).employees.where((e) => e.status == 'Active').toList();
+    final accounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
 
     return Dialog(
       backgroundColor: context.cardBg,
@@ -518,7 +630,10 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                     return DropdownMenuItem(value: period, child: Text(period));
                   }).toList(),
                   onChanged: (val) {
-                    if (val != null) setState(() => _payPeriod = val);
+                    if (val != null) {
+                      setState(() => _payPeriod = val);
+                      _fetchAttendanceForPeriod();
+                    }
                   },
                 ),
                 const SizedBox(height: 16),
@@ -560,6 +675,34 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                         _paymentMethod = emp.paymentMethod;
                         _advanceDeduction = deductionVal;
                         _hasActiveAdvance = activeAdv;
+                      });
+                      _fetchAttendanceForPeriod();
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Payment Account Select (Required)
+                _buildLabel('Payment Account', isRequired: true),
+                DropdownButtonFormField<String>(
+                  value: _selectedAccountId,
+                  dropdownColor: context.cardBg,
+                  style: TextStyle(color: context.textPrimary, fontSize: 13),
+                  decoration: _buildInputDecoration('Select Company/Personal Account'),
+                  validator: (val) => val == null ? 'Please select payment account' : null,
+                  items: accounts.map((acc) {
+                    final scopeLabel = acc.accountScope.isNotEmpty ? ' (${acc.accountScope})' : '';
+                    return DropdownMenuItem(
+                      value: acc.id,
+                      child: Text('${acc.name}$scopeLabel • Rs. ${acc.balance.toStringAsFixed(0)}'),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      final acc = accounts.firstWhere((a) => a.id == val);
+                      setState(() {
+                        _selectedAccountId = val;
+                        _selectedAccountName = acc.name;
                       });
                     }
                   },
@@ -610,6 +753,98 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Attendance Summary & Suggested Absent Deductions
+                if (_selectedEmployeeId != null) ...[
+                  _buildLabel('Attendance Record & Deductions ($_payPeriod)'),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: context.scaffoldBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: context.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Monthly Attendance Overview',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: context.textSecondary,
+                              ),
+                            ),
+                            if (_isLoadingAttendance)
+                              const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _buildAttendancePill('Present: $_attPresent', context.success, context.successLight),
+                            _buildAttendancePill('Half Day: $_attHalfDay', const Color(0xFFD97706), const Color(0xFFFEF3C7)),
+                            _buildAttendancePill('Leave: $_attLeave', context.warning, context.warningLight),
+                            _buildAttendancePill('Absent: $_attAbsent', context.error, context.errorLight),
+                            if (_attLate > 0)
+                              _buildAttendancePill('Late: $_attLate', Colors.deepOrange, Colors.deepOrange.withValues(alpha: 0.12)),
+                          ],
+                        ),
+                        if (_calculatedAbsentDeduction > 0) ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Suggested Absent Deduction: Rs. ${_calculatedAbsentDeduction.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    color: context.error,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: _appliedAbsentDeduction
+                                    ? null
+                                    : () {
+                                        final curDeductions = double.tryParse(_deductionsController.text) ?? 0.0;
+                                        setState(() {
+                                          _appliedAbsentDeduction = true;
+                                          _deductionsController.text = (curDeductions + _calculatedAbsentDeduction).toStringAsFixed(0);
+                                        });
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: context.error,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  _appliedAbsentDeduction ? 'Applied' : 'Apply Deduction',
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Allowances & Other Deductions Row
                 Row(
@@ -691,7 +926,7 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                     const SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: () {
-                        if (_formKey.currentState!.validate() && _selectedEmployeeId != null) {
+                        if (_formKey.currentState!.validate() && _selectedEmployeeId != null && _selectedAccountId != null) {
                           final slip = SalaryRecord(
                             id: 'sal_${DateTime.now().millisecondsSinceEpoch}',
                             employeeId: _selectedEmployeeId!,
@@ -704,6 +939,8 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                             paymentDate: DateTime.now().toIso8601String().substring(0, 10),
                             status: 'Paid',
                             paymentMethod: _paymentMethod,
+                            accountId: _selectedAccountId!,
+                            accountName: _selectedAccountName!,
                           );
                           Navigator.of(context).pop(slip);
                         }
@@ -725,16 +962,30 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
     );
   }
 
-  Widget _buildLabel(String label) {
+  Widget _buildLabel(String label, {bool isRequired = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: context.textSecondary,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: context.textSecondary,
+            ),
+          ),
+          if (isRequired)
+            const Text(
+              ' *',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+        ],
       ),
     );
   }

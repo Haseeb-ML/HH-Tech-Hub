@@ -4,6 +4,8 @@ import '../../domain/entities/salary_record.dart';
 import '../../domain/repositories/salaries_repository.dart';
 import '../../data/repositories/salaries_repository_impl.dart';
 import '../../../advances/presentation/providers/advances_provider.dart';
+import '../../../../finance/expenses/presentation/providers/expenses_provider.dart';
+import '../../../../finance/expenses/domain/entities/expense_record.dart';
 
 
 class SalariesState {
@@ -34,9 +36,13 @@ class SalariesState {
     return salaries.where((s) => s.payPeriod == periodFilter).toList();
   }
 
-  double get totalPayoutsThisMonth => salaries
-      .where((s) => s.payPeriod == 'May 2026')
-      .fold<double>(0, (sum, s) => sum + s.netPaid);
+  double get totalPayoutsThisMonth {
+    if (salaries.isEmpty) return 0.0;
+    final latestPeriod = salaries.first.payPeriod;
+    return salaries
+        .where((s) => s.payPeriod == latestPeriod)
+        .fold<double>(0, (sum, s) => sum + s.netPaid);
+  }
 }
 
 final salariesRepositoryProvider = Provider<SalariesRepository>((ref) {
@@ -79,6 +85,21 @@ class SalariesNotifier extends Notifier<SalariesState> {
       await ref.read(advancesProvider.notifier).makeRepayment(record.employeeId, record.deductions);
     }
 
+    // INTEGRATION: Record Salary Payment in Accounts, Expenses & General Ledger
+    if (record.accountId.isNotEmpty && record.netPaid > 0) {
+      final expenseRecord = ExpenseRecord(
+        id: 'exp_sal_${record.id}',
+        date: record.paymentDate,
+        category: 'Salaries & Payroll',
+        amount: record.netPaid,
+        description: 'Salary Payment for ${record.employeeName} (${record.payPeriod})',
+        vendorName: record.employeeName,
+        accountId: record.accountId,
+        isPersonalExpense: false,
+      );
+      await ref.read(expensesProvider.notifier).addExpense(expenseRecord);
+    }
+
     final updated = await _repository.getSalaries();
     state = state.copyWith(salaries: updated, isLoading: false);
   }
@@ -91,7 +112,15 @@ class SalariesNotifier extends Notifier<SalariesState> {
   }
 
   Future<void> deleteSalary(String id) async {
+    final list = List<SalaryRecord>.from(state.salaries);
+    final record = list.where((s) => s.id == id).firstOrNull;
+
     state = state.copyWith(isLoading: true);
+
+    if (record != null && record.accountId.isNotEmpty) {
+      await ref.read(expensesProvider.notifier).deleteExpense('exp_sal_${record.id}');
+    }
+
     await _repository.deleteSalary(id);
     final updated = await _repository.getSalaries();
     state = state.copyWith(salaries: updated, isLoading: false);

@@ -68,19 +68,21 @@ class ExpenseRecord {
     };
   }
 
-  static String normalizeCategory(String value) {
-    final normalized = value.trim();
+  static String normalizeCategory(String category) {
+    final normalized = category.trim();
     if (normalized.isEmpty) return 'Other';
 
     final lower = normalized.toLowerCase();
+    if (lower.contains('electric') || lower.contains('utilit')) return 'Electricity & Utilities';
+    if (lower.contains('salar') || lower.contains('payroll')) return 'Salaries & Payroll';
+    if (lower.contains('internet') || lower.contains('telecom') || lower == 'wifi') return 'Internet & Telecom';
+    if (lower.contains('rent')) return 'Rent & Occupancy';
     if (lower == 'misc' || lower == 'other' || lower == 'miscellaneous') return 'Other';
     if (lower == 'office inventory') return 'Office Inventory';
     if (lower == 'assets management' || lower == 'asset management') return 'Assets Management';
-    if (lower == 'internet' || lower == 'wifi' || lower == 'net') return 'Internet';
-    if (lower == 'electricity' || lower == 'power' || lower == 'electric') return 'Electricity';
 
     final exactMatch = validCategories.firstWhere(
-      (category) => category.toLowerCase() == lower,
+      (c) => c.toLowerCase() == lower,
       orElse: () => '',
     );
 

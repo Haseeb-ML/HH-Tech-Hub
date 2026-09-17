@@ -13,26 +13,36 @@ import '../../../employees/presentation/providers/employees_provider.dart';
 class EmployeeMonthSummary {
   final String employeeId;
   final String employeeName;
+  final int workingDays;
   final int presentDays;
   final int absentDays;
   final int leaveDays;
   final int halfDays;
   final int workFromHomeDays;
-  final int totalDays;
+  final int officialVisitDays;
+  final int lateDays;
+  final double totalWorkingHours;
 
   const EmployeeMonthSummary({
     required this.employeeId,
     required this.employeeName,
+    required this.workingDays,
     required this.presentDays,
     required this.absentDays,
     required this.leaveDays,
     required this.halfDays,
     required this.workFromHomeDays,
-    required this.totalDays,
+    required this.officialVisitDays,
+    required this.lateDays,
+    required this.totalWorkingHours,
   });
 
+  /// Alias for backward compatibility
+  int get totalDays => workingDays;
+
+  /// (Present Days + Half Days * 0.5) / Working Days * 100
   double get attendancePercent =>
-      totalDays == 0 ? 0 : ((presentDays + (halfDays * 0.5)) / totalDays) * 100;
+      workingDays == 0 ? 0.0 : (((presentDays + (halfDays * 0.5)) / workingDays) * 100).clamp(0.0, 100.0);
 }
 
 class AttendanceSettings {
@@ -153,11 +163,15 @@ class AttendanceState {
     );
   }
 
-  int get presentCount => records.where((r) => r.status == 'Present').length;
-  int get absentCount => records.where((r) => r.status == 'Absent').length;
-  int get leaveCount => records.where((r) => r.status == 'Leave').length;
-  int get halfDayCount => records.where((r) => r.status == 'Half Day').length;
-  int get workFromHomeCount => records.where((r) => r.status == 'Work From Home').length;
+  int get presentCount => records.where((r) => r.status == AttendanceStatus.present).length;
+  int get absentCount => records.where((r) => r.status == AttendanceStatus.absent).length;
+  int get leaveCount => records.where((r) => r.status == AttendanceStatus.leave).length;
+  int get halfDayCount => records.where((r) => r.status == AttendanceStatus.halfDay).length;
+  int get workFromHomeCount => records.where((r) => r.status == AttendanceStatus.workFromHome).length;
+  int get officialVisitCount => records.where((r) => r.status == AttendanceStatus.officialVisit).length;
+  int get offCount => records.where((r) => r.status == AttendanceStatus.off).length;
+  int get holidayCount => records.where((r) => r.status == AttendanceStatus.holiday).length;
+  int get notMarkedCount => records.where((r) => r.status == AttendanceStatus.notMarked).length;
 }
 
 // ─────────────────────────────────────────────
@@ -225,9 +239,21 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
             final weeklyOffDays = settings?.weeklyOffDays ?? const [7];
             final isWeeklyOff = parsedDate != null && weeklyOffDays.contains(parsedDate.weekday);
             final isHoliday = settings?.holidayDates.contains(dateStr) ?? false;
+            final isEmpOnLeave = emp.status == 'On Leave';
+
             final defaultStatus = isHoliday
-              ? 'Holiday'
-              : (isWeeklyOff ? 'Off' : 'Not Marked');
+                ? AttendanceStatus.holiday
+                : (isWeeklyOff
+                    ? AttendanceStatus.off
+                    : (isEmpOnLeave
+                        ? AttendanceStatus.leave
+                        : AttendanceStatus.notMarked));
+
+            final defaultNotes = isHoliday
+                ? 'Company Holiday'
+                : (isWeeklyOff
+                    ? 'Weekly Off'
+                    : (isEmpOnLeave ? 'Approved Leave' : null));
 
             return AttendanceRecord(
               id: 'att_${emp.id}_$dateStr',
@@ -235,11 +261,18 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
               employeeName: emp.name,
               date: dateStr,
               status: defaultStatus,
-              notes: isHoliday ? 'Company Holiday' : (isWeeklyOff ? 'Weekly Off' : null),
+              notes: defaultNotes,
             );
           },
         );
-        updatedLogs.add(existing);
+
+        // Normalize legacy row status and ensure employee name is fresh
+        final normalizedStatus = AttendanceStatus.normalize(existing.status);
+        final normalizedRecord = existing.copyWith(
+          employeeName: emp.name,
+          status: normalizedStatus,
+        );
+        updatedLogs.add(normalizedRecord);
       }
 
       state = state.copyWith(records: updatedLogs, isLoading: false);
@@ -249,15 +282,24 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
   }
 
   Future<void> updateRecord(AttendanceRecord record) async {
-    final normalized = record.status == 'Present' ||
-            record.status == 'Half Day' ||
-            record.status == 'Work From Home' ||
-            record.status == 'Official Visit' ||
-            record.status == 'Late'
-        ? record
-        : record.copyWith(checkIn: null, checkOut: null);
+    final normalized = record.copyWith(
+      status: AttendanceStatus.normalize(record.status),
+      checkIn: (record.status == AttendanceStatus.present ||
+              record.status == AttendanceStatus.halfDay ||
+              record.status == AttendanceStatus.workFromHome ||
+              record.status == AttendanceStatus.officialVisit)
+          ? record.checkIn
+          : null,
+      checkOut: (record.status == AttendanceStatus.present ||
+              record.status == AttendanceStatus.halfDay ||
+              record.status == AttendanceStatus.workFromHome ||
+              record.status == AttendanceStatus.officialVisit)
+          ? record.checkOut
+          : null,
+    );
     await _repository.updateAttendance(normalized);
     await loadAttendance(state.selectedDate);
+    await loadMonthlyAttendance(state.selectedYearMonth);
   }
 
   Future<void> markAllPresent() async {
@@ -266,9 +308,12 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     if (date.compareTo(today) > 0) return;
 
     final recordsToSave = state.records
-        .where((record) => record.status != 'Off')
+        .where((record) =>
+            record.status != AttendanceStatus.off &&
+            record.status != AttendanceStatus.holiday &&
+            record.status != AttendanceStatus.leave)
         .map((record) => record.copyWith(
-              status: 'Present',
+              status: AttendanceStatus.present,
               checkIn: record.checkIn,
               checkOut: record.checkOut,
               notes: record.notes,
@@ -278,6 +323,7 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       await _repository.updateAttendance(record);
     }
     await loadAttendance(date);
+    await loadMonthlyAttendance(state.selectedYearMonth);
   }
 
   Future<void> checkInEmployee(String empId) async {
@@ -292,13 +338,11 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     final recordIdx = state.records.indexWhere((r) => r.employeeId == empId);
     if (recordIdx != -1) {
       final record = state.records[recordIdx];
-      if (record.status != 'Present' || record.checkIn != null) return;
+      if (record.checkIn != null && record.checkIn!.trim().isNotEmpty) return;
       if (record.date != DateTime.now().toIso8601String().substring(0, 10)) return;
-      final settings = ref.read(attendanceSettingsProvider).value;
-      final lateAfter = (settings?.workStartMinutes ?? 540) + (settings?.graceMinutes ?? 15);
-      final currentMinutes = now.hour * 60 + now.minute;
+
       final updated = state.records[recordIdx].copyWith(
-        status: currentMinutes > lateAfter ? 'Late' : 'Present',
+        status: AttendanceStatus.present,
         checkIn: timeStr,
       );
       await updateRecord(updated);
@@ -317,8 +361,10 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     final recordIdx = state.records.indexWhere((r) => r.employeeId == empId);
     if (recordIdx != -1) {
       final record = state.records[recordIdx];
-      if ((record.status != 'Present' && record.status != 'Late') || record.checkIn == null || record.checkOut != null) return;
+      if (record.checkIn == null || record.checkIn!.trim().isEmpty) return;
+      if (record.checkOut != null && record.checkOut!.trim().isNotEmpty) return;
       if (record.date != DateTime.now().toIso8601String().substring(0, 10)) return;
+
       final updated = state.records[recordIdx].copyWith(checkOut: timeStr);
       await updateRecord(updated);
     }
@@ -327,9 +373,12 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
   Future<void> deleteRecord(String id) async {
     await _repository.deleteAttendance(id);
     await loadAttendance(state.selectedDate);
+    await loadMonthlyAttendance(state.selectedYearMonth);
   }
 
   // ── Monthly ──────────────────────────────────
+  Future<void> loadMonthlySummary(String yearMonth) => loadMonthlyAttendance(yearMonth);
+
   Future<void> loadMonthlyAttendance(String yearMonth) async {
     state = state.copyWith(
       isMonthlyLoading: true,
@@ -338,46 +387,63 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     try {
       final logs = await _repository.getAttendanceForMonth(yearMonth);
       final employees = await _employeesRepository.getEmployees();
+      final settings = ref.read(attendanceSettingsProvider).value;
 
-      // Group logs by employeeId → date
-      final Map<String, Map<String, String>> empDateStatus = {};
+      final startMinutes = settings?.workStartMinutes ?? 9 * 60;
+      final graceMinutes = settings?.graceMinutes ?? 15;
+
+      // Group logs by employeeId
+      final Map<String, List<AttendanceRecord>> empLogs = {};
       for (final log in logs) {
-        empDateStatus.putIfAbsent(log.employeeId, () => <String, String>{});
-        empDateStatus[log.employeeId]![log.date] = log.status;
+        empLogs.putIfAbsent(log.employeeId, () => []).add(log);
       }
 
-        // Use the calendar rather than the number of saved rows. Missing logs
-        // must count as unmarked working days, not shrink the denominator.
-        final totalWorkingDays = _workingDaysInMonth(yearMonth);
+      final totalWorkingDays = _workingDaysInMonth(yearMonth, settings);
 
       final List<EmployeeMonthSummary> summaries = [];
       for (final emp in employees) {
         if (emp.status == 'Terminated') continue;
-        final dateMap = empDateStatus[emp.id] ?? {};
-        int present = 0, absent = 0, leave = 0, halfDay = 0, workFromHome = 0;
-        for (final status in dateMap.values) {
-          if (status == 'Present') {
+        final list = empLogs[emp.id] ?? [];
+
+        int present = 0, absent = 0, leave = 0, halfDay = 0, workFromHome = 0, officialVisit = 0, lateCount = 0;
+        double totalHours = 0.0;
+
+        for (final r in list) {
+          final s = AttendanceStatus.normalize(r.status);
+          if (s == AttendanceStatus.present) {
             present++;
-          } else if (status == 'Absent') {
+          } else if (s == AttendanceStatus.absent) {
             absent++;
-          } else if (status == 'Leave') {
+          } else if (s == AttendanceStatus.leave) {
             leave++;
-          } else if (status == 'Half Day') {
+          } else if (s == AttendanceStatus.halfDay) {
             halfDay++;
-          } else if (status == 'Work From Home') {
+          } else if (s == AttendanceStatus.workFromHome) {
             workFromHome++;
+          } else if (s == AttendanceStatus.officialVisit) {
+            officialVisit++;
           }
+
+          if (r.isLate(workStartMinutes: startMinutes, graceMinutes: graceMinutes)) {
+            lateCount++;
+          }
+
+          totalHours += (r.workingHours ?? 0.0);
         }
+
         summaries.add(
           EmployeeMonthSummary(
             employeeId: emp.id,
             employeeName: emp.name,
+            workingDays: totalWorkingDays,
             presentDays: present,
             absentDays: absent,
             leaveDays: leave,
             halfDays: halfDay,
             workFromHomeDays: workFromHome,
-            totalDays: totalWorkingDays,
+            officialVisitDays: officialVisit,
+            lateDays: lateCount,
+            totalWorkingHours: totalHours,
           ),
         );
       }
@@ -391,16 +457,23 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     }
   }
 
-  int _workingDaysInMonth(String yearMonth) {
+  int _workingDaysInMonth(String yearMonth, AttendanceSettings? settings) {
     final parts = yearMonth.split('-');
-    if (parts.length < 2) return 26;
-    final year = int.tryParse(parts[0]) ?? 2026;
-    final month = int.tryParse(parts[1]) ?? 6;
+    if (parts.length < 2) return 22;
+    final year = int.tryParse(parts[0]) ?? DateTime.now().year;
+    final month = int.tryParse(parts[1]) ?? DateTime.now().month;
     final daysInMonth = DateTime(year, month + 1, 0).day;
+    final weeklyOffDays = settings?.weeklyOffDays ?? const [7];
+    final holidays = settings?.holidayDates ?? const [];
+
     int working = 0;
     for (int d = 1; d <= daysInMonth; d++) {
-      final wd = DateTime(year, month, d).weekday;
-      if (wd != DateTime.saturday && wd != DateTime.sunday) working++;
+      final dt = DateTime(year, month, d);
+      final dateStr =
+          '$year-${month.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+      if (weeklyOffDays.contains(dt.weekday)) continue;
+      if (holidays.contains(dateStr)) continue;
+      working++;
     }
     return working;
   }

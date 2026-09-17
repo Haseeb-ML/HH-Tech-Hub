@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/advance_record.dart';
 import '../../domain/repositories/advances_repository.dart';
 import '../../data/repositories/advances_repository_impl.dart';
+import '../../../../finance/accounts/presentation/providers/accounts_provider.dart';
+import '../../../../finance/ledger/presentation/providers/ledger_provider.dart';
+import '../../../../finance/ledger/domain/entities/ledger_entry.dart';
 
 
 class AdvancesState {
@@ -86,6 +89,35 @@ class AdvancesNotifier extends Notifier<AdvancesState> {
     state = state.copyWith(isLoading: true);
     final adv = state.advances.firstWhere((a) => a.id == id);
     await _repository.updateAdvance(adv.copyWith(status: 'Approved'));
+    final updated = await _repository.getAdvances();
+    state = state.copyWith(advances: updated, isLoading: false);
+  }
+
+  Future<void> disburseAdvance({
+    required AdvanceRecord record,
+    required String accountId,
+    required String accountName,
+  }) async {
+    state = state.copyWith(isLoading: true);
+    await _repository.updateAdvance(record.copyWith(status: 'Approved'));
+
+    // Deduct selected account balance
+    await ref.read(accountsProvider.notifier).adjustBalance(accountId, -record.amount);
+
+    // Record Outflow ledger entry
+    final entry = LedgerEntry(
+      id: 'led_adv_${DateTime.now().millisecondsSinceEpoch}',
+      date: DateTime.now().toIso8601String(),
+      accountId: accountId,
+      accountName: accountName,
+      type: 'Credit',
+      category: 'Salary Advance',
+      amount: record.amount,
+      reference: 'ADV-${record.id}',
+      description: 'Salary Advance disbursed to ${record.employeeName}',
+    );
+    await ref.read(ledgerProvider.notifier).addLedgerEntry(entry);
+
     final updated = await _repository.getAdvances();
     state = state.copyWith(advances: updated, isLoading: false);
   }

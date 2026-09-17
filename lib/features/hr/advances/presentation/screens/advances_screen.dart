@@ -7,6 +7,7 @@ import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
 import '../providers/advances_provider.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../../domain/entities/advance_record.dart';
+import '../../../../finance/accounts/presentation/providers/accounts_provider.dart';
 
 class AdvancesScreen extends ConsumerWidget {
   const AdvancesScreen({super.key});
@@ -356,7 +357,7 @@ class _PendingRequestCard extends ConsumerWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Terms: ${request.repaymentMonths} months | Rs. ${request.monthlyDeduction.toStringAsFixed(0)}/mo deduction',
+            'Requested: ${request.requestDate}',
             style: TextStyle(color: context.textMuted, fontSize: 10),
           ),
           const Spacer(),
@@ -391,7 +392,12 @@ class _PendingRequestCard extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: () => ref.read(advancesProvider.notifier).approveAdvance(request.id),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => _DisburseAdvanceDialog(request: request),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: context.success,
                   foregroundColor: Colors.white,
@@ -496,7 +502,7 @@ class _AdvanceRow extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Monthly installment: Rs. ${record.monthlyDeduction.toStringAsFixed(0)}/mo for ${record.repaymentMonths} months',
+                        'Remaining Balance: Rs. ${record.remainingAmount.toStringAsFixed(0)}',
                         style: TextStyle(color: context.textMuted, fontSize: 10),
                       ),
                     ],
@@ -581,6 +587,109 @@ class _AdvanceRow extends ConsumerWidget {
   }
 }
 
+class _DisburseAdvanceDialog extends ConsumerStatefulWidget {
+  final AdvanceRecord request;
+
+  const _DisburseAdvanceDialog({required this.request});
+
+  @override
+  ConsumerState<_DisburseAdvanceDialog> createState() => _DisburseAdvanceDialogState();
+}
+
+class _DisburseAdvanceDialogState extends ConsumerState<_DisburseAdvanceDialog> {
+  String? _selectedAccountId;
+  String? _selectedAccountName;
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
+
+    return AlertDialog(
+      backgroundColor: context.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        'Disburse Salary Advance',
+        style: TextStyle(fontWeight: FontWeight.bold, color: context.textPrimary, fontSize: 16),
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Disbursing advance payment of Rs. ${widget.request.amount.toStringAsFixed(0)} to employee "${widget.request.employeeName}".',
+              style: TextStyle(color: context.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Select Payment Source Account *',
+              style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: _selectedAccountId,
+              dropdownColor: context.cardBg,
+              style: TextStyle(color: context.textPrimary, fontSize: 13),
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                hintText: 'Choose payment account',
+              ),
+              items: accounts.map((acc) {
+                return DropdownMenuItem(
+                  value: acc.id,
+                  child: Text('${acc.name} (${acc.type}) - Bal: Rs. ${acc.balance.toStringAsFixed(0)}'),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  final acc = accounts.firstWhere((a) => a.id == val);
+                  setState(() {
+                    _selectedAccountId = val;
+                    _selectedAccountName = acc.name;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancel', style: TextStyle(color: context.textSecondary)),
+        ),
+        ElevatedButton(
+          onPressed: _selectedAccountId == null
+              ? null
+              : () async {
+                  await ref.read(advancesProvider.notifier).disburseAdvance(
+                        record: widget.request,
+                        accountId: _selectedAccountId!,
+                        accountName: _selectedAccountName!,
+                      );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Salary advance disbursed successfully from $_selectedAccountName.'),
+                        backgroundColor: context.success,
+                      ),
+                    );
+                  }
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: context.success,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('Confirm & Pay'),
+        ),
+      ],
+    );
+  }
+}
+
 class _RequestAdvanceDialog extends ConsumerStatefulWidget {
   const _RequestAdvanceDialog();
 
@@ -594,7 +703,6 @@ class _RequestAdvanceDialogState extends ConsumerState<_RequestAdvanceDialog> {
   String? _selectedEmployeeName;
   final _amountController = TextEditingController();
   final _reasonController = TextEditingController();
-  int _repaymentMonths = 3;
 
   @override
   void dispose() {
@@ -667,55 +775,18 @@ class _RequestAdvanceDialogState extends ConsumerState<_RequestAdvanceDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Amount & Months
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel('Advance Amount (Rs.)'),
-                        TextFormField(
-                          controller: _amountController,
-                          style: TextStyle(color: context.textPrimary),
-                          keyboardType: TextInputType.number,
-                          decoration: _buildInputDecoration('e.g. 10000'),
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) return 'Enter amount';
-                            if (double.tryParse(val) == null) return 'Enter valid number';
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel('Repayment Months'),
-                        DropdownButtonFormField<int>(
-                          value: _repaymentMonths,
-                          dropdownColor: context.cardBg,
-                          style: TextStyle(color: context.textPrimary, fontSize: 13),
-                          decoration: _buildInputDecoration(''),
-                          items: const [
-                            DropdownMenuItem(value: 1, child: Text('1 Month')),
-                            DropdownMenuItem(value: 2, child: Text('2 Months')),
-                            DropdownMenuItem(value: 3, child: Text('3 Months')),
-                            DropdownMenuItem(value: 4, child: Text('4 Months')),
-                            DropdownMenuItem(value: 6, child: Text('6 Months')),
-                            DropdownMenuItem(value: 12, child: Text('12 Months')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _repaymentMonths = val);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              // Amount
+              _buildLabel('Advance Amount (Rs.)'),
+              TextFormField(
+                controller: _amountController,
+                style: TextStyle(color: context.textPrimary),
+                keyboardType: TextInputType.number,
+                decoration: _buildInputDecoration('e.g. 10000'),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) return 'Enter amount';
+                  if (double.tryParse(val) == null) return 'Enter valid number';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
@@ -749,7 +820,7 @@ class _RequestAdvanceDialogState extends ConsumerState<_RequestAdvanceDialog> {
                           amount: double.parse(_amountController.text),
                           requestDate: DateTime.now().toIso8601String().substring(0, 10),
                           reason: _reasonController.text.trim(),
-                          repaymentMonths: _repaymentMonths,
+                          repaymentMonths: 1,
                           amountRepaid: 0.0,
                           status: 'Pending',
                         );
@@ -821,7 +892,6 @@ class _EditAdvanceDialogState extends ConsumerState<_EditAdvanceDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amountController;
   late final TextEditingController _reasonController;
-  late int _repaymentMonths;
   late String _status;
 
   @override
@@ -829,7 +899,6 @@ class _EditAdvanceDialogState extends ConsumerState<_EditAdvanceDialog> {
     super.initState();
     _amountController = TextEditingController(text: widget.record.amount.toStringAsFixed(0));
     _reasonController = TextEditingController(text: widget.record.reason);
-    _repaymentMonths = widget.record.repaymentMonths;
     _status = widget.record.status;
   }
 
@@ -883,55 +952,18 @@ class _EditAdvanceDialogState extends ConsumerState<_EditAdvanceDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Amount & Months
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel('Advance Amount (Rs.)'),
-                        TextFormField(
-                          controller: _amountController,
-                          style: TextStyle(color: context.textPrimary),
-                          keyboardType: TextInputType.number,
-                          decoration: _buildInputDecoration('e.g. 10000'),
-                          validator: (val) {
-                            if (val == null || val.trim().isEmpty) return 'Enter amount';
-                            if (double.tryParse(val) == null) return 'Enter valid number';
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel('Repayment Months'),
-                        DropdownButtonFormField<int>(
-                          value: _repaymentMonths,
-                          dropdownColor: context.cardBg,
-                          style: TextStyle(color: context.textPrimary, fontSize: 13),
-                          decoration: _buildInputDecoration(''),
-                          items: const [
-                            DropdownMenuItem(value: 1, child: Text('1 Month')),
-                            DropdownMenuItem(value: 2, child: Text('2 Months')),
-                            DropdownMenuItem(value: 3, child: Text('3 Months')),
-                            DropdownMenuItem(value: 4, child: Text('4 Months')),
-                            DropdownMenuItem(value: 6, child: Text('6 Months')),
-                            DropdownMenuItem(value: 12, child: Text('12 Months')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _repaymentMonths = val);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              // Amount
+              _buildLabel('Advance Amount (Rs.)'),
+              TextFormField(
+                controller: _amountController,
+                style: TextStyle(color: context.textPrimary),
+                keyboardType: TextInputType.number,
+                decoration: _buildInputDecoration('e.g. 10000'),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) return 'Enter amount';
+                  if (double.tryParse(val) == null) return 'Enter valid number';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
@@ -980,7 +1012,6 @@ class _EditAdvanceDialogState extends ConsumerState<_EditAdvanceDialog> {
                         final updated = widget.record.copyWith(
                           amount: double.parse(_amountController.text),
                           reason: _reasonController.text.trim(),
-                          repaymentMonths: _repaymentMonths,
                           status: _status,
                         );
                         ref.read(advancesProvider.notifier).updateAdvance(updated);

@@ -6,7 +6,9 @@ import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
 import '../providers/employees_provider.dart';
+import '../providers/departments_provider.dart';
 import '../../domain/entities/employee.dart';
+import 'package:go_router/go_router.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
 
@@ -16,6 +18,7 @@ class EmployeesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(employeesProvider);
+    final departments = ref.watch(departmentsProvider);
     final theme = Theme.of(context);
     final tr = ref.watch(translationProvider);
 
@@ -94,6 +97,7 @@ class EmployeesScreen extends ConsumerWidget {
                               );
                               if (result != null) {
                                 ref.read(employeesProvider.notifier).addEmployee(result);
+                                ref.read(departmentsProvider.notifier).addDepartment(result.department);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text('Employee "${result.name}" added successfully.'),
@@ -208,7 +212,9 @@ class EmployeesScreen extends ConsumerWidget {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               isExpanded: true,
-                              value: state.departmentFilter,
+                              value: (state.departmentFilter == 'All' || departments.contains(state.departmentFilter))
+                                  ? state.departmentFilter
+                                  : 'All',
                               dropdownColor: context.cardBg,
                               style: TextStyle(color: context.textPrimary, fontSize: 13),
                               decoration: InputDecoration(
@@ -228,11 +234,7 @@ class EmployeesScreen extends ConsumerWidget {
                               ),
                               items: [
                                 DropdownMenuItem(value: 'All', child: Text(tr('All Departments'))),
-                                DropdownMenuItem(value: 'Mobile Apps', child: Text(tr('Mobile Apps'))),
-                                DropdownMenuItem(value: 'Design', child: Text(tr('Design'))),
-                                DropdownMenuItem(value: 'Quality Assurance', child: Text(tr('Quality Assurance'))),
-                                DropdownMenuItem(value: 'Management', child: Text(tr('Management'))),
-                                DropdownMenuItem(value: 'Web Development', child: Text(tr('Web Development'))),
+                                ...departments.map((d) => DropdownMenuItem(value: d, child: Text(d))),
                               ],
                               onChanged: (val) {
                                 if (val != null) {
@@ -425,7 +427,9 @@ class _EmployeeCard extends ConsumerWidget {
                 icon: Icon(Icons.more_vert, size: 18, color: context.textSecondary),
                 color: context.cardBg,
                 onSelected: (val) async {
-                  if (val == 'delete') {
+                  if (val == 'history') {
+                    context.go('/hr/history');
+                  } else if (val == 'delete') {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (context) => AlertDialog(
@@ -466,6 +470,16 @@ class _EmployeeCard extends ConsumerWidget {
                   }
                 },
                 itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'history',
+                    child: Row(
+                      children: [
+                        Icon(Icons.history_outlined, size: 16, color: context.primaryColor),
+                        const SizedBox(width: 8),
+                        Text(tr('Attendance & History'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
+                      ],
+                    ),
+                  ),
                   PopupMenuItem(
                     value: 'edit',
                     child: Text(tr('Edit Details'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
@@ -616,7 +630,7 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
   final List<String> _phoneRelationships = ['Personal'];
   final List<TextEditingController> _customRelationshipControllers = [TextEditingController()];
   final _designationController = TextEditingController();
-  String _department = 'Mobile Apps';
+  String _department = '';
   final String _salaryType = 'Monthly';
   final _salaryController = TextEditingController();
   String _paymentMethod = 'Bank Transfer';
@@ -640,6 +654,11 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tr = ref.watch(translationProvider);
+    final departments = ref.watch(departmentsProvider);
+
+    if (_department.isEmpty && departments.isNotEmpty) {
+      _department = departments.first;
+    }
 
     return Dialog(
       backgroundColor: context.cardBg,
@@ -689,7 +708,7 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                 const SizedBox(height: 16),
 
                 // Email Address
-                _buildLabel(tr('Email Address')),
+                _buildLabel('${tr('Email Address')} (Optional)'),
                 TextFormField(
                   controller: _emailController,
                   style: TextStyle(color: context.textPrimary),
@@ -867,19 +886,58 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel(tr('Department')),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildLabel(tr('Department')),
+                              GestureDetector(
+                                onTap: () async {
+                                  final controller = TextEditingController();
+                                  final newDept = await showDialog<String>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      backgroundColor: context.cardBg,
+                                      title: Text(tr('Add Department'), style: TextStyle(color: context.textPrimary)),
+                                      content: TextField(
+                                        controller: controller,
+                                        style: TextStyle(color: context.textPrimary),
+                                        decoration: InputDecoration(
+                                          hintText: 'Enter department name',
+                                          hintStyle: TextStyle(color: context.textMuted),
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx),
+                                          child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                                          child: Text(tr('Add')),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (newDept != null && newDept.trim().isNotEmpty) {
+                                    final canonical = await ref.read(departmentsProvider.notifier).addDepartment(newDept.trim());
+                                    setState(() {
+                                      _department = canonical;
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '+ Add Department',
+                                  style: TextStyle(color: context.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
                           DropdownButtonFormField<String>(
-                            value: _department,
+                            value: departments.contains(_department) ? _department : (departments.isNotEmpty ? departments.first : null),
                             dropdownColor: context.cardBg,
                             style: TextStyle(color: context.textPrimary, fontSize: 13),
                             decoration: _buildInputDecoration(''),
-                            items: const [
-                              DropdownMenuItem(value: 'Mobile Apps', child: Text('Mobile Apps')),
-                              DropdownMenuItem(value: 'Design', child: Text('Design')),
-                              DropdownMenuItem(value: 'Quality Assurance', child: Text('Quality Assurance')),
-                              DropdownMenuItem(value: 'Management', child: Text('Management')),
-                              DropdownMenuItem(value: 'Web Development', child: Text('Web Development')),
-                            ],
+                            items: departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
                             onChanged: (val) {
                               if (val != null) setState(() => _department = val);
                             },
@@ -1120,6 +1178,11 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tr = ref.watch(translationProvider);
+    final savedDepts = ref.watch(departmentsProvider);
+    final departments = [
+      ...savedDepts,
+      if (_department.isNotEmpty && !savedDepts.contains(_department)) _department,
+    ];
 
     return Dialog(
       backgroundColor: context.cardBg,
@@ -1169,7 +1232,7 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                 const SizedBox(height: 16),
 
                 // Email Address
-                _buildLabel(tr('Email Address')),
+                _buildLabel('${tr('Email Address')} (Optional)'),
                 TextFormField(
                   controller: _emailController,
                   style: TextStyle(color: context.textPrimary),
@@ -1347,19 +1410,58 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel(tr('Department')),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildLabel(tr('Department')),
+                              GestureDetector(
+                                onTap: () async {
+                                  final controller = TextEditingController();
+                                  final newDept = await showDialog<String>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      backgroundColor: context.cardBg,
+                                      title: Text(tr('Add Department'), style: TextStyle(color: context.textPrimary)),
+                                      content: TextField(
+                                        controller: controller,
+                                        style: TextStyle(color: context.textPrimary),
+                                        decoration: InputDecoration(
+                                          hintText: 'Enter department name',
+                                          hintStyle: TextStyle(color: context.textMuted),
+                                        ),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx),
+                                          child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                                          child: Text(tr('Add')),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (newDept != null && newDept.trim().isNotEmpty) {
+                                    final canonical = await ref.read(departmentsProvider.notifier).addDepartment(newDept.trim());
+                                    setState(() {
+                                      _department = canonical;
+                                    });
+                                  }
+                                },
+                                child: Text(
+                                  '+ Add Department',
+                                  style: TextStyle(color: context.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
                           DropdownButtonFormField<String>(
-                            value: _department,
+                            value: departments.contains(_department) ? _department : (departments.isNotEmpty ? departments.first : null),
                             dropdownColor: context.cardBg,
                             style: TextStyle(color: context.textPrimary, fontSize: 13),
                             decoration: _buildInputDecoration(''),
-                            items: [
-                              DropdownMenuItem(value: 'Mobile Apps', child: Text(tr('Mobile Apps'))),
-                              DropdownMenuItem(value: 'Design', child: Text(tr('Design'))),
-                              DropdownMenuItem(value: 'Quality Assurance', child: Text(tr('Quality Assurance'))),
-                              DropdownMenuItem(value: 'Management', child: Text(tr('Management'))),
-                              DropdownMenuItem(value: 'Web Development', child: Text(tr('Web Development'))),
-                            ],
+                            items: departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
                             onChanged: (val) {
                               if (val != null) setState(() => _department = val);
                             },
@@ -1518,6 +1620,7 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                             paymentMethod: _paymentMethod,
                           );
                           ref.read(employeesProvider.notifier).updateEmployee(updatedEmp);
+                          ref.read(departmentsProvider.notifier).addDepartment(updatedEmp.department);
                           Navigator.of(context).pop();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(

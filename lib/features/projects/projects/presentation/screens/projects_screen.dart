@@ -22,6 +22,7 @@ import '../../../../finance/accounts/presentation/screens/accounts_screen.dart';
 import '../../../../finance/income/domain/entities/income_record.dart';
 import '../../../../finance/income/presentation/providers/income_provider.dart';
 import '../../../../clients/clients/presentation/screens/clients_screen.dart';
+import '../../../../clients/clients/data/models/client_model.dart';
 
 class ClientAccount {
   final String id;
@@ -47,24 +48,7 @@ class ClientAccountsNotifier extends Notifier<List<ClientAccount>> {
   @override
   List<ClientAccount> build() {
     _loadFromPrefs();
-    return [
-      const ClientAccount(
-        id: 'ca_1',
-        clientId: '1',
-        name: 'Vertex HBL Account',
-        bankName: 'HBL',
-        accountNumber: '1234567890',
-        paymentMethod: 'Bank',
-      ),
-      const ClientAccount(
-        id: 'ca_2',
-        clientId: '2',
-        name: 'Apex Meezan Account',
-        bankName: 'Meezan Bank',
-        accountNumber: '0987654321',
-        paymentMethod: 'Bank',
-      ),
-    ];
+    return [];
   }
 
   Future<void> _loadFromPrefs() async {
@@ -242,13 +226,25 @@ class ProjectsScreen extends ConsumerWidget {
 
                                   // Automatically sync inflow transaction to Finance Accounts
                                   if (result.advancedPayment > 0) {
+                                    String targetAccId = result.bankAccountId;
+                                    final caList = ref.read(clientAccountsProvider);
+                                    final ca = caList.where((c) =>
+                                        c.name == result.clientPaymentSource ||
+                                        c.id == result.clientPaymentSource ||
+                                        (result.clientPaymentSource.contains(c.name)) ||
+                                        (result.clientId.isNotEmpty && c.clientId == result.clientId)).firstOrNull;
+                                    if (ca != null && ca.paymentMethod == 'Bank' && (targetAccId.isEmpty || targetAccId.contains('cash'))) {
+                                      final bankAcc = ref.read(accountsProvider).accounts.where((a) => a.type == 'Bank' && a.status == 'Active').firstOrNull;
+                                      targetAccId = bankAcc?.id ?? ca.id;
+                                    }
+
                                     final incomeRecord = IncomeRecord(
                                       id: 'inc_${DateTime.now().millisecondsSinceEpoch}',
                                       date: result.startDate,
                                       clientId: result.clientId,
                                       clientName: result.clientName,
                                       amount: result.advancedPayment,
-                                      accountId: result.bankAccountId,
+                                      accountId: targetAccId.isNotEmpty ? targetAccId : result.bankAccountId,
                                       invoiceNumber: 'INV-${result.id}',
                                       description:
                                           'Project Advance: ${result.name} (Source: ${result.clientPaymentSource})',
@@ -744,75 +740,87 @@ class _ProjectCard extends ConsumerWidget {
             const Divider(height: 1),
             const SizedBox(height: 10),
 
-            // Row 4: Financials (Budget, Advanced, Remaining)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tr('Budget'),
-                      style: TextStyle(
-                        color: context.textMuted,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
+            // Row 4: Financials (Budget, Advanced/Received, Remaining)
+            (() {
+              final projectIncomes = ref
+                  .watch(incomeProvider)
+                  .incomes
+                  .where((i) => i.projectId == project.id)
+                  .toList();
+              final double actualReceived = projectIncomes.isNotEmpty
+                  ? projectIncomes.fold(0.0, (sum, i) => sum + i.amount)
+                  : (project.advancedPayment + project.partialPayments + project.finalPayment);
+              final double actualRemaining = (project.budget - actualReceived).clamp(0.0, double.infinity);
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tr('Budget'),
+                        style: TextStyle(
+                          color: context.textMuted,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Rs. ${project.budget.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        color: context.primaryColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                      Text(
+                        'Rs. ${project.budget.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          color: context.primaryColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      tr('Received Payment'),
-                      style: TextStyle(
-                        color: context.textMuted,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        tr('Received Payment'),
+                        style: TextStyle(
+                          color: context.textMuted,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Rs. ${(project.advancedPayment + project.partialPayments + project.finalPayment).toStringAsFixed(0)}',
-                      style: TextStyle(
-                        color: context.primaryColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                      Text(
+                        'Rs. ${actualReceived.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          color: context.primaryColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      tr('Remaining Payment'),
-                      style: TextStyle(
-                        color: context.textMuted,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        tr('Remaining Payment'),
+                        style: TextStyle(
+                          color: context.textMuted,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Rs. ${project.remainingPayment.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        color: context.primaryColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
+                      Text(
+                        'Rs. ${actualRemaining.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          color: actualRemaining > 0 ? context.error : context.success,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                    ],
+                  ),
+                ],
+              );
+            })(),
             const SizedBox(height: 10),
 
             // Row 5: Bank Account & Team Members
@@ -943,6 +951,7 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
 
   String? _selectedClientId;
   String? _selectedClientName;
+  Client? _pendingNewClient;
   String _status = 'Planning';
   String? _selectedBankAccountId;
   String? _selectedBankAccountName;
@@ -1014,7 +1023,19 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
       _selectedBankAccountName = widget.project!.bankAccountName;
 
       // Look up if there's a matching client account name/source
-      _selectedClientAccountName = widget.project!.clientPaymentSource;
+      final caList = ref.read(clientAccountsProvider);
+      final matchedCa = caList.where((ca) =>
+          ca.id == widget.project!.clientPaymentSource ||
+          ca.name == widget.project!.clientPaymentSource ||
+          (widget.project!.clientPaymentSource.contains(ca.name)) ||
+          (widget.project!.clientId.isNotEmpty && ca.clientId == widget.project!.clientId)
+      ).firstOrNull;
+      if (matchedCa != null) {
+        _selectedClientAccountId = matchedCa.id;
+        _selectedClientAccountName = matchedCa.name;
+      } else {
+        _selectedClientAccountName = widget.project!.clientPaymentSource;
+      }
     }
   }
 
@@ -1060,6 +1081,13 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
         _teamMembers = List<String>.from(
           draft['teamMembers'] as List? ?? const [],
         );
+        if (draft['pendingClient'] != null) {
+          try {
+            _pendingNewClient = ClientModel.fromJson(
+              draft['pendingClient'] as Map<String, dynamic>,
+            );
+          } catch (_) {}
+        }
       });
       _queueDraftSave();
     } catch (e) {
@@ -1086,6 +1114,9 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
       'startHour': _startTime.hour,
       'startMinute': _startTime.minute,
       'teamMembers': _teamMembers,
+      'pendingClient': _pendingNewClient != null
+          ? ClientModel.fromEntity(_pendingNewClient!).toJson()
+          : null,
       'updatedAt': DateTime.now().toIso8601String(),
     };
     _draftSaveQueue = _draftSaveQueue.then((_) async {
@@ -1199,10 +1230,8 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                                 AddClientDialog(),
                                           );
                                       if (newClient != null) {
-                                        await ref
-                                            .read(clientsProvider.notifier)
-                                            .addClient(newClient);
                                         setState(() {
+                                          _pendingNewClient = newClient;
                                           _selectedClientId = newClient.id;
                                           _selectedClientName = newClient.name;
                                           if (newClient.fullPayment > 0) {
@@ -1230,70 +1259,110 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                   ),
                                 ],
                               ),
-                              DropdownButtonFormField<String>(
-                                value:
-                                    clients.any(
+                              Builder(
+                                builder: (context) {
+                                  final displayedClients = [...clients];
+                                  if (_pendingNewClient != null &&
+                                      !displayedClients.any((c) => c.id == _pendingNewClient!.id)) {
+                                    displayedClients.add(_pendingNewClient!);
+                                  }
+                                  return DropdownButtonFormField<String>(
+                                    value: displayedClients.any(
                                       (c) => c.id == _selectedClientId,
                                     )
-                                    ? _selectedClientId
-                                    : null,
-                                dropdownColor: context.cardBg,
-                                style: TextStyle(
-                                  color: context.textPrimary,
-                                  fontSize: 13,
-                                ),
-                                decoration: _buildInputDecoration('Select Client').copyWith(
-                                  suffixIcon: _selectedClientId == null
-                                      ? null
-                                      : IconButton(
-                                          tooltip: 'Edit Client',
-                                          icon: const Icon(Icons.edit_outlined, size: 18),
-                                          color: context.primaryColor,
-                                          onPressed: () async {
-                                            final selectedClient = clients.firstWhere(
-                                              (client) => client.id == _selectedClientId,
-                                            );
-                                            final updatedClient = await showDialog<Client>(
-                                              context: context,
-                                              builder: (context) => AddClientDialog(client: selectedClient),
-                                            );
-                                            if (updatedClient != null) {
-                                              await ref
-                                                  .read(clientsProvider.notifier)
-                                                  .updateClient(updatedClient);
-                                              setState(() {
-                                                _selectedClientName = updatedClient.name;
-                                                if (updatedClient.fullPayment > 0) {
-                                                  _budgetController.text = updatedClient.fullPayment.toStringAsFixed(0);
+                                        ? _selectedClientId
+                                        : null,
+                                    dropdownColor: context.cardBg,
+                                    style: TextStyle(
+                                      color: context.textPrimary,
+                                      fontSize: 13,
+                                    ),
+                                    decoration: _buildInputDecoration('Select Client').copyWith(
+                                      suffixIcon: _selectedClientId == null
+                                          ? null
+                                          : IconButton(
+                                              tooltip: 'Edit Client',
+                                              icon: const Icon(Icons.edit_outlined, size: 18),
+                                              color: context.primaryColor,
+                                              onPressed: () async {
+                                                final selectedClient = _pendingNewClient?.id == _selectedClientId
+                                                    ? _pendingNewClient!
+                                                    : displayedClients.firstWhere(
+                                                        (client) => client.id == _selectedClientId,
+                                                      );
+                                                final updatedClient = await showDialog<Client>(
+                                                  context: context,
+                                                  builder: (context) => AddClientDialog(client: selectedClient),
+                                                );
+                                                if (updatedClient != null) {
+                                                  if (_pendingNewClient?.id == _selectedClientId) {
+                                                    setState(() {
+                                                      _pendingNewClient = updatedClient;
+                                                      _selectedClientName = updatedClient.name;
+                                                      if (updatedClient.fullPayment > 0) {
+                                                        _budgetController.text = updatedClient.fullPayment.toStringAsFixed(0);
+                                                      }
+                                                      if (updatedClient.advancedPayment > 0) {
+                                                        _advancedController.text = updatedClient.advancedPayment.toStringAsFixed(0);
+                                                      }
+                                                    });
+                                                    _queueDraftSave();
+                                                  } else {
+                                                    await ref
+                                                        .read(clientsProvider.notifier)
+                                                        .updateClient(updatedClient);
+                                                    setState(() {
+                                                      _selectedClientName = updatedClient.name;
+                                                      if (updatedClient.fullPayment > 0) {
+                                                        _budgetController.text = updatedClient.fullPayment.toStringAsFixed(0);
+                                                      }
+                                                      if (updatedClient.advancedPayment > 0) {
+                                                        _advancedController.text = updatedClient.advancedPayment.toStringAsFixed(0);
+                                                      }
+                                                    });
+                                                    _queueDraftSave();
+                                                  }
                                                 }
-                                                if (updatedClient.advancedPayment > 0) {
-                                                  _advancedController.text = updatedClient.advancedPayment.toStringAsFixed(0);
-                                                }
-                                              });
-                                              _queueDraftSave();
+                                              },
+                                            ),
+                                    ),
+                                    validator: (val) =>
+                                        val == null ? 'Select client' : null,
+                                    items: displayedClients.map((c) {
+                                      return DropdownMenuItem(
+                                        value: c.id,
+                                        child: Text(c.name),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        final client = displayedClients.firstWhere(
+                                          (c) => c.id == val,
+                                        );
+                                        final caList = ref
+                                            .read(clientAccountsProvider)
+                                            .where((ca) => ca.clientId == val)
+                                            .toList();
+                                        setState(() {
+                                          _selectedClientId = val;
+                                          _selectedClientName = client.name;
+                                          if (caList.isNotEmpty) {
+                                            _selectedClientAccountId = caList.first.id;
+                                            _selectedClientAccountName = caList.first.name;
+                                            if (caList.first.paymentMethod == 'Bank') {
+                                              final accs = ref.read(accountsProvider).accounts;
+                                              final bankAcc = accs.where((a) => a.type == 'Bank' && a.status == 'Active').firstOrNull;
+                                              if (bankAcc != null && (_selectedBankAccountId == null || _selectedBankAccountId!.contains('cash'))) {
+                                                _selectedBankAccountId = bankAcc.id;
+                                                _selectedBankAccountName = bankAcc.name;
+                                              }
                                             }
-                                          },
-                                        ),
-                                ),
-                                validator: (val) =>
-                                    val == null ? 'Select client' : null,
-                                items: clients.map((c) {
-                                  return DropdownMenuItem(
-                                    value: c.id,
-                                    child: Text(c.name),
+                                          }
+                                        });
+                                        _queueDraftSave();
+                                      }
+                                    },
                                   );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    final client = clients.firstWhere(
-                                      (c) => c.id == val,
-                                    );
-                                    setState(() {
-                                      _selectedClientId = val;
-                                      _selectedClientName = client.name;
-                                    });
-                                    _queueDraftSave();
-                                  }
                                 },
                               ),
                             ],
@@ -1417,8 +1486,7 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   _buildLabel(
-                                    'Client Payment Source / Account',
-                                    isRequired: true,
+                                    'Client Payment Source / Account (Optional)',
                                   ),
                                   GestureDetector(
                                     onTap: () async {
@@ -1442,6 +1510,14 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                               newClientAcc.id;
                                           _selectedClientAccountName =
                                               newClientAcc.name;
+                                          if (newClientAcc.paymentMethod == 'Bank') {
+                                            final accs = ref.read(accountsProvider).accounts;
+                                            final bankAcc = accs.where((a) => a.type == 'Bank' && a.status == 'Active').firstOrNull;
+                                            if (bankAcc != null && (_selectedBankAccountId == null || _selectedBankAccountId!.contains('cash'))) {
+                                              _selectedBankAccountId = bankAcc.id;
+                                              _selectedBankAccountName = bankAcc.name;
+                                            }
+                                          }
                                         });
                                         _queueDraftSave();
                                       }
@@ -1483,11 +1559,9 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                     fontSize: 13,
                                   ),
                                   decoration: _buildInputDecoration(
-                                    'Select Client Account',
+                                    'Select Client Account (Optional)',
                                   ),
-                                  validator: (val) => val == null
-                                      ? 'Select client account'
-                                      : null,
+                                  validator: null,
                                   items: availAccounts.map((ca) {
                                     return DropdownMenuItem(
                                       value: ca.id,
@@ -1502,6 +1576,14 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                       setState(() {
                                         _selectedClientAccountId = val;
                                         _selectedClientAccountName = ca.name;
+                                        if (ca.paymentMethod == 'Bank') {
+                                          final accs = ref.read(accountsProvider).accounts;
+                                          final bankAcc = accs.where((a) => a.type == 'Bank' && a.status == 'Active').firstOrNull;
+                                          if (bankAcc != null && (_selectedBankAccountId == null || _selectedBankAccountId!.contains('cash'))) {
+                                            _selectedBankAccountId = bankAcc.id;
+                                            _selectedBankAccountName = bankAcc.name;
+                                          }
+                                        }
                                       });
                                       _queueDraftSave();
                                     }
@@ -1616,11 +1698,10 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Start Date, Payment Time & End Date Row
+                    // Start Date & End Date Row
                     Row(
                       children: [
                         Expanded(
-                          flex: 3,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1672,62 +1753,12 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 16),
                         Expanded(
-                          flex: 2,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildLabel('Payment Time'),
-                              OutlinedButton(
-                                onPressed: () async {
-                                  final picked = await showTimePicker(
-                                    context: context,
-                                    initialTime: _startTime,
-                                  );
-                                  if (picked != null) {
-                                    setState(() => _startTime = picked);
-                                    _queueDraftSave();
-                                  }
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: context.border),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 14,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _startTime.format(context),
-                                      style: TextStyle(
-                                        color: context.textPrimary,
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.access_time,
-                                      size: 16,
-                                      color: context.primaryColor,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 3,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('End Date'),
+                              _buildLabel('End Date (Optional)'),
                               OutlinedButton(
                                 onPressed: () async {
                                   final picked = await showDatePicker(
@@ -1974,6 +2005,20 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                 now.second,
                                 now.millisecond,
                               );
+                              final ca = _selectedClientAccountId != null
+                                  ? ref.read(clientAccountsProvider).where((c) => c.id == _selectedClientAccountId).firstOrNull
+                                  : ref.read(clientAccountsProvider).where((c) => c.name == _selectedClientAccountName).firstOrNull;
+
+                              final paymentSourceStr = ca != null
+                                  ? (ca.paymentMethod == 'Bank'
+                                      ? (ca.bankName.isNotEmpty && !ca.name.toLowerCase().contains(ca.bankName.toLowerCase())
+                                          ? '${ca.name} (${ca.bankName})'
+                                          : ca.name)
+                                      : (ca.name.isNotEmpty ? ca.name : ca.paymentMethod))
+                                  : (_selectedClientAccountName?.isNotEmpty == true
+                                      ? _selectedClientAccountName!
+                                      : 'Bank');
+
                               final proj = Project(
                                 id:
                                     widget.project?.id ??
@@ -1996,11 +2041,10 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                 advancedPayment:
                                     double.tryParse(_advancedController.text) ??
                                     0.0,
-                                bankAccountId: _selectedBankAccountId ?? '',
-                                bankAccountName: _selectedBankAccountName ?? '',
+                                bankAccountId: _selectedBankAccountId ?? (ca?.id ?? ''),
+                                bankAccountName: _selectedBankAccountName ?? (ca?.name ?? 'Bank Account'),
                                 accountHolder: 'HH Tech',
-                                clientPaymentSource:
-                                    _selectedClientAccountName ?? 'Cash',
+                                clientPaymentSource: paymentSourceStr,
                                 teamMembers: _teamMembers,
                                 partialPayments:
                                     widget.project?.partialPayments ?? 0.0,
@@ -2011,10 +2055,24 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                               );
 
                               if (widget.project == null) {
+                                if (_pendingNewClient != null &&
+                                    _selectedClientId == _pendingNewClient!.id) {
+                                  await ref
+                                      .read(clientsProvider.notifier)
+                                      .addClient(_pendingNewClient!);
+                                  _pendingNewClient = null;
+                                }
                                 await _AddEditProjectDialog.clearDraft();
                                 // Adding a new project, return it as usual
                                 Navigator.of(context).pop(proj);
                               } else {
+                                if (_pendingNewClient != null &&
+                                    _selectedClientId == _pendingNewClient!.id) {
+                                  await ref
+                                      .read(clientsProvider.notifier)
+                                      .addClient(_pendingNewClient!);
+                                  _pendingNewClient = null;
+                                }
                                 // Updating an existing project.
                                 // Update details first
                                 await ref
@@ -2483,9 +2541,45 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                       ),
                     ),
 
-                    // Advanced Payment Row
-                    Builder(
-                      builder: (ctx) {
+                    // Payments from Income Records or fallback to Advanced Payment
+                    ...(() {
+                      final projectIncomes = ref
+                          .watch(incomeProvider)
+                          .incomes
+                          .where((inc) => inc.projectId == liveProject.id)
+                          .toList();
+                      final accountsList = ref.watch(accountsProvider).accounts;
+
+                      if (projectIncomes.isNotEmpty) {
+                        return projectIncomes.asMap().entries.map((entry) {
+                          final idx = entry.key + 1;
+                          final inc = entry.value;
+                          final acc = accountsList
+                              .where((a) => a.id == inc.accountId)
+                              .firstOrNull;
+                          final dt = _formatIncomeDate(inc.date);
+                          final dParts = dt.split('\n');
+                          final pType = inc.projectPaymentType ??
+                              (inc.description.contains('Advance') ? 'Advance' : 'Partial');
+                          Color pColor = pType == 'Advance'
+                              ? Colors.green
+                              : (pType == 'Final'
+                                    ? const Color(0xFF2563EB)
+                                    : Colors.orange);
+                          return _buildNewPaymentRow(
+                            context,
+                            index: idx,
+                            title: '$pType Payment',
+                            badge: pType,
+                            accName: acc?.name ?? (acc?.bankName.isNotEmpty == true ? acc!.bankName : liveProject.bankAccountName),
+                            bankName: acc?.bankName ?? '',
+                            amountStr: 'Rs. ${inc.amount.toStringAsFixed(0)}',
+                            amountColor: pColor,
+                            dateStr: dParts[0],
+                            timeStr: dParts.length > 1 ? dParts[1] : '',
+                          );
+                        }).toList();
+                      } else if (liveProject.advancedPayment > 0) {
                         final allIncomes = ref.watch(incomeProvider).incomes;
                         final advDateStr = _getAdvancePaymentDateTimeString(
                           liveProject,
@@ -2493,113 +2587,89 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                         );
                         final dt = _formatIncomeDate(advDateStr);
                         final dParts = dt.split('\n');
-                        final bankAcc = accounts
+                        final bankAcc = accountsList
                             .where((a) => a.id == liveProject.bankAccountId)
                             .firstOrNull;
-                        return _buildNewPaymentRow(
-                          context,
-                          index: 1,
-                          title: 'Advanced Payment',
-                          badge: 'Advance',
-                          accName: bankAcc?.name ?? liveProject.bankAccountName,
-                          bankName: bankAcc?.bankName ?? '',
-                          amountStr:
-                              'Rs. ${liveProject.advancedPayment.toStringAsFixed(0)}',
-                          amountColor: context.success,
-                          dateStr: dParts[0],
-                          timeStr: dParts.length > 1 ? dParts[1] : '',
-                        );
-                      },
-                    ),
-
-                    // Additional Payments (Partial / Advance / Final from income records)
-                    ...(() {
-                      final projectIncomes = ref
-                          .watch(incomeProvider)
-                          .incomes
-                          .where((inc) => inc.projectId == project.id)
-                          .where(
-                            (inc) =>
-                                inc.invoiceNumber != 'INV-${project.id}' &&
-                                !inc.description.startsWith(
-                                  'Project Advance: ${project.name}',
-                                ),
-                          )
-                          .toList();
-                      final accountsList = ref.watch(accountsProvider).accounts;
-                      return projectIncomes.asMap().entries.map((entry) {
-                        final idx = entry.key + 2;
-                        final inc = entry.value;
-                        final acc = accountsList
-                            .where((a) => a.id == inc.accountId)
-                            .firstOrNull;
-                        final dt = _formatIncomeDate(inc.date);
-                        final dParts = dt.split('\n');
-                        final pType = inc.projectPaymentType ?? 'Partial';
-                        Color pColor = pType == 'Advance'
-                            ? Colors.green
-                            : (pType == 'Final'
-                                  ? const Color(0xFF2563EB)
-                                  : Colors.orange);
-                        return _buildNewPaymentRow(
-                          context,
-                          index: idx,
-                          title: '$pType Payment',
-                          badge: pType,
-                          accName: acc?.name ?? 'Account',
-                          bankName: acc?.bankName ?? '',
-                          amountStr: 'Rs. ${inc.amount.toStringAsFixed(0)}',
-                          amountColor: pColor,
-                          dateStr: dParts[0],
-                          timeStr: dParts.length > 1 ? dParts[1] : '',
-                        );
-                      }).toList();
+                        return [
+                          _buildNewPaymentRow(
+                            context,
+                            index: 1,
+                            title: 'Advanced Payment',
+                            badge: 'Advance',
+                            accName: bankAcc?.name ?? liveProject.bankAccountName,
+                            bankName: bankAcc?.bankName ?? '',
+                            amountStr:
+                                'Rs. ${liveProject.advancedPayment.toStringAsFixed(0)}',
+                            amountColor: context.success,
+                            dateStr: dParts[0],
+                            timeStr: dParts.length > 1 ? dParts[1] : '',
+                          ),
+                        ];
+                      }
+                      return <Widget>[];
                     })(),
 
                     // Remaining Payment Bottom Row
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: liveProject.remainingPayment <= 0
-                            ? (context.isDarkMode
-                                  ? Colors.green.withValues(alpha: 0.1)
-                                  : const Color(0xFFE6F4EA))
-                            : (context.isDarkMode
-                                  ? Colors.orange.withValues(alpha: 0.1)
-                                  : const Color(0xFFFFF9E6)),
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(8),
-                          bottomRight: Radius.circular(8),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Remaining Payment',
-                            style: TextStyle(
-                              color: liveProject.remainingPayment <= 0
-                                  ? context.success
-                                  : Colors.orange,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                    Builder(
+                      builder: (context) {
+                        final projectIncomes = ref
+                            .watch(incomeProvider)
+                            .incomes
+                            .where((inc) => inc.projectId == liveProject.id)
+                            .toList();
+                        final double actualReceived = projectIncomes.isNotEmpty
+                            ? projectIncomes.fold(0.0, (sum, i) => sum + i.amount)
+                            : (liveProject.advancedPayment +
+                                liveProject.partialPayments +
+                                liveProject.finalPayment);
+                        final double actualRemaining = (liveProject.budget - actualReceived)
+                            .clamp(0.0, double.infinity);
+
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: actualRemaining <= 0
+                                ? (context.isDarkMode
+                                      ? Colors.green.withValues(alpha: 0.1)
+                                      : const Color(0xFFE6F4EA))
+                                : (context.isDarkMode
+                                      ? Colors.orange.withValues(alpha: 0.1)
+                                      : const Color(0xFFFFF9E6)),
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(8),
+                              bottomRight: Radius.circular(8),
                             ),
                           ),
-                          Text(
-                            'Rs. ${liveProject.remainingPayment.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              color: liveProject.remainingPayment <= 0
-                                  ? context.success
-                                  : Colors.orange,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Remaining Payment',
+                                style: TextStyle(
+                                  color: actualRemaining <= 0
+                                      ? context.success
+                                      : Colors.orange,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Rs. ${actualRemaining.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  color: actualRemaining <= 0
+                                      ? context.success
+                                      : Colors.orange,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -2619,7 +2689,11 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
               (() {
                 final clientAccounts = ref.watch(clientAccountsProvider);
                 final clientAccount = clientAccounts
-                    .where((ca) => ca.name == project.clientPaymentSource)
+                    .where((ca) =>
+                        ca.name == project.clientPaymentSource ||
+                        ca.id == project.clientPaymentSource ||
+                        (project.clientPaymentSource.contains(ca.name)) ||
+                        (project.clientId.isNotEmpty && ca.clientId == project.clientId))
                     .firstOrNull;
                 if (clientAccount != null) {
                   return Row(
@@ -2849,7 +2923,7 @@ class _AddClientAccountDialogState extends State<AddClientAccountDialog> {
                 items: const [
                   DropdownMenuItem(value: 'Cash', child: Text('Cash')),
                   DropdownMenuItem(value: 'Bank', child: Text('Bank')),
-                  DropdownMenuItem(value: 'Online', child: Text('Online')),
+                  DropdownMenuItem(value: 'Wallet', child: Text('Wallet')),
                 ],
                 onChanged: (val) {
                   if (val != null) {
@@ -2870,40 +2944,37 @@ class _AddClientAccountDialogState extends State<AddClientAccountDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Account Name / Label
-              _buildLabel(
-                'Account Title / Name',
-                isRequired: _paymentMethod != 'Cash',
-              ),
-              TextFormField(
-                controller: _nameController,
-                style: TextStyle(color: context.textPrimary),
-                decoration: _buildInputDecoration(
-                  _paymentMethod == 'Cash'
-                      ? 'Cash Account'
-                      : 'e.g. Client HBL Account',
+              // Account Name / Label (Hidden when Cash method is selected)
+              if (_paymentMethod != 'Cash') ...[
+                _buildLabel(
+                  'Account Title / Name',
+                  isRequired: true,
                 ),
-                validator: (val) {
-                  if (_paymentMethod == 'Cash') return null;
-                  if (val == null || val.trim().isEmpty)
-                    return 'Enter account title';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
+                TextFormField(
+                  controller: _nameController,
+                  style: TextStyle(color: context.textPrimary),
+                  decoration: _buildInputDecoration('e.g. Client HBL Account'),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty)
+                      return 'Enter account title';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Bank Name
-              _buildLabel('Bank Name', isRequired: _paymentMethod != 'Cash'),
+              _buildLabel(
+                _paymentMethod == 'Bank' || _paymentMethod == 'Wallet'
+                    ? 'Bank Name (Optional)'
+                    : 'Bank Name',
+                isRequired: false,
+              ),
               TextFormField(
                 controller: _bankNameController,
                 style: TextStyle(color: context.textPrimary),
-                decoration: _buildInputDecoration('e.g. HBL'),
-                validator: (val) {
-                  if (_paymentMethod == 'Cash') return null;
-                  if (val == null || val.trim().isEmpty)
-                    return 'Enter bank name';
-                  return null;
-                },
+                decoration: _buildInputDecoration('e.g. HBL (Optional)'),
+                validator: null,
               ),
               const SizedBox(height: 16),
 
@@ -3161,6 +3232,16 @@ class _PartialPaymentDialogContentState
     final accounts = ref.watch(accountsProvider).accounts;
     final project = widget.project;
 
+    final projectIncomes = ref
+        .watch(incomeProvider)
+        .incomes
+        .where((i) => i.projectId == project.id)
+        .toList();
+    final double actualReceived = projectIncomes.isNotEmpty
+        ? projectIncomes.fold(0.0, (sum, i) => sum + i.amount)
+        : (project.advancedPayment + project.partialPayments + project.finalPayment);
+    final double actualRemaining = (project.budget - actualReceived).clamp(0.0, double.infinity);
+
     if (_selectedAccountId == null && project.bankAccountId.isNotEmpty) {
       _selectedAccountId = project.bankAccountId;
       _selectedAccountName = project.bankAccountName;
@@ -3240,7 +3321,7 @@ class _PartialPaymentDialogContentState
                           children: [
                             TextSpan(
                               text:
-                                  'Rs. ${project.remainingPayment.toStringAsFixed(0)}',
+                                  'Rs. ${actualRemaining.toStringAsFixed(0)}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.black,
@@ -3381,8 +3462,8 @@ class _PartialPaymentDialogContentState
                       return 'Please enter an amount';
                     final num = double.tryParse(val);
                     if (num == null || num <= 0) return 'Invalid amount';
-                    if (num > project.remainingPayment)
-                      return 'Amount cannot exceed Rs. ${project.remainingPayment.toStringAsFixed(0)}';
+                    if (num > actualRemaining)
+                      return 'Amount cannot exceed Rs. ${actualRemaining.toStringAsFixed(0)}';
                     return null;
                   },
                 ),

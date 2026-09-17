@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/bank_account.dart';
 import '../../domain/repositories/accounts_repository.dart';
 import '../../data/repositories/accounts_repository_impl.dart';
+import '../../../ledger/domain/entities/ledger_entry.dart';
+import '../../../ledger/presentation/providers/ledger_provider.dart';
 
 
 class AccountsState {
@@ -133,6 +135,21 @@ class AccountsNotifier extends Notifier<AccountsState> {
   Future<void> addAccount(BankAccount account) async {
     state = state.copyWith(isLoading: true);
     await _repository.addAccount(account);
+    if (account.openingBalance > 0) {
+      try {
+        await ref.read(ledgerProvider.notifier).addLedgerEntry(LedgerEntry(
+          id: 'led_opening_${account.id}',
+          date: account.openingBalanceDate.isNotEmpty ? account.openingBalanceDate : DateTime.now().toIso8601String(),
+          accountId: account.id,
+          accountName: account.name,
+          type: 'Debit',
+          category: 'Opening Balance',
+          amount: account.openingBalance,
+          reference: 'Opening Balance',
+          description: 'Opening balance deposited for ${account.name}',
+        ));
+      } catch (_) {}
+    }
     final updated = await _repository.getAccounts();
     state = state.copyWith(accounts: updated, isLoading: false);
   }

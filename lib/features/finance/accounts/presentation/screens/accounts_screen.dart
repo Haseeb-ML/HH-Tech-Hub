@@ -1130,7 +1130,13 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
     // Overall Project Payments summary across all projects
     final totalProjectsCount = allProjects.length;
     final totalBudget = allProjects.fold<double>(0.0, (sum, p) => sum + p.budget);
-    final totalReceived = allProjects.fold<double>(0.0, (sum, p) => sum + p.advancedPayment + p.partialPayments + p.finalPayment);
+    final allIncomes = ref.watch(incomeProvider).incomes;
+    final totalReceived = allProjects.fold<double>(0.0, (sum, p) {
+      final pIncomes = allIncomes.where((i) => i.projectId == p.id).toList();
+      return sum + (pIncomes.isNotEmpty
+          ? pIncomes.fold<double>(0.0, (s, i) => s + i.amount)
+          : (p.advancedPayment + p.partialPayments + p.finalPayment));
+    });
     final totalDue = totalBudget - totalReceived;
 
     return Dialog(
@@ -1399,7 +1405,7 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
                                         children: [
                                           Text("Today's Inflow", style: TextStyle(color: context.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
                                           const SizedBox(height: 2),
-                                          Text('+ Rs. ${adjustedTodayInflow.toStringAsFixed(0)}', style: TextStyle(color: context.success, fontSize: 14, fontWeight: FontWeight.bold)),
+                                          Text('Rs. ${adjustedTodayInflow.toStringAsFixed(0)}', style: TextStyle(color: context.success, fontSize: 14, fontWeight: FontWeight.bold)),
                                         ],
                                       ),
                                     ),
@@ -1426,7 +1432,7 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
                                           children: [
                                             Text("Today's Outflow", style: TextStyle(color: context.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
                                             const SizedBox(height: 2),
-                                            Text('- Rs. ${adjustedTodayOutflow.toStringAsFixed(0)}', style: TextStyle(color: context.error, fontSize: 14, fontWeight: FontWeight.bold)),
+                                            Text('Rs. ${adjustedTodayOutflow.toStringAsFixed(0)}', style: TextStyle(color: context.error, fontSize: 14, fontWeight: FontWeight.bold)),
                                           ],
                                         ),
                                       ),

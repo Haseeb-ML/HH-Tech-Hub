@@ -1,9 +1,9 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'file_saver/file_saver.dart';
 import 'package:excel/excel.dart' as ex;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 import '../../features/hr/employees/domain/entities/employee.dart';
 import '../../features/hr/salaries/domain/entities/salary_record.dart';
 import '../../features/hr/attendance/domain/entities/attendance_record.dart';
@@ -259,16 +259,11 @@ class ExportHelper {
       sheet.setColumnWidth(colIdx, (maxLen + 4).toDouble());
     }
 
-    final downloadsDir =
-        await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
-    final filePath = p.join(downloadsDir.path, '$fileName.xlsx');
     final fileBytes = excel.save();
     if (fileBytes != null) {
-      final file = File(filePath);
-      await file.writeAsBytes(fileBytes);
+      return await saveAndLaunchFile(fileBytes, '$fileName.xlsx');
     }
-    return filePath;
+    return '';
   }
 
   /// Save PDF document with automatic total calculation for numeric columns
@@ -522,18 +517,12 @@ class ExportHelper {
       ),
     );
 
-    final downloadsDir =
-        await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
-    final filePath = p.join(downloadsDir.path, '$fileName.pdf');
-    final file = File(filePath);
-    await file.writeAsBytes(await pdf.save());
-    return filePath;
+    return await saveAndLaunchFile(await pdf.save(), '$fileName.pdf');
   }
 
   /// Open file natively in Windows
   static Future<void> openFile(String filePath) async {
-    if (Platform.isWindows) {
+    if (!kIsWeb && Platform.isWindows) {
       await Process.run('cmd', [
         '/c',
         'start',
@@ -1041,16 +1030,11 @@ class ExportHelper {
       sheet.setColumnWidth(colIdx, 18.0);
     }
 
-    final downloadsDir =
-        await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
-    final filePath = p.join(downloadsDir.path, '$fileName.xlsx');
     final fileBytes = excel.save();
     if (fileBytes != null) {
-      final file = File(filePath);
-      await file.writeAsBytes(fileBytes);
+      return await saveAndLaunchFile(fileBytes, '$fileName.xlsx');
     }
-    return filePath;
+    return '';
   }
 
   /// Custom PDF export matching authentic Pakistani Bank Statement (Allied Bank format)
@@ -1585,15 +1569,9 @@ class ExportHelper {
       ),
     );
 
-    final downloadsDir =
-        await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
     final fileNameClean =
         '${account.name.replaceAll(" ", "_")}_BankStatement_${DateFormat('yyyyMMdd_HHmm').format(now)}';
-    final filePath = p.join(downloadsDir.path, '$fileNameClean.pdf');
-    final file = File(filePath);
-    await file.writeAsBytes(await pdf.save());
-    return filePath;
+    return await saveAndLaunchFile(await pdf.save(), '$fileNameClean.pdf');
   }
 
   static pw.Widget _buildStatementMeta(String label, String value) {
@@ -2168,12 +2146,6 @@ class ExportHelper {
       ),
     );
 
-    final downloadsDir =
-        await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
-    final filePath = p.join(downloadsDir.path, '$fileName.pdf');
-    final file = File(filePath);
-    await file.writeAsBytes(await pdf.save());
-    return filePath;
+    return await saveAndLaunchFile(await pdf.save(), '$fileName.pdf');
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
@@ -20,6 +21,27 @@ class ExpensesScreen extends ConsumerStatefulWidget {
 class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   static const int _rowsPerPage = 10;
   int _currentPage = 0;
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _horizontalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
+
+  String _formatExpenseDateTime(String isoDate) {
+    try {
+      final dt = DateTime.parse(isoDate);
+      if (dt.hour != 0 || dt.minute != 0) {
+        return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
+      }
+      return DateFormat('dd MMM yyyy').format(dt);
+    } catch (_) {
+      return isoDate;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,14 +64,14 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       ref.read(expensesProvider.notifier).syncAssetsAndInventoryExpenses();
     });
 
-    // Calculate metrics
-    final companyExpenses = state.expenses.where((e) => !e.isPersonalExpense).toList();
-    final totalExpenses = companyExpenses.length;
-    final totalAmount = companyExpenses.fold<double>(0.0, (sum, e) => sum + e.amount);
+    // Calculate metrics based on current filtered dataset
+    final displayedExpenses = filteredExpenses;
+    final totalExpensesCount = displayedExpenses.length;
+    final totalAmount = displayedExpenses.fold<double>(0.0, (sum, e) => sum + e.amount);
 
     // Category breakdown calculation
     final Map<String, double> categorySums = {};
-    for (var exp in companyExpenses) {
+    for (var exp in displayedExpenses) {
       categorySums[exp.category] = (categorySums[exp.category] ?? 0.0) + exp.amount;
     }
     final sortedCategories = categorySums.entries.toList()
@@ -100,16 +122,21 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                 ExportButton(
                                   title: 'Expense Tracker',
                                   fileName: 'expense_tracker_export',
-                                  headers: ['Expense ID', tr('Date'), 'Amount', 'Account ID', tr('Category'), 'Vendor Name', tr('Description')],
-                                  rows: state.filteredExpenses.map((e) => [
-                                    e.id,
-                                    e.date,
-                                    'Rs. ${e.amount.toStringAsFixed(2)}',
-                                    e.accountId,
-                                    e.category,
-                                    e.vendorName,
-                                    e.description,
-                                  ]).toList(),
+                                  headers: ['Expense ID', 'Expense Type', 'Comment', 'Date & Time', 'Paid By', 'Account', 'Amount (PKR)'],
+                                  rows: state.filteredExpenses.map((e) {
+                                    final account = accountsState.accounts.where((a) => a.id == e.accountId).firstOrNull;
+                                    final accountName = account != null ? '${account.name} (${account.accountScope})' : 'Unknown Account';
+                                    final paidBy = e.vendorName.isNotEmpty ? e.vendorName : 'Company';
+                                    return [
+                                      e.id,
+                                      e.category,
+                                      e.description,
+                                      _formatExpenseDateTime(e.date),
+                                      paidBy,
+                                      accountName,
+                                      'Rs. ${e.amount.toStringAsFixed(0)}',
+                                    ];
+                                  }).toList(),
                                 ),
                                 const SizedBox(width: 12),
                                 ElevatedButton.icon(
@@ -164,7 +191,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                 child: StatCard(
                                   title: 'Transaction Count',
                                   tooltipMessage: 'Detailed statistics and information regarding Transaction Count.',
-                                  value: '$totalExpenses Logs',
+                                  value: '$totalExpensesCount Logs',
                                   icon: Icons.receipt_long_outlined,
                                   iconColor: context.primaryColor,
                                   iconBgColor: context.infoLight,
@@ -211,7 +238,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Main Content (List + Category Chart Sidebar)
+                        // Main Content (List/Table + Category Chart Sidebar)
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -220,13 +247,18 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                 flex: 2,
                                 child: Column(
                                   children: [
-                                    // Search and filter row
+                                    // Search and filter panel
                                     GlassCard(
                                       child: Padding(
                                         padding: const EdgeInsets.all(16),
-                                        child: Row(
+                                        child: Wrap(
+                                          spacing: 12,
+                                          runSpacing: 12,
+                                          crossAxisAlignment: WrapCrossAlignment.center,
                                           children: [
-                                            Expanded(
+                                            // Search Input
+                                            SizedBox(
+                                              width: 240,
                                               child: Container(
                                                 height: 40,
                                                 decoration: BoxDecoration(
@@ -235,14 +267,15 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                   border: Border.all(color: context.border, width: 1),
                                                 ),
                                                 child: TextField(
+                                                  controller: _searchController,
                                                   onChanged: (val) {
                                                     ref.read(expensesProvider.notifier).setSearchQuery(val);
                                                     setState(() => _currentPage = 0);
                                                   },
-                                                  style: TextStyle(color: context.textPrimary),
+                                                  style: TextStyle(color: context.textPrimary, fontSize: 13),
                                                   decoration: InputDecoration(
-                                                    hintText: tr('Search by vendor, category or description...'),
-                                                    hintStyle: TextStyle(fontSize: 13, color: context.textMuted),
+                                                    hintText: tr('Search vendor, category...'),
+                                                    hintStyle: TextStyle(fontSize: 12, color: context.textMuted),
                                                     prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
                                                     border: InputBorder.none,
                                                     contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -250,7 +283,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(width: 12),
+
+                                            // Category Filter Dropdown
                                             Container(
                                               height: 40,
                                               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -266,21 +300,26 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                   style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
                                                   items: [
                                                     'All',
-                                                    'Rent',
-                                                    tr('Salaries'),
+                                                    'Salaries & Payroll',
+                                                    'Electricity & Utilities',
+                                                    'Internet & Telecom',
+                                                    'Rent & Occupancy',
                                                     'Bills',
-                                                    'Internet',
-                                                    'Electricity',
                                                     'Supplies',
                                                     'Refreshments',
-                                                    'Travel',
+                                                    'Travel & Transport',
                                                     'Office Inventory',
                                                     'Assets Management',
+                                                    'Marketing & Advertising',
+                                                    'Office & Admin Expenses',
+                                                    'Repairs & Maintenance',
+                                                    'Depreciation',
+                                                    'Bank Charges & Fees',
                                                     'Other',
                                                   ].map((c) {
                                                     return DropdownMenuItem<String>(
                                                       value: c,
-                                                      child: Text('${tr("Category")}: $c'),
+                                                      child: Text(c == 'All' ? 'Category: All' : c),
                                                     );
                                                   }).toList(),
                                                   onChanged: (val) {
@@ -292,13 +331,129 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                 ),
                                               ),
                                             ),
+
+                                            // Account Filter Dropdown
+                                            Container(
+                                              height: 40,
+                                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                                              decoration: BoxDecoration(
+                                                color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: context.border, width: 1),
+                                              ),
+                                              child: DropdownButtonHideUnderline(
+                                                child: DropdownButton<String>(
+                                                  value: state.accountIdFilter,
+                                                  dropdownColor: context.cardBg,
+                                                  style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                                  items: [
+                                                    const DropdownMenuItem<String>(
+                                                      value: 'All',
+                                                      child: Text('Account: All'),
+                                                    ),
+                                                    ...accountsState.accounts.map((acc) {
+                                                      final scopeLabel = acc.accountScope.isNotEmpty ? ' (${acc.accountScope})' : '';
+                                                      return DropdownMenuItem<String>(
+                                                        value: acc.id,
+                                                        child: Text('${acc.name}$scopeLabel'),
+                                                      );
+                                                    }),
+                                                  ],
+                                                  onChanged: (val) {
+                                                    if (val != null) {
+                                                      ref.read(expensesProvider.notifier).setAccountIdFilter(val);
+                                                      setState(() => _currentPage = 0);
+                                                    }
+                                                  },
+                                                ),
+                                              ),
+                                            ),
+
+                                            // From Date Button
+                                            OutlinedButton.icon(
+                                              onPressed: () async {
+                                                final picked = await showDatePicker(
+                                                  context: context,
+                                                  initialDate: state.fromDateFilter != null ? (DateTime.tryParse(state.fromDateFilter!) ?? DateTime.now()) : DateTime.now(),
+                                                  firstDate: DateTime(2020),
+                                                  lastDate: DateTime(2030),
+                                                );
+                                                if (picked != null) {
+                                                  final dateStr = picked.toIso8601String().substring(0, 10);
+                                                  ref.read(expensesProvider.notifier).setDateRange(dateStr, state.toDateFilter);
+                                                  setState(() => _currentPage = 0);
+                                                }
+                                              },
+                                              icon: Icon(Icons.calendar_today_outlined, size: 14, color: state.fromDateFilter != null ? context.primaryColor : context.textMuted),
+                                              label: Text(
+                                                state.fromDateFilter != null ? 'From: ${state.fromDateFilter}' : 'From Date',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: state.fromDateFilter != null ? context.primaryColor : context.textSecondary,
+                                                  fontWeight: state.fromDateFilter != null ? FontWeight.bold : FontWeight.normal,
+                                                ),
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                minimumSize: const Size(0, 40),
+                                                side: BorderSide(color: state.fromDateFilter != null ? context.primaryColor : context.border),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                backgroundColor: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                              ),
+                                            ),
+
+                                            // To Date Button
+                                            OutlinedButton.icon(
+                                              onPressed: () async {
+                                                final picked = await showDatePicker(
+                                                  context: context,
+                                                  initialDate: state.toDateFilter != null ? (DateTime.tryParse(state.toDateFilter!) ?? DateTime.now()) : DateTime.now(),
+                                                  firstDate: DateTime(2020),
+                                                  lastDate: DateTime(2030),
+                                                );
+                                                if (picked != null) {
+                                                  final dateStr = picked.toIso8601String().substring(0, 10);
+                                                  ref.read(expensesProvider.notifier).setDateRange(state.fromDateFilter, dateStr);
+                                                  setState(() => _currentPage = 0);
+                                                }
+                                              },
+                                              icon: Icon(Icons.calendar_today_outlined, size: 14, color: state.toDateFilter != null ? context.primaryColor : context.textMuted),
+                                              label: Text(
+                                                state.toDateFilter != null ? 'To: ${state.toDateFilter}' : 'To Date',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: state.toDateFilter != null ? context.primaryColor : context.textSecondary,
+                                                  fontWeight: state.toDateFilter != null ? FontWeight.bold : FontWeight.normal,
+                                                ),
+                                              ),
+                                              style: OutlinedButton.styleFrom(
+                                                minimumSize: const Size(0, 40),
+                                                side: BorderSide(color: state.toDateFilter != null ? context.primaryColor : context.border),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                backgroundColor: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                              ),
+                                            ),
+
+                                            // Clear Filters Button
+                                            if (state.categoryFilter != 'All' || state.accountIdFilter != 'All' || state.searchQuery.isNotEmpty || state.fromDateFilter != null || state.toDateFilter != null)
+                                              TextButton.icon(
+                                                onPressed: () {
+                                                  _searchController.clear();
+                                                  ref.read(expensesProvider.notifier).clearFilters();
+                                                  setState(() => _currentPage = 0);
+                                                },
+                                                icon: Icon(Icons.filter_alt_off_outlined, size: 16, color: context.error),
+                                                label: Text(
+                                                  'Clear Filters',
+                                                  style: TextStyle(color: context.error, fontSize: 12, fontWeight: FontWeight.bold),
+                                                ),
+                                              ),
                                           ],
                                         ),
                                       ),
                                     ),
                                     const SizedBox(height: 16),
 
-                                    // ListView
+                                    // Expense DataTable
                                     state.filteredExpenses.isEmpty
                                         ? _buildEmptyState(context)
                                         : Container(
@@ -309,52 +464,351 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                             ),
                                             child: ClipRRect(
                                               borderRadius: BorderRadius.circular(12),
-                                              child: ListView.separated(
-                                                shrinkWrap: true,
-                                                physics: const NeverScrollableScrollPhysics(),
-                                                itemCount: paginatedExpenses.length,
-                                                separatorBuilder: (context, index) => const Divider(height: 1),
-                                                itemBuilder: (context, index) {
-                                                  final exp = paginatedExpenses[index];
-                                                  final account = accountsState.accounts.where((a) => a.id == exp.accountId).firstOrNull;
-                                                  return _ExpenseListTile(
-                                                    expense: exp,
-                                                    accountName: account?.name ?? 'Unknown',
-                                                    accountScope: account?.accountScope ?? 'Company',
-                                                    ownerName: account?.ownerName ?? '',
-                                                  );
-                                                },
+                                              child: Column(
+                                                children: [
+                                                  Scrollbar(
+                                                    controller: _horizontalScrollController,
+                                                    child: SingleChildScrollView(
+                                                      controller: _horizontalScrollController,
+                                                      scrollDirection: Axis.horizontal,
+                                                      child: ConstrainedBox(
+                                                        constraints: const BoxConstraints(minWidth: 720),
+                                                        child: DataTable(
+                                                          showCheckboxColumn: false,
+                                                          columnSpacing: 14,
+                                                          headingRowHeight: 46,
+                                                          dataRowMaxHeight: 56,
+                                                          headingRowColor: WidgetStateProperty.all(
+                                                            context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                                                          ),
+                                                          columns: const [
+                                                            DataColumn(label: SizedBox(width: 115, child: Text('Expense Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                            DataColumn(label: SizedBox(width: 125, child: Text('Comment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                            DataColumn(label: SizedBox(width: 110, child: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                            DataColumn(label: SizedBox(width: 90, child: Text('Paid By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                            DataColumn(label: SizedBox(width: 110, child: Text('Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                            DataColumn(label: SizedBox(width: 80, child: Align(alignment: Alignment.centerRight, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))))),
+                                                            DataColumn(label: SizedBox(width: 85, child: Align(alignment: Alignment.centerRight, child: Text('Action', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))))),
+                                                          ],
+                                                          rows: paginatedExpenses.map((exp) {
+                                                            final account = accountsState.accounts.where((a) => a.id == exp.accountId).firstOrNull;
+                                                            final accountName = account?.name ?? 'Bank/Cash Account';
+                                                            final accountScope = account?.accountScope ?? 'Company';
+                                                            final ownerName = account?.ownerName ?? '';
+                                                            final paidBy = exp.vendorName.isNotEmpty ? exp.vendorName : 'Company';
+
+                                                            return DataRow(
+                                                              onSelectChanged: (_) {
+                                                                showDialog<void>(
+                                                                  context: context,
+                                                                  builder: (context) => _ExpenseDetailsDialog(
+                                                                    expense: exp,
+                                                                    accountName: accountName,
+                                                                    accountScope: accountScope,
+                                                                    ownerName: ownerName,
+                                                                  ),
+                                                                );
+                                                              },
+                                                              cells: [
+                                                                // Expense Type
+                                                                DataCell(
+                                                                  SizedBox(
+                                                                    width: 115,
+                                                                    child: Align(
+                                                                      alignment: Alignment.centerLeft,
+                                                                      child: Container(
+                                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                                        decoration: BoxDecoration(
+                                                                          color: context.isDarkMode ? const Color(0xFF374151) : const Color(0xFFEFF6FF),
+                                                                          borderRadius: BorderRadius.circular(6),
+                                                                          border: Border.all(color: context.primaryColor.withValues(alpha: 0.3)),
+                                                                        ),
+                                                                        child: Text(
+                                                                          exp.category,
+                                                                          style: TextStyle(
+                                                                            fontSize: 11,
+                                                                            fontWeight: FontWeight.w600,
+                                                                            color: context.primaryColor,
+                                                                          ),
+                                                                          maxLines: 1,
+                                                                          overflow: TextOverflow.ellipsis,
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                // Comment / Description (fixed width, single line with tooltip)
+                                                                DataCell(
+                                                                  SizedBox(
+                                                                    width: 125,
+                                                                    child: Tooltip(
+                                                                      message: exp.description.isNotEmpty ? exp.description : 'No comment entered',
+                                                                      waitDuration: const Duration(milliseconds: 250),
+                                                                      child: Text(
+                                                                        exp.description.isEmpty ? '—' : exp.description,
+                                                                        style: TextStyle(fontSize: 12, color: context.textPrimary),
+                                                                        maxLines: 1,
+                                                                        overflow: TextOverflow.ellipsis,
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                // Date & Time
+                                                                DataCell(
+                                                                  SizedBox(
+                                                                    width: 110,
+                                                                    child: Text(
+                                                                      _formatExpenseDateTime(exp.date),
+                                                                      style: TextStyle(fontSize: 11, color: context.textSecondary),
+                                                                      maxLines: 2,
+                                                                      overflow: TextOverflow.ellipsis,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                // Paid By
+                                                                DataCell(
+                                                                  SizedBox(
+                                                                    width: 90,
+                                                                    child: Row(
+                                                                      mainAxisSize: MainAxisSize.min,
+                                                                      children: [
+                                                                        Icon(Icons.person_outline, size: 14, color: context.textMuted),
+                                                                        const SizedBox(width: 4),
+                                                                        Expanded(
+                                                                          child: Text(
+                                                                            paidBy,
+                                                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: context.textPrimary),
+                                                                            overflow: TextOverflow.ellipsis,
+                                                                            maxLines: 1,
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                // Account
+                                                                DataCell(
+                                                                  SizedBox(
+                                                                    width: 110,
+                                                                    child: Column(
+                                                                      mainAxisAlignment: MainAxisAlignment.center,
+                                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                                      children: [
+                                                                        Text(
+                                                                          accountName,
+                                                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textPrimary),
+                                                                          overflow: TextOverflow.ellipsis,
+                                                                          maxLines: 1,
+                                                                        ),
+                                                                        Text(
+                                                                          accountScope,
+                                                                          style: TextStyle(fontSize: 10, color: context.textMuted),
+                                                                          overflow: TextOverflow.ellipsis,
+                                                                          maxLines: 1,
+                                                                        ),
+                                                                      ],
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                // Amount
+                                                                DataCell(
+                                                                  SizedBox(
+                                                                    width: 80,
+                                                                    child: Align(
+                                                                      alignment: Alignment.centerRight,
+                                                                      child: Text(
+                                                                        'Rs. ${exp.amount.toStringAsFixed(0)}',
+                                                                        style: TextStyle(
+                                                                          fontSize: 12,
+                                                                          fontWeight: FontWeight.bold,
+                                                                          color: context.error,
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                // Action
+                                                                DataCell(
+                                                                  SizedBox(
+                                                                    width: 85,
+                                                                    child: Align(
+                                                                      alignment: Alignment.centerRight,
+                                                                      child: Row(
+                                                                        mainAxisSize: MainAxisSize.min,
+                                                                        mainAxisAlignment: MainAxisAlignment.end,
+                                                                        children: [
+                                                                          IconButton(
+                                                                            icon: const Icon(Icons.visibility_outlined, size: 17),
+                                                                            tooltip: 'View Details',
+                                                                            color: context.primaryColor,
+                                                                            padding: EdgeInsets.zero,
+                                                                            constraints: const BoxConstraints(),
+                                                                            onPressed: () {
+                                                                              showDialog<void>(
+                                                                                context: context,
+                                                                                builder: (context) => _ExpenseDetailsDialog(
+                                                                                  expense: exp,
+                                                                                  accountName: accountName,
+                                                                                  accountScope: accountScope,
+                                                                                  ownerName: ownerName,
+                                                                                ),
+                                                                              );
+                                                                            },
+                                                                          ),
+                                                                          const SizedBox(width: 6),
+                                                                          IconButton(
+                                                                            icon: const Icon(Icons.edit_outlined, size: 17),
+                                                                            tooltip: 'Edit Expense',
+                                                                            color: context.warning,
+                                                                            padding: EdgeInsets.zero,
+                                                                            constraints: const BoxConstraints(),
+                                                                            onPressed: () async {
+                                                                              final result = await showDialog<ExpenseRecord>(
+                                                                                context: context,
+                                                                                builder: (context) => _AddEditExpenseDialog(expense: exp),
+                                                                              );
+                                                                              if (result != null) {
+                                                                                ref.read(expensesProvider.notifier).updateExpense(exp, result);
+                                                                                if (!context.mounted) return;
+                                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                                  SnackBar(
+                                                                                    content: const Text('Expense updated successfully.'),
+                                                                                    behavior: SnackBarBehavior.floating,
+                                                                                    backgroundColor: context.success,
+                                                                                  ),
+                                                                                );
+                                                                              }
+                                                                            },
+                                                                          ),
+                                                                          const SizedBox(width: 6),
+                                                                          IconButton(
+                                                                            icon: const Icon(Icons.delete_outline, size: 17),
+                                                                            tooltip: 'Delete Expense',
+                                                                            color: context.error,
+                                                                            padding: EdgeInsets.zero,
+                                                                            constraints: const BoxConstraints(),
+                                                                            onPressed: () async {
+                                                                              final confirm = await showDialog<bool>(
+                                                                                context: context,
+                                                                                builder: (context) => AlertDialog(
+                                                                                  title: const Text('Delete Expense Log'),
+                                                                                  content: Text('${tr("Are you sure you want to delete this expense record for")} "${exp.category}"? ${tr("This will rollback account balance and ledger entry.")}'),
+                                                                                  actions: [
+                                                                                    TextButton(
+                                                                                      onPressed: () => Navigator.pop(context, false),
+                                                                                      child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                                                                                    ),
+                                                                                    TextButton(
+                                                                                      onPressed: () => Navigator.pop(context, true),
+                                                                                      child: Text(tr('Delete'), style: TextStyle(color: context.error)),
+                                                                                    ),
+                                                                                  ],
+                                                                                ),
+                                                                              );
+                                                                              if (confirm == true) {
+                                                                                ref.read(expensesProvider.notifier).deleteExpense(exp.id);
+                                                                                if (!context.mounted) return;
+                                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                                  SnackBar(
+                                                                                    content: const Text('Expense deleted and balances rolled back.'),
+                                                                                    behavior: SnackBarBehavior.floating,
+                                                                                    backgroundColor: context.error,
+                                                                                  ),
+                                                                                );
+                                                                              }
+                                                                            },
+                                                                          ),
+                                                                        ],
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            );
+                                                          }).toList(),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  // Pagination Bar
+                                                  if (filteredExpenses.isNotEmpty)
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                                      decoration: BoxDecoration(
+                                                        border: Border(top: BorderSide(color: context.border)),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        children: [
+                                                          Text(
+                                                            'Showing ${filteredExpenses.isEmpty ? 0 : validPage * _rowsPerPage + 1}–${(validPage * _rowsPerPage + paginatedExpenses.length).clamp(0, filteredExpenses.length)} of ${filteredExpenses.length} entries',
+                                                            style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+                                                          ),
+                                                          Row(
+                                                            children: [
+                                                              ElevatedButton(
+                                                                style: ElevatedButton.styleFrom(
+                                                                  backgroundColor: context.isDarkMode ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+                                                                  foregroundColor: context.textPrimary,
+                                                                  elevation: 0,
+                                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                                ),
+                                                                onPressed: validPage > 0
+                                                                    ? () => setState(() => _currentPage = validPage - 1)
+                                                                    : null,
+                                                                child: const Text('Previous', style: TextStyle(fontSize: 12)),
+                                                              ),
+                                                              const SizedBox(width: 8),
+                                                              for (int i = 0; i < totalPages; i++) ...[
+                                                                if (totalPages <= 7 || i == 0 || i == totalPages - 1 || (i >= validPage - 1 && i <= validPage + 1))
+                                                                  InkWell(
+                                                                    onTap: () => setState(() => _currentPage = i),
+                                                                    child: Container(
+                                                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                                                                      decoration: BoxDecoration(
+                                                                        color: i == validPage ? context.primaryColor : Colors.transparent,
+                                                                        borderRadius: BorderRadius.circular(6),
+                                                                        border: i == validPage ? null : Border.all(color: context.border),
+                                                                      ),
+                                                                      child: Text(
+                                                                        '${i + 1}',
+                                                                        style: TextStyle(
+                                                                          color: i == validPage ? Colors.white : context.textPrimary,
+                                                                          fontSize: 12,
+                                                                          fontWeight: i == validPage ? FontWeight.bold : FontWeight.normal,
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  )
+                                                                else if (i == 1 && validPage > 3 || i == totalPages - 2 && validPage < totalPages - 4)
+                                                                  const Padding(
+                                                                    padding: EdgeInsets.symmetric(horizontal: 4),
+                                                                    child: Text('...', style: TextStyle(color: Colors.grey)),
+                                                                  ),
+                                                              ],
+                                                              const SizedBox(width: 8),
+                                                              ElevatedButton(
+                                                                style: ElevatedButton.styleFrom(
+                                                                  backgroundColor: context.isDarkMode ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+                                                                  foregroundColor: context.textPrimary,
+                                                                  elevation: 0,
+                                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                                ),
+                                                                onPressed: validPage < totalPages - 1
+                                                                    ? () => setState(() => _currentPage = validPage + 1)
+                                                                    : null,
+                                                                child: const Text('Next', style: TextStyle(fontSize: 12)),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                ],
                                               ),
                                             ),
                                           ),
-                                    if (filteredExpenses.isNotEmpty && totalPages > 1)
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              'Page ${validPage + 1} of $totalPages',
-                                              style: TextStyle(color: context.textSecondary, fontSize: 12),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            IconButton(
-                                              tooltip: 'Previous page',
-                                              onPressed: validPage > 0
-                                                  ? () => setState(() => _currentPage = validPage - 1)
-                                                  : null,
-                                              icon: const Icon(Icons.chevron_left),
-                                            ),
-                                            IconButton(
-                                              tooltip: 'Next page',
-                                              onPressed: validPage < totalPages - 1
-                                                  ? () => setState(() => _currentPage = validPage + 1)
-                                                  : null,
-                                              icon: const Icon(Icons.chevron_right),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
                                   ],
                                 ),
                               ),
@@ -363,7 +817,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                               if (isWide) ...[
                                 const SizedBox(width: 24),
                                 Container(
-                                  width: 320,
+                                  width: 300,
                                   padding: const EdgeInsets.all(20),
                                   decoration: BoxDecoration(
                                     color: context.cardBg,
@@ -469,215 +923,6 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   }
 }
 
-class _ExpenseListTile extends ConsumerWidget {
-  final ExpenseRecord expense;
-  final String accountName;
-  final String accountScope;
-  final String ownerName;
-
-  const _ExpenseListTile({
-    required this.expense,
-    required this.accountName,
-    required this.accountScope,
-    required this.ownerName,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tr = ref.watch(translationProvider);
-    final theme = Theme.of(context);
-
-    return InkWell(
-      onTap: () {
-        showDialog<void>(
-          context: context,
-          builder: (context) => _ExpenseDetailsDialog(
-            expense: expense,
-            accountName: accountName,
-            accountScope: accountScope,
-            ownerName: ownerName,
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: context.errorLight,
-            child: Icon(
-              Icons.trending_down,
-              size: 16,
-              color: context.error,
-            ),
-          ),
-          const SizedBox(width: 16),
-
-          // Details
-          Expanded(
-            flex: 4,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      expense.category,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: context.textPrimary,
-                      ),
-                    ),
-                    if (expense.isPersonalExpense) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: context.warningLight,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: context.warning.withValues(alpha: 0.5)),
-                        ),
-                        child: Text(
-                          'Owner Drawings',
-                          style: TextStyle(fontSize: 9, color: context.warning, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                    if (expense.vendorName.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: context.isDarkMode ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          expense.vendorName,
-                          style: TextStyle(fontSize: 9, color: context.textSecondary, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  expense.description,
-                  style: TextStyle(color: context.textSecondary, fontSize: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      _formatExpenseDate(expense.date),
-                      style: TextStyle(color: context.textMuted, fontSize: 11),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(color: context.textMuted, shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Paid from: $accountName • $accountScope${accountScope == 'Personal' && ownerName.isNotEmpty ? ' ($ownerName)' : ''}',
-                      style: TextStyle(color: context.textSecondary, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-
-          // Amount & Action
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '- Rs. ${expense.amount.toStringAsFixed(2)}',
-                style: TextStyle(
-                  color: context.error,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () async {
-                      final result = await showDialog<ExpenseRecord>(
-                        context: context,
-                        builder: (context) => _AddEditExpenseDialog(expense: expense),
-                      );
-                      if (result != null) {
-                        ref.read(expensesProvider.notifier).updateExpense(expense, result);
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Expense updated successfully.'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: context.success,
-                          ),
-                        );
-                      }
-                    },
-                    child: Text(
-                      'Edit',
-                      style: TextStyle(color: context.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  GestureDetector(
-                    onTap: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Delete Expense Log'),
-                          content: Text('${tr("Are you sure you want to delete this expense record for")} "${expense.category}"? ${tr("This will rollback account balance and ledger entry.")}'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
-                        ref.read(expensesProvider.notifier).deleteExpense(expense.id);
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Expense deleted and rolls rolled back.'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: context.error,
-                          ),
-                        );
-                      }
-                    },
-                    child: Text(
-                      'Delete',
-                      style: TextStyle(color: context.error, fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-        ),
-      ),
-    );
-  }
-}
 
 class _ExpenseDetailsDialog extends StatelessWidget {
   final ExpenseRecord expense;
@@ -754,7 +999,7 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
   late final TextEditingController _vendorController;
   late final TextEditingController _descController;
 
-  String _category = 'Rent';
+  String _category = 'Electricity & Utilities';
   String? _selectedAccountId;
   DateTime _date = DateTime.now();
   bool _isPersonalExpense = false;
@@ -839,24 +1084,20 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                       style: TextStyle(color: context.textPrimary, fontSize: 13),
                       decoration: _buildInputDecoration('Select Category'),
                       items: {
-                        'Rent & Occupancy',
-                        'Salaries & Payroll',
                         'Electricity & Utilities',
                         'Internet & Telecom',
-                        'Transport & Logistics',
+                        'Rent & Occupancy',
+                        'Bills',
+                        'Supplies',
+                        'Refreshments',
+                        'Travel & Transport',
                         'Marketing & Advertising',
                         'Office & Admin Expenses',
                         'Repairs & Maintenance',
                         'Depreciation',
                         'Bank Charges & Fees',
-                        'Rent',
-                        'Salaries',
-                        'Bills',
-                        'Supplies',
-                        'Refreshments',
-                        'Travel',
                         'Other',
-                        if (_category.isNotEmpty) _category,
+                        if (_category.isNotEmpty && _category != 'Salaries' && _category != 'Salaries & Payroll' && _category != 'Office Inventory' && _category != 'Assets Management') _category,
                       }.map((c) {
                         return DropdownMenuItem(value: c, child: Text(c));
                       }).toList(),

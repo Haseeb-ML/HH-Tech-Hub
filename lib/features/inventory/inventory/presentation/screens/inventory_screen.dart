@@ -623,8 +623,9 @@ class _AddInventoryDialogState extends ConsumerState<_AddInventoryDialog> {
   final _quantityController = TextEditingController();
   final _minQuantityController = TextEditingController();
   final _unitController = TextEditingController();
-  final _priceController = TextEditingController();
+  final _fullCostController = TextEditingController();
   String _category = 'Office Supplies';
+  String _inventoryType = 'Company';
   String? _selectedAccountId;
 
   @override
@@ -633,7 +634,7 @@ class _AddInventoryDialogState extends ConsumerState<_AddInventoryDialog> {
     _quantityController.dispose();
     _minQuantityController.dispose();
     _unitController.dispose();
-    _priceController.dispose();
+    _fullCostController.dispose();
     super.dispose();
   }
 
@@ -686,7 +687,7 @@ class _AddInventoryDialogState extends ConsumerState<_AddInventoryDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Row 2: Category & Unit of Measure
+              // Row 2: Category & Full Cost
               Row(
                 children: [
                   Expanded(
@@ -717,35 +718,14 @@ class _AddInventoryDialogState extends ConsumerState<_AddInventoryDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLabel(context, 'Unit of Measure', isRequired: true),
+                        _buildLabel(context, 'Full Cost (Rs.)', isRequired: true),
                         TextFormField(
-                          controller: _unitController,
-                          style: TextStyle(color: context.textPrimary),
-                          decoration: _buildInputDecoration(context, 'e.g. pcs, rims, boxes'),
-                          validator: (val) => val == null || val.trim().isEmpty ? 'Please enter unit' : null,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Row 3: Unit Cost & Payment Account
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel(context, 'Unit Cost (Rs.)', isRequired: true),
-                        TextFormField(
-                          controller: _priceController,
+                          controller: _fullCostController,
                           style: TextStyle(color: context.textPrimary),
                           keyboardType: TextInputType.number,
-                          decoration: _buildInputDecoration(context, '350'),
+                          decoration: _buildInputDecoration(context, 'e.g. 5000'),
                           validator: (val) {
-                            if (val == null || val.trim().isEmpty) return 'Enter cost';
+                            if (val == null || val.trim().isEmpty) return 'Enter full cost';
                             if (double.tryParse(val) == null) return 'Enter valid number';
                             return null;
                           },
@@ -753,34 +733,37 @@ class _AddInventoryDialogState extends ConsumerState<_AddInventoryDialog> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildLabel(context, 'Payment From Bank / Wallet', isRequired: true),
-                        DropdownButtonFormField<String>(
-                          value: _selectedAccountId,
-                          isExpanded: true,
-                          dropdownColor: context.cardBg,
-                          style: TextStyle(color: context.textPrimary, fontSize: 13),
-                          decoration: _buildInputDecoration(context, 'Select account'),
-                          items: accounts.map((a) => DropdownMenuItem(value: a.id, child: Text(a.name))).toList(),
-                          onChanged: (val) {
-                            if (val != null) {
-                              setState(() => _selectedAccountId = val);
-                            }
-                          },
-                          validator: (val) => val == null || val.isEmpty ? 'Select payment account' : null,
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // Row 4: Initial Stock & Min Alert Qty
+              // Row 4: Payment Account
+              _buildLabel(context, 'Payment From Bank / Wallet', isRequired: true),
+              DropdownButtonFormField<String>(
+                value: _selectedAccountId,
+                isExpanded: true,
+                dropdownColor: context.cardBg,
+                style: TextStyle(color: context.textPrimary, fontSize: 13),
+                decoration: _buildInputDecoration(context, 'Select account'),
+                items: accounts.map((a) {
+                  final scope = a.accountScope == 'Personal'
+                      ? 'Personal${a.ownerName.isNotEmpty ? ' • ${a.ownerName}' : ''}'
+                      : 'Company';
+                  return DropdownMenuItem(
+                    value: a.id,
+                    child: Text('${a.name} • $scope', overflow: TextOverflow.ellipsis),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedAccountId = val);
+                  }
+                },
+                validator: (val) => val == null || val.isEmpty ? 'Select payment account' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Row 5: Initial Stock & Min Alert Qty
               Row(
                 children: [
                   Expanded(
@@ -843,8 +826,9 @@ class _AddInventoryDialogState extends ConsumerState<_AddInventoryDialog> {
                           orElse: () => accounts.first,
                         );
                         final quantity = int.parse(_quantityController.text);
-                        final unitCost = double.parse(_priceController.text);
-                        final totalCost = quantity * unitCost;
+                        final fullCost = double.parse(_fullCostController.text);
+                        final unitCost = quantity > 0 ? (fullCost / quantity) : fullCost;
+                        final totalCost = fullCost;
 
                         if (selectedAccount.balance < totalCost) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -860,9 +844,10 @@ class _AddInventoryDialogState extends ConsumerState<_AddInventoryDialog> {
                           id: 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
                           name: _nameController.text.trim(),
                           category: _category,
+                          inventoryType: _inventoryType,
                           quantity: quantity,
                           minQuantity: int.parse(_minQuantityController.text),
-                          unit: _unitController.text.trim(),
+                          unit: _unitController.text.trim().isNotEmpty ? _unitController.text.trim() : 'Units',
                           pricePerUnit: unitCost,
                           lastRestockedDate: DateTime.now().toIso8601String().substring(0, 10),
                         );
@@ -1008,7 +993,7 @@ class _EditInventoryDialogState extends ConsumerState<_EditInventoryDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Row 2: Category & Unit of Measure
+              // Row 2: Category & Unit Cost
               Row(
                 children: [
                   Expanded(
@@ -1039,27 +1024,6 @@ class _EditInventoryDialogState extends ConsumerState<_EditInventoryDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLabel(context, 'Unit of Measure', isRequired: true),
-                        TextFormField(
-                          controller: _unitController,
-                          style: TextStyle(color: context.textPrimary),
-                          decoration: _buildInputDecoration(context, 'e.g. pcs, rims'),
-                          validator: (val) => val == null || val.trim().isEmpty ? 'Please enter unit' : null,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Row 3: Unit Cost & Payment Account
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
                         _buildLabel(context, 'Unit Cost (Rs.)', isRequired: true),
                         TextFormField(
                           controller: _priceController,
@@ -1075,7 +1039,13 @@ class _EditInventoryDialogState extends ConsumerState<_EditInventoryDialog> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 16),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Row 3: Payment Account & Min Alert Qty
+              Row(
+                children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1096,13 +1066,7 @@ class _EditInventoryDialogState extends ConsumerState<_EditInventoryDialog> {
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Row 4: Min Alert Qty
-              Row(
-                children: [
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1199,7 +1163,7 @@ class _EditInventoryDialogState extends ConsumerState<_EditInventoryDialog> {
                                   name: _nameController.text.trim(),
                                   category: _category,
                                   minQuantity: int.parse(_minQuantityController.text),
-                                  unit: _unitController.text.trim(),
+                                  unit: widget.item.unit,
                                   pricePerUnit: double.parse(_priceController.text),
                                 );
 

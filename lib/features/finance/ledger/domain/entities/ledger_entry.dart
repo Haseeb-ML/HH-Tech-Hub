@@ -8,6 +8,7 @@ class LedgerEntry {
   final double amount;
   final String reference; // e.g. check no, invoice no, loan borrower name, tx id
   final String description;
+  final String installmentType;
 
   const LedgerEntry({
     required this.id,
@@ -19,6 +20,7 @@ class LedgerEntry {
     required this.amount,
     required this.reference,
     required this.description,
+    this.installmentType = '',
   });
 
   static List<LedgerEntry> sortEntriesNewestFirst(List<LedgerEntry> entries) {
@@ -83,6 +85,7 @@ class LedgerEntry {
     double? amount,
     String? reference,
     String? description,
+    String? installmentType,
   }) {
     return LedgerEntry(
       id: id ?? this.id,
@@ -94,6 +97,7 @@ class LedgerEntry {
       amount: amount ?? this.amount,
       reference: reference ?? this.reference,
       description: description ?? this.description,
+      installmentType: installmentType ?? this.installmentType,
     );
   }
 }

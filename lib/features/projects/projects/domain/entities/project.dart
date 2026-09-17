@@ -125,7 +125,7 @@ class Project {
       bankAccountName: map['bankAccountName'] ?? '',
       accountHolder: map['accountHolder'] ?? '',
       teamMembers: List<String>.from(map['teamMembers'] ?? []),
-      clientPaymentSource: map['clientPaymentSource'] ?? 'Cash',
+      clientPaymentSource: map['clientPaymentSource'] ?? '',
     );
   }
 }

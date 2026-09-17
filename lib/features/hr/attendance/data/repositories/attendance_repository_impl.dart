@@ -17,7 +17,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       employeeId: a.employeeId,
       employeeName: a.employeeName,
       date: a.date,
-      status: a.status,
+      status: AttendanceStatus.normalize(a.status),
       checkIn: a.checkIn,
       checkOut: a.checkOut,
       notes: a.notes,
@@ -32,7 +32,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       employeeId: a.employeeId,
       employeeName: a.employeeName,
       date: a.date,
-      status: a.status,
+      status: AttendanceStatus.normalize(a.status),
       checkIn: a.checkIn,
       checkOut: a.checkOut,
       notes: a.notes,
@@ -47,7 +47,7 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       employeeId: a.employeeId,
       employeeName: a.employeeName,
       date: a.date,
-      status: a.status,
+      status: AttendanceStatus.normalize(a.status),
       checkIn: a.checkIn,
       checkOut: a.checkOut,
       notes: a.notes,
@@ -63,14 +63,22 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
 
   @override
   Future<void> updateAttendance(AttendanceRecord record) async {
+    final normalizedStatus = AttendanceStatus.normalize(record.status);
+    final all = await _dbService.db.getAll(_dbService.db.attendanceRecordsTable);
+    final existing = all.where((a) => a.employeeId == record.employeeId && a.date == record.date);
+
+    final String targetId = existing.isNotEmpty
+        ? existing.first.id
+        : (record.id.isNotEmpty ? record.id : 'att_${record.employeeId}_${record.date}');
+
     await _dbService.db.upsert(
       _dbService.db.attendanceRecordsTable,
       AttendanceRecordsTableCompanion.insert(
-        id: record.id,
+        id: targetId,
         employeeId: record.employeeId,
         employeeName: record.employeeName,
         date: record.date,
-        status: record.status,
+        status: normalizedStatus,
         checkIn: Value(record.checkIn),
         checkOut: Value(record.checkOut),
         notes: Value(record.notes),

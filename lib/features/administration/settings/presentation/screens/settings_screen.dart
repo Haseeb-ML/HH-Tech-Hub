@@ -37,7 +37,7 @@ class SettingsScreen extends ConsumerWidget {
               key: const PageStorageKey('settings_scroll_key'),
               padding: const EdgeInsets.all(24),
               child: Container(
-                constraints: const BoxConstraints(maxWidth: 800),
+                constraints: const BoxConstraints(maxWidth: 1200),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

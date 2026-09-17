@@ -18,16 +18,6 @@ class AdminSubNav extends ConsumerWidget {
 
     final tabs = [
       _AdminTab(
-        label: 'Users',
-        icon: Icons.person_outline,
-        route: '/administration/users',
-      ),
-      _AdminTab(
-        label: 'Roles & Permissions',
-        icon: Icons.security_outlined,
-        route: '/administration/roles',
-      ),
-      _AdminTab(
         label: 'System Settings',
         icon: Icons.settings_outlined,
         route: '/administration/settings',

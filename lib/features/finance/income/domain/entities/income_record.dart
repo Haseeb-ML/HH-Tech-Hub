@@ -90,4 +90,27 @@ class IncomeRecord {
       projectPaymentType: map['projectPaymentType'],
     );
   }
+
+  /// Categorized income type: 'Project Payment', 'Consulting Services',
+  /// 'Maintenance & Support', 'Commission / Referral', or 'Other Income'
+  String get incomeType {
+    if (projectId != null && projectId!.isNotEmpty) {
+      return 'Project Payment';
+    }
+    if (projectPaymentType != null && projectPaymentType!.isNotEmpty) {
+      if (['Advance', 'Partial', 'Final', 'Full'].contains(projectPaymentType)) {
+        return 'Project Payment';
+      }
+      return projectPaymentType!;
+    }
+    return 'Other Income';
+  }
+
+  /// Specific installment or sub-type if project payment
+  String? get installmentType {
+    if (['Advance', 'Partial', 'Final', 'Full'].contains(projectPaymentType)) {
+      return projectPaymentType == 'Full' ? 'Final' : projectPaymentType;
+    }
+    return null;
+  }
 }

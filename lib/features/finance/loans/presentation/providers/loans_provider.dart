@@ -40,6 +40,14 @@ class LoansState {
     list.sort((a, b) => b.startDate.compareTo(a.startDate));
 
     return list.where((l) {
+      if (l.id.startsWith('loan_exp_') ||
+          l.description.contains('[AutoExpense]') ||
+          l.borrowerName == 'Owner (Drawings)' ||
+          l.description.contains('Personal expense paid by Company Account') ||
+          l.description.contains('Company expense paid by Personal Account')) {
+        return false;
+      }
+
       final matchesSearch = l.borrowerName.toLowerCase().contains(searchQuery.toLowerCase()) ||
           l.description.toLowerCase().contains(searchQuery.toLowerCase());
 
@@ -69,10 +77,24 @@ class LoansNotifier extends Notifier<LoansState> {
     );
   }
 
+  bool _isAutoExpenseLoan(LoanRecord l) {
+    return l.id.startsWith('loan_exp_') ||
+        l.description.contains('[AutoExpense]') ||
+        l.borrowerName == 'Owner (Drawings)' ||
+        l.description.contains('Personal expense paid by Company Account') ||
+        l.description.contains('Company expense paid by Personal Account');
+  }
+
   Future<void> loadLoans() async {
     try {
       final list = await _repository.getLoans();
-      final enriched = _enrichLoansWithAccounts(list);
+      // Clean up legacy auto-created expense loans so they do not pollute Loans module
+      final legacyAutoLoans = list.where(_isAutoExpenseLoan).toList();
+      for (final l in legacyAutoLoans) {
+        await _repository.deleteLoan(l.id);
+      }
+      final cleanList = list.where((l) => !_isAutoExpenseLoan(l)).toList();
+      final enriched = _enrichLoansWithAccounts(cleanList);
       state = state.copyWith(loans: enriched, isLoading: false);
     } catch (_) {
       state = state.copyWith(isLoading: false);

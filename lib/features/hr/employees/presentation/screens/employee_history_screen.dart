@@ -9,7 +9,6 @@ import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
 import '../../../employees/domain/entities/employee.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../../../salaries/presentation/providers/salaries_provider.dart';
-import '../../../attendance/domain/repositories/attendance_repository.dart';
 import '../../../attendance/presentation/providers/attendance_provider.dart';
 import '../../../attendance/domain/entities/attendance_record.dart';
 
@@ -110,12 +109,20 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
         ? salariesState.salaries.where((s) => s.employeeId == selectedEmployee!.id).toList()
         : <dynamic>[];
 
+    final settings = ref.watch(attendanceSettingsProvider).value;
+    final workStart = settings?.workStartMinutes ?? 540;
+    final grace = settings?.graceMinutes ?? 15;
+
     // Calculate attendance stats
-    int totalPresents = _attendanceLogs.where((l) => l.status == 'Present').length;
-    int totalAbsents = _attendanceLogs.where((l) => l.status == 'Absent').length;
-    int totalLeaves = _attendanceLogs.where((l) => l.status == 'Leave').length;
-    int totalDays = _attendanceLogs.length;
-    double attendancePercent = totalDays == 0 ? 0.0 : (totalPresents / totalDays) * 100;
+    int totalPresents = _attendanceLogs.where((l) => l.status == AttendanceStatus.present).length;
+    int totalHalfDays = _attendanceLogs.where((l) => l.status == AttendanceStatus.halfDay).length;
+    int totalLeaves = _attendanceLogs.where((l) => l.status == AttendanceStatus.leave).length;
+    int totalAbsents = _attendanceLogs.where((l) => l.status == AttendanceStatus.absent).length;
+    int totalLate = _attendanceLogs.where((l) => l.status == AttendanceStatus.present && l.isLate(workStartMinutes: workStart, graceMinutes: grace)).length;
+    int workingDays = _attendanceLogs.where((l) => l.status != AttendanceStatus.off && l.status != AttendanceStatus.holiday).length;
+    double attendancePercent = workingDays == 0
+        ? 0.0
+        : (((totalPresents + (totalHalfDays * 0.5)) / workingDays) * 100).clamp(0.0, 100.0);
 
     double totalPaidSalary = employeeSalaries.fold<double>(0.0, (sum, s) => sum + s.netPaid);
 
@@ -358,7 +365,7 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                       icon: Icons.check_circle_outline,
                                       iconColor: context.primaryColor,
                                       iconBgColor: context.infoLight,
-                                      trendText: tr('Days on duty'),
+                                      trendText: totalLate > 0 ? '$totalLate Late arrivals' : tr('Days on duty'),
                                     ),
                                   ),
                                   const SizedBox(width: 16),
@@ -370,7 +377,7 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                       icon: Icons.remove_circle_outline_outlined,
                                       iconColor: context.warning,
                                       iconBgColor: context.warningLight,
-                                      trendText: '$totalAbsents Absents • $totalLeaves Leaves',
+                                      trendText: '$totalAbsents Absents • $totalLeaves Leaves${totalHalfDays > 0 ? " • $totalHalfDays Half" : ""}',
                                     ),
                                   ),
                                 ],
@@ -451,7 +458,46 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                                 _buildInfoValue(selectedEmployee.email),
                                                 const SizedBox(height: 16),
                                                 _buildInfoLabel(tr('Phone Numbers')),
-                                                _buildInfoValue(selectedEmployee.phones.join(', ')),
+                                                const SizedBox(height: 4),
+                                                if (selectedEmployee.phones.isEmpty)
+                                                  _buildInfoValue('No Phone')
+                                                else
+                                                  Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: selectedEmployee.phones.map((p) {
+                                                      String category = 'Phone';
+                                                      String number = p;
+                                                      if (p.contains(':')) {
+                                                        final parts = p.split(':');
+                                                        category = parts[0].trim();
+                                                        number = parts.sublist(1).join(':').trim();
+                                                      }
+                                                      return Padding(
+                                                        padding: const EdgeInsets.only(bottom: 4),
+                                                        child: Text.rich(
+                                                          TextSpan(
+                                                            children: [
+                                                              TextSpan(
+                                                                text: '$category: ',
+                                                                style: TextStyle(
+                                                                  fontWeight: FontWeight.bold,
+                                                                  color: context.textPrimary,
+                                                                  fontSize: 13,
+                                                                ),
+                                                              ),
+                                                              TextSpan(
+                                                                text: number,
+                                                                style: TextStyle(
+                                                                  color: context.textSecondary,
+                                                                  fontSize: 13,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                  ),
                                               ],
                                             ),
                                           ),
@@ -602,9 +648,11 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                                           child: Table(
                                                             columnWidths: const {
                                                               0: FlexColumnWidth(2),
-                                                              1: FlexColumnWidth(2),
-                                                              2: FlexColumnWidth(3),
-                                                              3: FlexColumnWidth(3),
+                                                              1: FlexColumnWidth(2.2),
+                                                              2: FlexColumnWidth(2.6),
+                                                              3: FlexColumnWidth(1.8),
+                                                              4: FlexColumnWidth(1.4),
+                                                              5: FlexColumnWidth(3),
                                                             },
                                                             children: [
                                                               TableRow(
@@ -614,11 +662,41 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                                                 children: [
                                                                   _buildTableHeaderCell(tr('Date')),
                                                                   _buildTableHeaderCell(tr('Status')),
-                                                                  _buildTableHeaderCell(tr('Check-In / Out')),
+                                                                  _buildTableHeaderCell(tr('In / Out')),
+                                                                  _buildTableHeaderCell(tr('Hours')),
+                                                                  _buildTableHeaderCell(tr('Late')),
                                                                   _buildTableHeaderCell(tr('Notes')),
                                                                 ],
                                                               ),
                                                               ..._attendanceLogs.map((att) {
+                                                                final isLate = att.status == AttendanceStatus.present && att.isLate(workStartMinutes: workStart, graceMinutes: grace);
+                                                                final lateMins = att.lateMinutes(workStartMinutes: workStart, graceMinutes: grace);
+
+                                                                Color statusColor = context.textMuted;
+                                                                Color statusBg = context.scaffoldBg;
+                                                                if (att.status == AttendanceStatus.present) {
+                                                                  statusColor = context.success;
+                                                                  statusBg = context.successLight;
+                                                                } else if (att.status == AttendanceStatus.absent) {
+                                                                  statusColor = context.error;
+                                                                  statusBg = context.errorLight;
+                                                                } else if (att.status == AttendanceStatus.leave) {
+                                                                  statusColor = context.warning;
+                                                                  statusBg = context.warningLight;
+                                                                } else if (att.status == AttendanceStatus.halfDay) {
+                                                                  statusColor = const Color(0xFFD97706);
+                                                                  statusBg = const Color(0xFFFEF3C7);
+                                                                } else if (att.status == AttendanceStatus.workFromHome || att.status == AttendanceStatus.officialVisit) {
+                                                                  statusColor = context.info;
+                                                                  statusBg = context.infoLight;
+                                                                } else if (att.status == AttendanceStatus.holiday) {
+                                                                  statusColor = const Color(0xFF0D9488);
+                                                                  statusBg = const Color(0xFFCCFBF1);
+                                                                } else if (att.status == AttendanceStatus.off) {
+                                                                  statusColor = Colors.grey;
+                                                                  statusBg = Colors.grey.withValues(alpha: 0.15);
+                                                                }
+
                                                                 return TableRow(
                                                                   decoration: BoxDecoration(
                                                                     border: Border(bottom: BorderSide(color: context.divider, width: 1)),
@@ -626,21 +704,45 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                                                   children: [
                                                                     _buildTableCell(att.date),
                                                                     Padding(
-                                                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                                                      child: Text(
-                                                                        att.status,
-                                                                        style: TextStyle(
-                                                                          color: att.status == 'Present'
-                                                                              ? context.success
-                                                                              : att.status == 'Leave'
-                                                                                  ? context.warning
-                                                                                  : context.error,
-                                                                          fontWeight: FontWeight.bold,
-                                                                          fontSize: 12,
+                                                                      padding: const EdgeInsets.symmetric(vertical: 6),
+                                                                      child: Align(
+                                                                        alignment: Alignment.centerLeft,
+                                                                        child: Container(
+                                                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                                                          decoration: BoxDecoration(
+                                                                            color: statusBg,
+                                                                            borderRadius: BorderRadius.circular(12),
+                                                                            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                                                                          ),
+                                                                          child: Text(
+                                                                            att.status,
+                                                                            style: TextStyle(
+                                                                              color: statusColor,
+                                                                              fontWeight: FontWeight.bold,
+                                                                              fontSize: 10,
+                                                                            ),
+                                                                          ),
                                                                         ),
                                                                       ),
                                                                     ),
                                                                     _buildTableCell('${att.checkIn ?? '--'} / ${att.checkOut ?? '--'}'),
+                                                                    _buildTableCell(att.workingHoursDisplay),
+                                                                    Padding(
+                                                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                                                      child: isLate
+                                                                          ? Text(
+                                                                              '${lateMins}m',
+                                                                              style: const TextStyle(
+                                                                                color: Color(0xFFB45309),
+                                                                                fontWeight: FontWeight.bold,
+                                                                                fontSize: 11,
+                                                                              ),
+                                                                            )
+                                                                          : Text(
+                                                                              '-',
+                                                                              style: TextStyle(color: context.textMuted, fontSize: 11),
+                                                                            ),
+                                                                    ),
                                                                     _buildTableCell(att.notes ?? ''),
                                                                   ],
                                                                 );

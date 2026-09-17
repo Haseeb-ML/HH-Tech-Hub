@@ -10,6 +10,8 @@ class SalaryRecord {
   final String paymentDate; // 'YYYY-MM-DD'
   final String status; // 'Paid', 'Pending'
   final String paymentMethod; // 'Bank Transfer', 'Cash', 'Cheque'
+  final String accountId;
+  final String accountName;
 
   const SalaryRecord({
     required this.id,
@@ -23,6 +25,8 @@ class SalaryRecord {
     required this.paymentDate,
     required this.status,
     required this.paymentMethod,
+    this.accountId = '',
+    this.accountName = '',
   });
 
   SalaryRecord copyWith({
@@ -37,6 +41,8 @@ class SalaryRecord {
     String? paymentDate,
     String? status,
     String? paymentMethod,
+    String? accountId,
+    String? accountName,
   }) {
     return SalaryRecord(
       id: id ?? this.id,
@@ -50,6 +56,8 @@ class SalaryRecord {
       paymentDate: paymentDate ?? this.paymentDate,
       status: status ?? this.status,
       paymentMethod: paymentMethod ?? this.paymentMethod,
+      accountId: accountId ?? this.accountId,
+      accountName: accountName ?? this.accountName,
     );
   }
 
@@ -66,6 +74,8 @@ class SalaryRecord {
       'paymentDate': paymentDate,
       'status': status,
       'paymentMethod': paymentMethod,
+      'accountId': accountId,
+      'accountName': accountName,
     };
   }
 
@@ -82,6 +92,8 @@ class SalaryRecord {
       paymentDate: map['paymentDate'] ?? '',
       status: map['status'] ?? 'Paid',
       paymentMethod: map['paymentMethod'] ?? 'Bank Transfer',
+      accountId: map['accountId'] ?? '',
+      accountName: map['accountName'] ?? '',
     );
   }
 }
