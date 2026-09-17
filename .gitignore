@@ -47,3 +47,5 @@ app.*.map.json
 # Inno Setup output directory
 /installer/
 
+
+.firebase/
