@@ -5,6 +5,8 @@ import 'core/theme/theme_provider.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/database_service.dart';
 import 'core/services/cloud_sync_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/config/supabase_config.dart';
 
 class ThemeColors {
   final Color scaffoldBg;
@@ -114,7 +116,19 @@ void main() async {
   // Initialize SQLite Database (Offline-First Local Storage)
   await container.read(databaseServiceProvider).initialize();
 
-  // Initialize and start Firebase Cloud Sync (Online Multi-device Realtime Sync)
+  // Initialize Supabase if credentials are configured
+  if (SupabaseConfig.isConfigured) {
+    try {
+      await Supabase.initialize(
+        url: SupabaseConfig.url,
+        publishableKey: SupabaseConfig.anonKey,
+      );
+    } catch (e) {
+      debugPrint('Supabase initialization error: $e');
+    }
+  }
+
+  // Initialize and start Cloud Sync Service
   container.read(cloudSyncServiceProvider);
 
   runApp(
@@ -137,6 +151,9 @@ class MyApp extends ConsumerWidget {
     final appearanceAsync = ref.watch(appearanceProvider);
     
     // Simple loader while theme loads
+    // Initialize cloud sync background worker instantly on app launch
+    ref.read(cloudSyncServiceProvider);
+
     if (appearanceAsync.value == null) {
       return const MaterialApp(
         debugShowCheckedModeBanner: false,

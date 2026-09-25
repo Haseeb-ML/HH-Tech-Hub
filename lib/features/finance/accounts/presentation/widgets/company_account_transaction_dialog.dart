@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
 import 'package:software_house_erp/features/finance/ledger/domain/entities/ledger_entry.dart';
 import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 enum CompanyTransactionType { deposit, transfer, expense }
 enum CompanyTransferDirection { transferOut, transferIn }
@@ -31,6 +33,11 @@ Future<void> recordCompanyAccountTransaction(
   WidgetRef ref,
   CompanyAccountTransaction transaction,
 ) async {
+  final adminState = ref.read(adminProvider);
+  if (!adminState.hasPermission(AppModule.accounts, PermissionAction.create)) {
+    throw StateError('Access Denied: You do not have permission to add transactions.');
+  }
+
   final accounts = ref.read(accountsProvider).accounts;
   final company = accounts.firstWhere((a) => a.id == transaction.companyAccountId);
   final accountNotifier = ref.read(accountsProvider.notifier);
@@ -94,10 +101,10 @@ Future<void> recordCompanyAccountTransaction(
   await accountNotifier.adjustBalance(source.id, -transaction.amount);
   await accountNotifier.adjustBalance(destination.id, transaction.amount);
 
-  final sourceLabel = source.accountScope == 'Personal'
+  final sourceLabel = source.isPersonal
       ? '${source.ownerName.isNotEmpty ? source.ownerName : source.name} Personal Account'
       : source.name;
-  final destinationLabel = destination.accountScope == 'Personal'
+  final destinationLabel = destination.isPersonal
       ? '${destination.ownerName.isNotEmpty ? destination.ownerName : destination.name} Personal Account'
       : destination.name;
   final sourceDescription = transaction.description.isEmpty
@@ -227,7 +234,7 @@ class _CompanyAccountTransactionDialogState
                         const InputDecoration(labelText: 'Target Account'),
                     items: targetAccounts
                         .map((account) {
-                          final label = account.accountScope == 'Personal'
+                          final label = account.isPersonal
                               ? '${account.ownerName.isNotEmpty ? account.ownerName : account.name} Personal Account'
                               : account.name;
                           return DropdownMenuItem(

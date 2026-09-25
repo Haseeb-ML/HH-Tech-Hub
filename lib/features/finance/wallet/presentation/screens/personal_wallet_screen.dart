@@ -10,6 +10,9 @@ import 'package:software_house_erp/features/finance/income/presentation/provider
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/finance_sub_nav.dart';
 import 'package:software_house_erp/features/finance/loans/presentation/providers/loans_provider.dart';
+import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class PersonalWalletScreen extends ConsumerStatefulWidget {
   const PersonalWalletScreen({super.key});
@@ -22,15 +25,22 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
   @override
   Widget build(BuildContext context) {
     final tr = ref.watch(translationProvider);
+    final adminState = ref.watch(adminProvider);
+    final canCreateAccount = adminState.hasPermission(AppModule.accounts, PermissionAction.create);
+    final canEditAccount = adminState.hasPermission(AppModule.accounts, PermissionAction.edit);
+    final canDeleteAccount = adminState.hasPermission(AppModule.accounts, PermissionAction.delete);
     final theme = Theme.of(context);
     final accountsState = ref.watch(accountsProvider);
     final expensesState = ref.watch(expensesProvider);
     final incomesState = ref.watch(incomeProvider);
     final loansState = ref.watch(loansProvider);
+    final ledgerState = ref.watch(ledgerProvider);
 
     final personalAccounts = accountsState.accounts
-        .where((a) => a.accountScope == 'Personal')
+        .where((a) => a.isPersonal)
         .toList();
+
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -39,69 +49,82 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
           const FinanceSubNav(activeRoute: '/finance/wallet'),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(isMobile ? 12 : 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Title Row with Action Buttons ──────────────────────
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Personal Account',
-                              style: theme.textTheme.displaySmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: context.textPrimary,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Individual cash flow and independent account balances for each person.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: context.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 600;
+                      final titleCol = Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final result = await showDialog<BankAccount>(
-                                context: context,
-                                builder: (context) => const AddEditAccountDialog(
-                                  defaultScope: 'Personal',
-                                  isScopeFixed: true,
-                                ),
-                              );
-                              if (result != null) {
-                                await ref.read(accountsProvider.notifier).addAccount(result);
-                              }
-                            },
-                            icon: const Icon(Icons.add, size: 18),
-                            label: Text(tr('Add Account')),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: context.primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                          Text(
+                            'Personal Account',
+                            style: theme.textTheme.displaySmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: context.textPrimary,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Individual cash flow and independent account balances for each person.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: context.textSecondary,
                             ),
                           ),
                         ],
-                      ),
-                    ],
+                      );
+                      final addBtn = ElevatedButton.icon(
+                        onPressed: () async {
+                          final result = await showDialog<BankAccount>(
+                            context: context,
+                            builder: (context) => const AddEditAccountDialog(
+                              defaultScope: 'Personal',
+                              isScopeFixed: true,
+                            ),
+                          );
+                          if (result != null) {
+                            await ref.read(accountsProvider.notifier).addAccount(result);
+                          }
+                        },
+                        icon: const Icon(Icons.add, size: 18),
+                        label: Text(tr('Add Account')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: context.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                        ),
+                      );
+
+                      if (isNarrow) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            titleCol,
+                            if (canCreateAccount) ...[
+                              const SizedBox(height: 12),
+                              addBtn,
+                            ],
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(child: titleCol),
+                          if (canCreateAccount) ...[
+                            const SizedBox(width: 16),
+                            addBtn,
+                          ],
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 
@@ -149,27 +172,29 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                               style:
                                   TextStyle(color: context.textMuted, fontSize: 12),
                             ),
-                            const SizedBox(height: 20),
-                            ElevatedButton.icon(
-                              onPressed: () async {
-                                final result = await showDialog<BankAccount>(
-                                  context: context,
-                                  builder: (context) => const AddEditAccountDialog(
-                                    defaultScope: 'Personal',
-                                    isScopeFixed: true,
-                                  ),
-                                );
-                                if (result != null) {
-                                  await ref.read(accountsProvider.notifier).addAccount(result);
-                                }
-                              },
-                              icon: const Icon(Icons.add, size: 16),
-                              label: const Text('Add Personal Account'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: context.primaryColor,
-                                foregroundColor: Colors.white,
+                            if (canCreateAccount) ...[
+                              const SizedBox(height: 20),
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  final result = await showDialog<BankAccount>(
+                                    context: context,
+                                    builder: (context) => const AddEditAccountDialog(
+                                      defaultScope: 'Personal',
+                                      isScopeFixed: true,
+                                    ),
+                                  );
+                                  if (result != null) {
+                                    await ref.read(accountsProvider.notifier).addAccount(result);
+                                  }
+                                },
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Add Personal Account'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: context.primaryColor,
+                                  foregroundColor: Colors.white,
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
@@ -202,30 +227,59 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                 l.personalAccountId == acc.id &&
                                 !l.description.contains('[AutoExpense]'))
                               .toList();
-                            final accLoanIn = accLoans
-                                    .where((l) => l.type == 'Lent')
-                                    .fold<double>(
-                                        0.0, (s, l) => s + l.amount) +
-                                accLoans
-                                    .where((l) => l.type == 'Borrowed')
-                                    .expand((l) => l.repayments)
-                                    .fold<double>(0.0, (s, r) => s + r.amount);
-                            final accLoanOut = accLoans
-                                    .where((l) => l.type == 'Borrowed')
-                                    .fold<double>(
-                                        0.0, (s, l) => s + l.amount) +
-                                accLoans
-                                    .where((l) => l.type == 'Lent')
-                                    .expand((l) => l.repayments)
-                                    .fold<double>(0.0, (s, r) => s + r.amount);
+                            double accLoanIn = 0.0;
+                            double accLoanOut = 0.0;
+                            for (final l in accLoans) {
+                              if (l.isPersonalExternalLoan) {
+                                if (l.type == 'Borrowed') {
+                                  accLoanIn += l.amount;
+                                  accLoanOut += l.repayments.fold<double>(0.0, (s, r) => s + r.amount);
+                                } else {
+                                  accLoanOut += l.amount;
+                                  accLoanIn += l.repayments.fold<double>(0.0, (s, r) => s + r.amount);
+                                }
+                              } else {
+                                if (l.type == 'Lent') {
+                                  accLoanIn += l.amount;
+                                  accLoanOut += l.repayments.fold<double>(0.0, (s, r) => s + r.amount);
+                                } else {
+                                  accLoanOut += l.amount;
+                                  accLoanIn += l.repayments.fold<double>(0.0, (s, r) => s + r.amount);
+                                }
+                              }
+                            }
+                             final directAccountEntries = ledgerState.entries.where((entry) =>
+                                 entry.accountId == acc.id &&
+                                 (entry.category == 'Personal Deposit' ||
+                                  entry.category == 'Company Deposit' ||
+                                  entry.category == 'Account Transfer' ||
+                                  entry.category == 'Salary Advance' ||
+                                  entry.category == 'Other Expense')).toList();
+
+                             final directInflow = directAccountEntries
+                                 .where((entry) => entry.type == 'Debit')
+                                 .fold<double>(0.0, (sum, entry) => sum + entry.amount);
+
+                             final directOutflow = directAccountEntries
+                                 .where((entry) => entry.type == 'Credit')
+                                 .fold<double>(0.0, (sum, entry) => sum + entry.amount);
+
                              final accIncomes = incomesState.incomes
-                                    .where((i) => i.accountId == acc.id)
-                                    .fold<double>(0.0, (s, i) => s + i.amount) +
-                              accLoanIn;
-                            final accExpenses = expensesState.expenses
-                                    .where((e) => e.accountId == acc.id)
-                                    .fold<double>(0.0, (s, e) => s + e.amount) +
-                              accLoanOut;
+                                     .where((i) => i.accountId == acc.id)
+                                     .fold<double>(0.0, (s, i) => s + i.amount) +
+                               accLoanIn + directInflow;
+                             final accExpenses = expensesState.expenses
+                                     .where((e) => e.accountId == acc.id)
+                                     .fold<double>(0.0, (s, e) => s + e.amount) +
+                               accLoanOut + directOutflow;
+
+                             final currentCardBalance = calculateAuthoritativeAccountBalance(
+                               account: acc,
+                               incomes: incomesState.incomes,
+                               expenses: expensesState.expenses,
+                               loans: loansState.loans,
+                               ledgerEntries: ledgerState.entries,
+                             );
 
                             final isPermanent = acc.id == 'acc_personal_hassan' ||
                                 acc.id == 'acc_personal_huzaifa' ||
@@ -327,7 +381,7 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                                 onSelected: (val) async {
                                                    if (val == 'details') {
                                                      context.push('/finance/wallet/details/${acc.id}');
-                                                   } else if (val == 'edit') {
+                                                   } else if (val == 'edit' && canEditAccount) {
                                                     final result = await showDialog<BankAccount>(
                                                       context: context,
                                                       builder: (context) =>
@@ -340,7 +394,7 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                                     if (result != null) {
                                                       await ref.read(accountsProvider.notifier).updateAccount(result);
                                                     }
-                                                  } else if (val == 'delete') {
+                                                  } else if (val == 'delete' && canDeleteAccount) {
                                                     if (isPermanent) return;
                                                     final confirm =
                                                         await showDialog<bool>(
@@ -396,16 +450,17 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                                                 .textPrimary,
                                                             fontSize: 13)),
                                                   ),
-                                                  PopupMenuItem(
-                                                    value: 'edit',
-                                                    child: Text(
-                                                        tr('Edit Details'),
-                                                        style: TextStyle(
-                                                            color: context
-                                                                .textPrimary,
-                                                            fontSize: 13)),
-                                                  ),
-                                                  if (!isPermanent)
+                                                  if (canEditAccount)
+                                                    PopupMenuItem(
+                                                      value: 'edit',
+                                                      child: Text(
+                                                          tr('Edit Details'),
+                                                          style: TextStyle(
+                                                              color: context
+                                                                  .textPrimary,
+                                                              fontSize: 13)),
+                                                    ),
+                                                  if (!isPermanent && canDeleteAccount)
                                                     PopupMenuItem(
                                                       value: 'delete',
                                                       child: Text(
@@ -446,28 +501,25 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                       ),
                                       const Spacer(),
                                       Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                'In: Rs. ${accIncomes.toStringAsFixed(0)} • Out: Rs. ${accExpenses.toStringAsFixed(0)}',
-                                                style: TextStyle(
-                                                    color: context.textMuted,
-                                                    fontSize: 10),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                'Rs. ${acc.balance.toStringAsFixed(0)}',
-                                                style: TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 18,
-                                                    color: context.success),
-                                              ),
-                                            ],
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'In: Rs. ${accIncomes.toStringAsFixed(0)} • Out: Rs. ${accExpenses.toStringAsFixed(0)}',
+                                                  style: TextStyle(color: context.textMuted, fontSize: 10),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  'Rs. ${currentCardBalance.toStringAsFixed(0)}',
+                                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.success),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                           Icon(
                                             Icons.arrow_forward_ios,

@@ -11,16 +11,28 @@ import '../../domain/entities/employee.dart';
 import 'package:go_router/go_router.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
-class EmployeesScreen extends ConsumerWidget {
+class EmployeesScreen extends ConsumerStatefulWidget {
   const EmployeesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EmployeesScreen> createState() => _EmployeesScreenState();
+}
+
+class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
+  bool _showFilters = false;
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(employeesProvider);
     final departments = ref.watch(departmentsProvider);
     final theme = Theme.of(context);
     final tr = ref.watch(translationProvider);
+    final adminState = ref.watch(adminProvider);
+    final canCreate = adminState.hasPermission(AppModule.employees, PermissionAction.create);
+    final canExport = adminState.hasPermission(AppModule.employees, PermissionAction.export);
 
     // Calculate metrics
     final totalEmployees = state.employees.length;
@@ -31,7 +43,7 @@ class EmployeesScreen extends ConsumerWidget {
         .fold<double>(0, (sum, e) => sum + e.baseSalary);
 
     final width = MediaQuery.of(context).size.width;
-    int crossAxisCount = width >= 1400 ? 4 : (width >= 900 ? 3 : (width >= 600 ? 2 : 1));
+    int crossAxisCount = width >= 1400 ? 4 : (width >= 900 ? 3 : 2);
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -49,10 +61,10 @@ class EmployeesScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                   // Title and Add Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 650;
+                      final titleWidget = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -71,108 +83,133 @@ class EmployeesScreen extends ConsumerWidget {
                             ),
                           ),
                         ],
-                      ),
-                      Row(
+                      );
+
+                      final actionButtons = Wrap(
+                        spacing: 12,
+                        runSpacing: 10,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          ExportButton(
-                            title: tr('Employees Directory'),
-                            fileName: 'employees_directory',
-                            headers: const ['ID', 'Name', 'Email', 'Designation', 'Department', 'Status', 'Base Salary'],
-                            rows: state.filteredEmployees.map((e) => [
-                              e.id,
-                              e.name,
-                              e.email,
-                              e.designation,
-                              e.department,
-                              e.status,
-                              'Rs. ${e.baseSalary.toStringAsFixed(0)}',
-                            ]).toList(),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final result = await showDialog<Employee>(
-                                context: context,
-                                builder: (context) => const _AddEmployeeDialog(),
-                              );
-                              if (result != null) {
-                                ref.read(employeesProvider.notifier).addEmployee(result);
-                                ref.read(departmentsProvider.notifier).addDepartment(result.department);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Employee "${result.name}" added successfully.'),
-                                    behavior: SnackBarBehavior.floating,
-                                    backgroundColor: context.success,
-                                  ),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.add, size: 18),
-                            label: Text(tr('Add Employee')),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: context.primaryColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          if (canExport)
+                            ExportButton(
+                              title: tr('Employees Directory'),
+                              fileName: 'employees_directory',
+                              headers: const ['ID', 'Name', 'Email', 'Designation', 'Department', 'Status', 'Base Salary'],
+                              rows: state.filteredEmployees.map((e) => [
+                                e.id,
+                                e.name,
+                                e.email,
+                                e.designation,
+                                e.department,
+                                e.status,
+                                'Rs. ${e.baseSalary.toStringAsFixed(0)}',
+                              ]).toList(),
                             ),
-                          ),
+                          if (canCreate)
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final result = await showDialog<Employee>(
+                                  context: context,
+                                  builder: (context) => const _AddEmployeeDialog(),
+                                );
+                                if (result != null) {
+                                  ref.read(employeesProvider.notifier).addEmployee(result);
+                                  ref.read(departmentsProvider.notifier).addDepartment(result.department);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Employee "${result.name}" added successfully.'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: context.success,
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.add, size: 18),
+                              label: Text(tr('Add Employee')),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: context.primaryColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                            ),
                         ],
-                      ),
-                    ],
+                      );
+
+                      if (isMobile) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            titleWidget,
+                            const SizedBox(height: 14),
+                            actionButtons,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(child: titleWidget),
+                          const SizedBox(width: 16),
+                          actionButtons,
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 
                   // Statistics Grid
-                  Row(
-                    children: [
-                      Expanded(
-                        child: StatCard(
-                          title: tr('Total Employees'),
-                          tooltipMessage: "Detailed statistics and information regarding ${tr('Total Employees')}.",
-                          value: '$totalEmployees',
-                          icon: Icons.people_outline,
-                          iconColor: context.primaryColor,
-                          iconBgColor: context.infoLight,
-                          trendText: tr('Registered staff'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: StatCard(
-                          title: tr('Active Employees'),
-                          tooltipMessage: "Detailed statistics and information regarding ${tr('Active Employees')}.",
-                          value: '$activeCount',
-                          icon: Icons.check_circle_outline,
-                          iconColor: context.success,
-                          iconBgColor: context.successLight,
-                          trendText: tr('Working today'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: StatCard(
-                          title: tr('On Leave'),
-                          tooltipMessage: "Detailed statistics and information regarding ${tr('On Leave')}.",
-                          value: '$leaveCount',
-                          icon: Icons.beach_access_outlined,
-                          iconColor: context.warning,
-                          iconBgColor: context.warningLight,
-                          trendText: tr('Approved leaves'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: StatCard(
-                          title: tr('Monthly Payroll'),
-                          tooltipMessage: "Detailed statistics and information regarding ${tr('Monthly Payroll')}.",
-                          value: 'Rs. ${(monthlyPayroll / 1000).toStringAsFixed(1)}k',
-                          icon: Icons.payments_outlined,
-                          iconColor: context.error,
-                          iconBgColor: context.errorLight,
-                          trendText: tr('Total staff salary'),
-                        ),
-                      ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final crossAxisCount = constraints.maxWidth >= 1100 ? 4 : (constraints.maxWidth >= 600 ? 2 : 1);
+                      return GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: crossAxisCount == 1 ? 2.6 : (crossAxisCount == 2 ? 2.1 : 1.8),
+                        children: [
+                          StatCard(
+                            title: tr('Total Employees'),
+                            tooltipMessage: "Detailed statistics and information regarding ${tr('Total Employees')}.",
+                            value: '$totalEmployees',
+                            icon: Icons.people_outline,
+                            iconColor: context.primaryColor,
+                            iconBgColor: context.infoLight,
+                            trendText: tr('Registered staff'),
+                          ),
+                          StatCard(
+                            title: tr('Active Employees'),
+                            tooltipMessage: "Detailed statistics and information regarding ${tr('Active Employees')}.",
+                            value: '$activeCount',
+                            icon: Icons.check_circle_outline,
+                            iconColor: context.success,
+                            iconBgColor: context.successLight,
+                            trendText: tr('Working today'),
+                          ),
+                          StatCard(
+                            title: tr('On Leave'),
+                            tooltipMessage: "Detailed statistics and information regarding ${tr('On Leave')}.",
+                            value: '$leaveCount',
+                            icon: Icons.beach_access_outlined,
+                            iconColor: context.warning,
+                            iconBgColor: context.warningLight,
+                            trendText: tr('Approved leaves'),
+                          ),
+                          StatCard(
+                            title: tr('Monthly Payroll'),
+                            tooltipMessage: "Detailed statistics and information regarding ${tr('Monthly Payroll')}.",
+                            value: 'Rs. ${(monthlyPayroll / 1000).toStringAsFixed(1)}k',
+                            icon: Icons.payments_outlined,
+                            iconColor: context.error,
+                            iconBgColor: context.errorLight,
+                            trendText: tr('Total staff salary'),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 
@@ -180,107 +217,143 @@ class EmployeesScreen extends ConsumerWidget {
                   GlassCard(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          // Search field
-                          Expanded(
-                            flex: 3,
-                            child: TextField(
-                              onChanged: (val) => ref.read(employeesProvider.notifier).setSearchQuery(val),
-                              style: TextStyle(color: context.textPrimary, fontSize: 13),
-                              decoration: InputDecoration(
-                                hintText: tr('Search by name, designation, or email...'),
-                                hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
-                                prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                filled: true,
-                                fillColor: context.scaffoldBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: context.border),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: context.border),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isMobile = constraints.maxWidth < 700;
 
-                          // Department Filter
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: (state.departmentFilter == 'All' || departments.contains(state.departmentFilter))
-                                  ? state.departmentFilter
-                                  : 'All',
-                              dropdownColor: context.cardBg,
-                              style: TextStyle(color: context.textPrimary, fontSize: 13),
-                              decoration: InputDecoration(
-                                labelText: tr('Department'),
-                                labelStyle: TextStyle(color: context.textSecondary, fontSize: 11),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                filled: true,
-                                fillColor: context.scaffoldBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: context.border),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: context.border),
-                                ),
+                          final searchField = TextField(
+                            onChanged: (val) => ref.read(employeesProvider.notifier).setSearchQuery(val),
+                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: tr('Search by name, designation, or email...'),
+                              hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
+                              prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              filled: true,
+                              fillColor: context.scaffoldBg,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: context.border),
                               ),
-                              items: [
-                                DropdownMenuItem(value: 'All', child: Text(tr('All Departments'))),
-                                ...departments.map((d) => DropdownMenuItem(value: d, child: Text(d))),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  ref.read(employeesProvider.notifier).setDepartmentFilter(val);
-                                }
-                              },
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: context.border),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
+                          );
 
-                          // Status Filter
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: state.statusFilter,
-                              dropdownColor: context.cardBg,
-                              style: TextStyle(color: context.textPrimary, fontSize: 13),
-                              decoration: InputDecoration(
-                                labelText: tr('Status'),
-                                labelStyle: TextStyle(color: context.textSecondary, fontSize: 11),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                filled: true,
-                                fillColor: context.scaffoldBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: context.border),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide(color: context.border),
-                                ),
+                          final departmentField = DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            value: (state.departmentFilter == 'All' || departments.contains(state.departmentFilter))
+                                ? state.departmentFilter
+                                : 'All',
+                            dropdownColor: context.cardBg,
+                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                            decoration: InputDecoration(
+                              labelText: tr('Department'),
+                              labelStyle: TextStyle(color: context.textSecondary, fontSize: 11),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              filled: true,
+                              fillColor: context.scaffoldBg,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: context.border),
                               ),
-                              items: [
-                                DropdownMenuItem(value: 'All', child: Text(tr('All Statuses'))),
-                                DropdownMenuItem(value: 'Active', child: Text(tr('Active'))),
-                                DropdownMenuItem(value: 'On Leave', child: Text(tr('On Leave'))),
-                                DropdownMenuItem(value: 'Terminated', child: Text(tr('Terminated'))),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  ref.read(employeesProvider.notifier).setStatusFilter(val);
-                                }
-                              },
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: context.border),
+                              ),
                             ),
-                          ),
-                        ],
+                            items: [
+                              DropdownMenuItem(value: 'All', child: Text(tr('All Departments'))),
+                              ...departments.map((d) => DropdownMenuItem(value: d, child: Text(d))),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                ref.read(employeesProvider.notifier).setDepartmentFilter(val);
+                              }
+                            },
+                          );
+
+                          final statusField = DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            value: state.statusFilter,
+                            dropdownColor: context.cardBg,
+                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                            decoration: InputDecoration(
+                              labelText: tr('Status'),
+                              labelStyle: TextStyle(color: context.textSecondary, fontSize: 11),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              filled: true,
+                              fillColor: context.scaffoldBg,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: context.border),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: context.border),
+                              ),
+                            ),
+                            items: [
+                              DropdownMenuItem(value: 'All', child: Text(tr('All Statuses'))),
+                              DropdownMenuItem(value: 'Active', child: Text(tr('Active'))),
+                              DropdownMenuItem(value: 'On Leave', child: Text(tr('On Leave'))),
+                              DropdownMenuItem(value: 'Terminated', child: Text(tr('Terminated'))),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                ref.read(employeesProvider.notifier).setStatusFilter(val);
+                              }
+                            },
+                          );
+
+                          final searchRow = Row(
+                            children: [
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _showFilters = !_showFilters;
+                                  });
+                                },
+                                icon: Icon(
+                                  Icons.filter_list,
+                                  color: _showFilters ? context.primaryColor : context.textMuted,
+                                ),
+                                tooltip: 'Toggle Filters',
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(child: searchField),
+                            ],
+                          );
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              searchRow,
+                              if (_showFilters) ...[
+                                const SizedBox(height: 12),
+                                if (isMobile)
+                                  Row(
+                                    children: [
+                                      Expanded(child: departmentField),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: statusField),
+                                    ],
+                                  )
+                                else
+                                  Row(
+                                    children: [
+                                      Expanded(child: departmentField),
+                                      const SizedBox(width: 16),
+                                      Expanded(child: statusField),
+                                      const Expanded(child: SizedBox()),
+                                    ],
+                                  ),
+                              ],
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -290,10 +363,190 @@ class EmployeesScreen extends ConsumerWidget {
                   state.filteredEmployees.isEmpty
                       ? Center(
                           child: Padding(
-                            padding: const EdgeInsets.all(40),
-                            child: Text(
-                              tr('No employees found matching the criteria.'),
-                              style: TextStyle(color: context.textSecondary, fontSize: 14),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+                            child: GlassCard(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: context.primaryColor.withValues(alpha: 0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        Icons.people_outline,
+                                        size: 48,
+                                        color: context.primaryColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      state.employees.isEmpty
+                                          ? tr('No Employees in Directory')
+                                          : tr('No Matching Employees Found'),
+                                      style: TextStyle(
+                                        color: context.textPrimary,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 450),
+                                      child: Text(
+                                        state.employees.isEmpty
+                                            ? tr('Your employee roster is currently empty. You can add your staff members or load demo employees to immediately test Attendance, Salaries, Advances, and Payroll.')
+                                            : tr('No employees matched your current search filters. Try clearing the search or changing department/status filters.'),
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: context.textSecondary,
+                                          fontSize: 13,
+                                          height: 1.5,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Wrap(
+                                      spacing: 12,
+                                      runSpacing: 10,
+                                      alignment: WrapAlignment.center,
+                                      children: [
+                                        if (state.employees.isEmpty) ...[
+                                          if (canCreate) ...[
+                                            ElevatedButton.icon(
+                                            onPressed: () async {
+                                              final result = await showDialog<Employee>(
+                                                context: context,
+                                                builder: (context) => const _AddEmployeeDialog(),
+                                              );
+                                              if (result != null) {
+                                                ref.read(employeesProvider.notifier).addEmployee(result);
+                                                ref.read(departmentsProvider.notifier).addDepartment(result.department);
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text('Employee "${result.name}" added successfully.'),
+                                                      behavior: SnackBarBehavior.floating,
+                                                      backgroundColor: context.success,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                            icon: const Icon(Icons.add, size: 18),
+                                            label: Text(tr('Add Employee')),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: context.primaryColor,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                            ),
+                                          ),
+                                          OutlinedButton.icon(
+                                            onPressed: () async {
+                                              final demoList = [
+                                                Employee(
+                                                  id: 'emp_${DateTime.now().millisecondsSinceEpoch}_1',
+                                                  name: 'Muhammad Haseeb',
+                                                  email: 'haseeb@hhtech.com',
+                                                  phones: const ['Personal: +92 300 1234567'],
+                                                  designation: 'Tech Lead / Mobile Architect',
+                                                  department: 'Mobile Apps',
+                                                  joiningDate: '2024-01-15',
+                                                  status: 'Active',
+                                                  salaryType: 'Monthly',
+                                                  baseSalary: 120000.0,
+                                                  paymentMethod: 'Bank Transfer',
+                                                ),
+                                                Employee(
+                                                  id: 'emp_${DateTime.now().millisecondsSinceEpoch}_2',
+                                                  name: 'Ahmed Khan',
+                                                  email: 'ahmed.khan@hhtech.com',
+                                                  phones: const ['Personal: +92 301 9876543'],
+                                                  designation: 'Senior Flutter Developer',
+                                                  department: 'Mobile Apps',
+                                                  joiningDate: '2024-03-01',
+                                                  status: 'Active',
+                                                  salaryType: 'Monthly',
+                                                  baseSalary: 85000.0,
+                                                  paymentMethod: 'Bank Transfer',
+                                                ),
+                                                Employee(
+                                                  id: 'emp_${DateTime.now().millisecondsSinceEpoch}_3',
+                                                  name: 'Fatima Noor',
+                                                  email: 'fatima@hhtech.com',
+                                                  phones: const ['Personal: +92 321 4567890'],
+                                                  designation: 'UI/UX Lead Designer',
+                                                  department: 'Design',
+                                                  joiningDate: '2024-02-10',
+                                                  status: 'Active',
+                                                  salaryType: 'Monthly',
+                                                  baseSalary: 75000.0,
+                                                  paymentMethod: 'Bank Transfer',
+                                                ),
+                                                Employee(
+                                                  id: 'emp_${DateTime.now().millisecondsSinceEpoch}_4',
+                                                  name: 'Zain Ali',
+                                                  email: 'zain.ali@hhtech.com',
+                                                  phones: const ['Personal: +92 333 1122334'],
+                                                  designation: 'QA Automation Engineer',
+                                                  department: 'Quality Assurance',
+                                                  joiningDate: '2024-04-01',
+                                                  status: 'Active',
+                                                  salaryType: 'Monthly',
+                                                  baseSalary: 60000.0,
+                                                  paymentMethod: 'Cash',
+                                                ),
+                                              ];
+                                              for (final emp in demoList) {
+                                                await ref.read(employeesProvider.notifier).addEmployee(emp);
+                                                await ref.read(departmentsProvider.notifier).addDepartment(emp.department);
+                                              }
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(tr('Demo employees loaded successfully! All HR modules are now active.')),
+                                                    behavior: SnackBarBehavior.floating,
+                                                    backgroundColor: context.success,
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                            icon: const Icon(Icons.download_done, size: 18),
+                                            label: Text(tr('Load Demo Employees')),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: context.primaryColor,
+                                              side: BorderSide(color: context.primaryColor),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                            ),
+                                          ),
+                                        ],
+                                        ] else ...[
+                                          OutlinedButton.icon(
+                                            onPressed: () {
+                                              ref.read(employeesProvider.notifier).setSearchQuery('');
+                                              ref.read(employeesProvider.notifier).setDepartmentFilter('All');
+                                              ref.read(employeesProvider.notifier).setStatusFilter('All');
+                                            },
+                                            icon: const Icon(Icons.clear, size: 18),
+                                            label: Text(tr('Reset Filters')),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: context.primaryColor,
+                                              side: BorderSide(color: context.primaryColor),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         )
@@ -304,7 +557,7 @@ class EmployeesScreen extends ConsumerWidget {
                             crossAxisCount: crossAxisCount,
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
-                            mainAxisExtent: 235,
+                            mainAxisExtent: 295,
                           ),
                           itemCount: state.filteredEmployees.length,
                           itemBuilder: (context, index) {
@@ -331,6 +584,9 @@ class _EmployeeCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final tr = ref.watch(translationProvider);
+    final adminState = ref.watch(adminProvider);
+    final canEdit = adminState.hasPermission(AppModule.employees, PermissionAction.edit);
+    final canDelete = adminState.hasPermission(AppModule.employees, PermissionAction.delete);
     final initials = employee.name.split(' ').map((e) => e[0]).take(2).join().toUpperCase();
 
     // Determine status badge colors
@@ -448,6 +704,7 @@ class _EmployeeCard extends ConsumerWidget {
                       ),
                     );
                     if (confirm == true) {
+                      if (!canDelete) return;
                       ref.read(employeesProvider.notifier).deleteEmployee(employee.id);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -458,11 +715,13 @@ class _EmployeeCard extends ConsumerWidget {
                       );
                     }
                   } else if (val == 'toggle_status') {
+                    if (!canEdit) return;
                     final nextStatus = employee.status == 'Active'
                         ? 'On Leave'
                         : (employee.status == 'On Leave' ? 'Terminated' : 'Active');
                     ref.read(employeesProvider.notifier).updateEmployee(employee.copyWith(status: nextStatus));
                   } else if (val == 'edit') {
+                    if (!canEdit) return;
                     showDialog(
                       context: context,
                       builder: (context) => _EditEmployeeDialog(employee: employee),
@@ -480,18 +739,21 @@ class _EmployeeCard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Text(tr('Edit Details'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
-                  ),
-                  PopupMenuItem(
-                    value: 'toggle_status',
-                    child: Text(tr('Cycle Status'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text(tr('Delete Employee'), style: TextStyle(color: context.error, fontSize: 13)),
-                  ),
+                  if (canEdit)
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text(tr('Edit Details'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
+                    ),
+                  if (canEdit)
+                    PopupMenuItem(
+                      value: 'toggle_status',
+                      child: Text(tr('Cycle Status'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
+                    ),
+                  if (canDelete)
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(tr('Delete Employee'), style: TextStyle(color: context.error, fontSize: 13)),
+                    ),
                 ],
               ),
             ],
@@ -504,16 +766,23 @@ class _EmployeeCard extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.business, size: 14, color: context.textMuted),
-                  const SizedBox(width: 6),
-                  Text(
-                    employee.department,
-                    style: TextStyle(color: context.textSecondary, fontSize: 12),
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(Icons.business, size: 14, color: context.textMuted),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        employee.department,
+                        style: TextStyle(color: context.textSecondary, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -580,6 +849,22 @@ class _EmployeeCard extends ConsumerWidget {
               ),
             ],
           ),
+          // Joining Date
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.calendar_today_outlined, size: 14, color: context.textMuted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '${tr("Joined:")} ${employee.joiningDate.isNotEmpty ? employee.joiningDate : tr("N/A")}',
+                  style: TextStyle(color: context.textSecondary, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
 
           // Salary details
@@ -596,13 +881,21 @@ class _EmployeeCard extends ConsumerWidget {
                 Text(
                   tr('Base Pay:'),
                   style: TextStyle(color: context.textSecondary, fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  'Rs. ${employee.baseSalary.toStringAsFixed(0)} / mo',
-                  style: TextStyle(
-                    color: context.primaryColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                const SizedBox(width: 4),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      'Rs. ${employee.baseSalary.toStringAsFixed(0)} / mo',
+                      style: TextStyle(
+                        color: context.primaryColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -633,6 +926,7 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
   String _department = '';
   final String _salaryType = 'Monthly';
   final _salaryController = TextEditingController();
+  final _joiningDateController = TextEditingController();
   String _paymentMethod = 'Bank Transfer';
 
   @override
@@ -647,7 +941,30 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
     }
     _designationController.dispose();
     _salaryController.dispose();
+    _joiningDateController.dispose();
     super.dispose();
+  }
+
+  Widget _buildFormRow(BuildContext context, Widget child1, Widget child2) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          child1,
+          const SizedBox(height: 16),
+          child2,
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: child1),
+        const SizedBox(width: 16),
+        Expanded(child: child2),
+      ],
+    );
   }
 
   @override
@@ -664,8 +981,9 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
       backgroundColor: context.cardBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 520,
+        width: MediaQuery.of(context).size.width * 0.9,
         constraints: BoxConstraints(
+          maxWidth: 520,
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         padding: const EdgeInsets.all(24),
@@ -679,11 +997,14 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      tr('Add Employee Details'),
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: context.textPrimary,
+                    Expanded(
+                      child: Text(
+                        tr('Add Employee Details'),
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: context.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
@@ -734,76 +1055,71 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Relationship Dropdown
-                              SizedBox(
-                                width: 170,
-                                child: DropdownButtonFormField<String>(
-                                  isExpanded: true,
-                                  isDense: true,
-                                  value: _phoneRelationships[index],
-                                  dropdownColor: context.cardBg,
-                                  style: TextStyle(color: context.textPrimary, fontSize: 12),
-                                  decoration: _buildInputDecoration(''),
-                                  items: [
-                                    'Personal',
-                                    'Work',
-                                    'Home',
-                                    'Spouse (Emergency)',
-                                    'Parent (Emergency)',
-                                    'Sibling (Emergency)',
-                                    'Friend (Emergency)',
-                                    'Other (Custom)...',
-                                  ].map((r) => DropdownMenuItem(
-                                    value: r,
-                                    child: Text(
-                                      r,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  )).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setState(() {
-                                        _phoneRelationships[index] = val;
-                                      });
-                                    }
-                                  },
+                          _buildFormRow(
+                            context,
+                            // Relationship Dropdown
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              isDense: true,
+                              value: _phoneRelationships[index],
+                              dropdownColor: context.cardBg,
+                              style: TextStyle(color: context.textPrimary, fontSize: 12),
+                              decoration: _buildInputDecoration(''),
+                              items: [
+                                'Personal',
+                                'Work',
+                                'Home',
+                                'Spouse (Emergency)',
+                                'Parent (Emergency)',
+                                'Sibling (Emergency)',
+                                'Friend (Emergency)',
+                                'Other (Custom)...',
+                              ].map((r) => DropdownMenuItem(
+                                value: r,
+                                child: Text(
+                                  r,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              // Phone Number TextFormField
-                              Expanded(
-                                child: TextFormField(
-                                  controller: _phoneControllers[index],
-                                  style: TextStyle(color: context.textPrimary),
-                                  keyboardType: TextInputType.phone,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s\-]')),
-                                    LengthLimitingTextInputFormatter(20),
-                                  ],
-                                  decoration: _buildInputDecoration('+92 300 1234567'),
-                                  validator: (val) {
-                                    if (val == null || val.trim().isEmpty) {
-                                      if (index == 0) return 'Please enter phone number';
+                              )).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _phoneRelationships[index] = val;
+                                  });
+                                }
+                              },
+                            ),
+                            // Phone Number TextFormField and Delete Button
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _phoneControllers[index],
+                                    style: TextStyle(color: context.textPrimary),
+                                    keyboardType: TextInputType.phone,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s\-]')),
+                                      LengthLimitingTextInputFormatter(20),
+                                    ],
+                                    decoration: _buildInputDecoration('+92 300 1234567'),
+                                    validator: (val) {
+                                      if (val == null || val.trim().isEmpty) {
+                                        if (index == 0) return 'Please enter phone number';
+                                        return null;
+                                      }
+                                      final regex = RegExp(r'^\+?[0-9\s\-]{10,20}$');
+                                      if (!regex.hasMatch(val.trim())) {
+                                        return 'Enter 10-20 digits';
+                                      }
                                       return null;
-                                    }
-                                    final regex = RegExp(r'^\+?[0-9\s\-]{10,20}$');
-                                    if (!regex.hasMatch(val.trim())) {
-                                      return 'Enter 10-20 digits';
-                                    }
-                                    return null;
-                                  },
+                                    },
+                                  ),
                                 ),
-                              ),
-                              if (_phoneControllers.length > 1) ...[
-                                const SizedBox(width: 8),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: IconButton(
+                                if (_phoneControllers.length > 1) ...[
+                                  const SizedBox(width: 8),
+                                  IconButton(
                                     onPressed: () {
                                       setState(() {
                                         _phoneControllers[index].dispose();
@@ -816,9 +1132,9 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                                     icon: Icon(Icons.delete_outline, color: context.error, size: 20),
                                     tooltip: 'Remove phone number',
                                   ),
-                                ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                           if (isCustom) ...[
                             const SizedBox(height: 8),
@@ -865,87 +1181,81 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                 const SizedBox(height: 16),
 
                 // Designation & Department Row
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel(tr('Designation'), isRequired: true),
-                          TextFormField(
-                            controller: _designationController,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('e.g. Flutter Developer'),
-                            validator: (val) => val == null || val.trim().isEmpty ? 'Please enter designation' : null,
-                          ),
-                        ],
+                _buildFormRow(
+                  context,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLabel(tr('Designation'), isRequired: true),
+                      TextFormField(
+                        controller: _designationController,
+                        style: TextStyle(color: context.textPrimary),
+                        decoration: _buildInputDecoration('e.g. Flutter Developer'),
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Please enter designation' : null,
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              _buildLabel(tr('Department')),
-                              GestureDetector(
-                                onTap: () async {
-                                  final controller = TextEditingController();
-                                  final newDept = await showDialog<String>(
-                                    context: context,
-                                    builder: (ctx) => AlertDialog(
-                                      backgroundColor: context.cardBg,
-                                      title: Text(tr('Add Department'), style: TextStyle(color: context.textPrimary)),
-                                      content: TextField(
-                                        controller: controller,
-                                        style: TextStyle(color: context.textPrimary),
-                                        decoration: InputDecoration(
-                                          hintText: 'Enter department name',
-                                          hintStyle: TextStyle(color: context.textMuted),
-                                        ),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(ctx),
-                                          child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-                                          child: Text(tr('Add')),
-                                        ),
-                                      ],
+                          _buildLabel(tr('Department')),
+                          GestureDetector(
+                            onTap: () async {
+                              final controller = TextEditingController();
+                              final newDept = await showDialog<String>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: context.cardBg,
+                                  title: Text(tr('Add Department'), style: TextStyle(color: context.textPrimary)),
+                                  content: TextField(
+                                    controller: controller,
+                                    style: TextStyle(color: context.textPrimary),
+                                    decoration: InputDecoration(
+                                      hintText: 'Enter department name',
+                                      hintStyle: TextStyle(color: context.textMuted),
                                     ),
-                                  );
-                                  if (newDept != null && newDept.trim().isNotEmpty) {
-                                    final canonical = await ref.read(departmentsProvider.notifier).addDepartment(newDept.trim());
-                                    setState(() {
-                                      _department = canonical;
-                                    });
-                                  }
-                                },
-                                child: Text(
-                                  '+ Add Department',
-                                  style: TextStyle(color: context.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+                                      child: Text(tr('Add')),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                          DropdownButtonFormField<String>(
-                            value: departments.contains(_department) ? _department : (departments.isNotEmpty ? departments.first : null),
-                            dropdownColor: context.cardBg,
-                            style: TextStyle(color: context.textPrimary, fontSize: 13),
-                            decoration: _buildInputDecoration(''),
-                            items: departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-                            onChanged: (val) {
-                              if (val != null) setState(() => _department = val);
+                              );
+                              if (newDept != null && newDept.trim().isNotEmpty) {
+                                final canonical = await ref.read(departmentsProvider.notifier).addDepartment(newDept.trim());
+                                setState(() {
+                                  _department = canonical;
+                                });
+                              }
                             },
+                            child: Text(
+                              '+ Add Department',
+                              style: TextStyle(color: context.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                      DropdownButtonFormField<String>(
+                        value: departments.contains(_department) ? _department : (departments.isNotEmpty ? departments.first : null),
+                        dropdownColor: context.cardBg,
+                        style: TextStyle(color: context.textPrimary, fontSize: 13),
+                        decoration: _buildInputDecoration(''),
+                        items: departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _department = val);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
 
@@ -960,6 +1270,33 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                     if (val == null || val.trim().isEmpty) return 'Enter salary';
                     if (double.tryParse(val) == null) return 'Enter a valid number';
                     return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Joining Date
+                _buildLabel(tr('Joining Date'), isRequired: true),
+                TextFormField(
+                  controller: _joiningDateController,
+                  style: TextStyle(color: context.textPrimary),
+                  readOnly: true,
+                  decoration: _buildInputDecoration(tr('Select Joining Date')).copyWith(
+                    suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.textSecondary),
+                  ),
+                  validator: (val) => val == null || val.trim().isEmpty ? tr('Joining Date is mandatory') : null,
+                  onTap: () async {
+                    DateTime initial = DateTime.tryParse(_joiningDateController.text) ?? DateTime.now();
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: initial,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _joiningDateController.text = date.toIso8601String().substring(0, 10);
+                      });
+                    }
                   },
                 ),
                 const SizedBox(height: 24),
@@ -1002,7 +1339,7 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                             }(),
                             designation: _designationController.text.trim(),
                             department: _department,
-                            joiningDate: DateTime.now().toIso8601String().substring(0, 10),
+                            joiningDate: _joiningDateController.text.trim(),
                             status: 'Active',
                             salaryType: _salaryType,
                             baseSalary: double.tryParse(_salaryController.text) ?? 0.0,
@@ -1503,9 +1840,10 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                             controller: _joiningDateController,
                             style: TextStyle(color: context.textPrimary),
                             readOnly: true,
-                            decoration: _buildInputDecoration('Select Joining Date').copyWith(
+                            decoration: _buildInputDecoration(tr('Select Joining Date')).copyWith(
                               suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.textSecondary),
                             ),
+                            validator: (val) => val == null || val.trim().isEmpty ? tr('Joining Date is mandatory') : null,
                             onTap: () async {
                               DateTime initial = DateTime.tryParse(_joiningDateController.text) ?? DateTime.now();
                               final date = await showDatePicker(
@@ -1592,6 +1930,12 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                     const SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: () {
+                        if (!ref.read(adminProvider).hasPermission(AppModule.employees, PermissionAction.edit)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Access Denied: You do not have permission to edit employees.')),
+                          );
+                          return;
+                        }
                         if (_formKey.currentState!.validate()) {
                           final updatedEmp = widget.employee.copyWith(
                             name: _nameController.text.trim(),

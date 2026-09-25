@@ -354,6 +354,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                               );
                                               if (result != null) {
                                                 ref.read(salesInvoicesProvider.notifier).updateInvoice(result);
+                                                if (!context.mounted) return;
                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                   SnackBar(
                                                     content: Text('${tr("Invoice")} "${result.id}" ${tr("updated.")}'),
@@ -383,6 +384,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                               );
                                               if (confirm == true) {
                                                 ref.read(salesInvoicesProvider.notifier).deleteInvoice(invoice.id);
+                                                if (!context.mounted) return;
                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                   SnackBar(
                                                     content: Text('${tr("Invoice")} "${invoice.id}" ${tr("deleted.")}'),
@@ -629,7 +631,7 @@ class _AddEditInvoiceDialogState extends ConsumerState<_AddEditInvoiceDialog> {
       backgroundColor: context.cardBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 650, maxHeight: 750),
+        constraints: BoxConstraints(maxWidth: 650, maxHeight: MediaQuery.of(context).size.height * 0.85),
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,

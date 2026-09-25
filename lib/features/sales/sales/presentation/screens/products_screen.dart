@@ -468,15 +468,26 @@ class _ProductCard extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Price / Rate',
-                  style: TextStyle(color: context.textMuted, fontSize: 10),
+                Flexible(
+                  flex: 2,
+                  child: Text(
+                    'Price / Rate',
+                    style: TextStyle(color: context.textMuted, fontSize: 10),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                Text(
-                  formattedPrice,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: context.primaryColor,
+                const SizedBox(width: 8),
+                Flexible(
+                  flex: 3,
+                  child: Text(
+                    formattedPrice,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: context.primaryColor,
+                    ),
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

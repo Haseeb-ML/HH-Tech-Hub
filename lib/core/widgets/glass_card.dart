@@ -69,11 +69,13 @@ class GlassCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title!,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: context.textPrimary,
+                Expanded(
+                  child: Text(
+                    title!,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: context.textPrimary,
+                    ),
                   ),
                 ),
                 if (trailingWidget != null) trailingWidget,

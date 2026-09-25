@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
-import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/widgets/explain_tooltip.dart';
 import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import '../providers/attendance_provider.dart';
 import '../../domain/entities/attendance_record.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
@@ -164,6 +165,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen>
                   padding: const EdgeInsets.all(4),
                   child: TabBar(
                     controller: _tabController,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
                     indicator: BoxDecoration(
                       color: context.primaryColor,
                       borderRadius: BorderRadius.circular(8),
@@ -233,6 +236,7 @@ class _DailyView extends ConsumerStatefulWidget {
 class _DailyViewState extends ConsumerState<_DailyView> {
   String _searchQuery = '';
   String _selectedDepartment = 'All';
+  bool _showFilters = false;
 
   @override
   Widget build(BuildContext context) {
@@ -283,135 +287,183 @@ class _DailyViewState extends ConsumerState<_DailyView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // ── Date Selector ──────────────────────
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      tooltip: 'Previous Day',
-                      onPressed: () {
-                        final cur = DateTime.tryParse(state.selectedDate) ?? DateTime.now();
-                        final prev = cur.subtract(const Duration(days: 1));
-                        final dateStr = prev.toIso8601String().substring(0, 10);
-                        ref.read(attendanceProvider.notifier).loadAttendance(dateStr);
-                      },
-                    ),
-                    Text(
-                      widget.displayDate(state.selectedDate),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: context.textPrimary,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right),
-                      tooltip: 'Next Day',
-                      onPressed: () {
-                        final cur = DateTime.tryParse(state.selectedDate) ?? DateTime.now();
-                        final next = cur.add(const Duration(days: 1));
-                        final dateStr = next.toIso8601String().substring(0, 10);
-                        ref.read(attendanceProvider.notifier).loadAttendance(dateStr);
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () {
-                        final today = DateTime.now().toIso8601String().substring(0, 10);
-                        ref.read(attendanceProvider.notifier).loadAttendance(today);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('Today'),
-                    ),
-                    const Spacer(),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final parsedDate =
-                            DateTime.tryParse(state.selectedDate) ??
-                            DateTime.now();
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: parsedDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2030),
-                        );
-                        if (picked != null) {
-                          final dateStr = picked.toIso8601String().substring(0, 10);
-                          ref.read(attendanceProvider.notifier).loadAttendance(dateStr);
-                        }
-                      },
-                      icon: Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
-                      label: Text(
-                        'Change Date',
-                        style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.bold),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: context.border),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        backgroundColor: context.cardBg,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      onPressed: state.records.isEmpty ||
-                              state.selectedDate.compareTo(DateTime.now().toIso8601String().substring(0, 10)) > 0
-                          ? null
-                          : () async {
-                              final confirm = await showDialog<bool>(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isMobile = constraints.maxWidth < 750;
+                    final dateNavRow = Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left),
+                          tooltip: 'Previous Day',
+                          onPressed: () {
+                            final cur = DateTime.tryParse(state.selectedDate) ?? DateTime.now();
+                            final prev = cur.subtract(const Duration(days: 1));
+                            final dateStr = prev.toIso8601String().substring(0, 10);
+                            ref.read(attendanceProvider.notifier).loadAttendance(dateStr);
+                          },
+                        ),
+                        Text(
+                          widget.displayDate(state.selectedDate),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: context.textPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right),
+                          tooltip: 'Next Day',
+                          onPressed: () {
+                            final cur = DateTime.tryParse(state.selectedDate) ?? DateTime.now();
+                            final next = cur.add(const Duration(days: 1));
+                            final dateStr = next.toIso8601String().substring(0, 10);
+                            ref.read(attendanceProvider.notifier).loadAttendance(dateStr);
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () {
+                            final today = DateTime.now().toIso8601String().substring(0, 10);
+                            ref.read(attendanceProvider.notifier).loadAttendance(today);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Today'),
+                        ),
+                      ],
+                    );
+
+                    final actionButtons = SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final parsedDate =
+                                  DateTime.tryParse(state.selectedDate) ??
+                                  DateTime.now();
+                              final picked = await showDatePicker(
                                 context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Mark All Present'),
-                                  content: Text(
-                                    'Mark all active employees as Present for ${state.selectedDate}?\n\n'
-                                    'Note: Employees on Leave, Weekly Offs, and Holidays will NOT be overwritten.',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, false),
-                                      child: Text('Cancel', style: TextStyle(color: context.textSecondary)),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      style: ElevatedButton.styleFrom(backgroundColor: context.primaryColor),
-                                      child: const Text('Confirm'),
-                                    ),
-                                  ],
-                                ),
+                                initialDate: parsedDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
                               );
-                              if (confirm == true) {
-                                await ref.read(attendanceProvider.notifier).markAllPresent();
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Unmarked active employees marked Present. Leaves & Offs preserved.'),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
+                              if (picked != null) {
+                                final dateStr = picked.toIso8601String().substring(0, 10);
+                                ref.read(attendanceProvider.notifier).loadAttendance(dateStr);
                               }
                             },
-                      icon: const Icon(Icons.done_all, size: 16),
-                      label: const Text('Mark All Present'),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        final currentSettings = ref.read(attendanceSettingsProvider).value;
-                        if (currentSettings == null) return;
-                        final updated = await showDialog<AttendanceSettings>(
-                          context: context,
-                          builder: (_) => _AttendanceRulesDialog(settings: currentSettings),
-                        );
-                        if (updated != null) {
-                          await ref.read(attendanceSettingsProvider.notifier).save(updated);
-                          await ref.read(attendanceProvider.notifier).loadAttendance(state.selectedDate);
-                        }
-                      },
-                      icon: const Icon(Icons.tune, size: 16),
-                      label: const Text('Attendance Rules'),
-                    ),
-                  ],
+                            icon: Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
+                            label: Text(
+                              'Change Date',
+                              style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.bold),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: context.border),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              backgroundColor: context.cardBg,
+                            ),
+                          ),
+                          if (ref.watch(adminProvider).hasPermission(AppModule.attendance, PermissionAction.edit)) ...[
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              onPressed: state.records.isEmpty ||
+                                      state.selectedDate.compareTo(DateTime.now().toIso8601String().substring(0, 10)) > 0
+                                  ? null
+                                  : () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text('Mark All Present'),
+                                          content: Text(
+                                            'Mark all active employees as Present for ${state.selectedDate}?\n\n'
+                                            'Note: Employees on Leave, Weekly Offs, and Holidays will NOT be overwritten.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx, false),
+                                              child: Text('Cancel', style: TextStyle(color: context.textSecondary)),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () => Navigator.pop(ctx, true),
+                                              style: ElevatedButton.styleFrom(backgroundColor: context.primaryColor),
+                                              child: const Text('Confirm'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        await ref.read(attendanceProvider.notifier).markAllPresent();
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Unmarked active employees marked Present. Leaves & Offs preserved.'),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      }
+                                    },
+                              icon: const Icon(Icons.done_all, size: 16),
+                              label: const Text('Mark All Present'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: context.primaryColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              onPressed: () async {
+                                final currentSettings = ref.read(attendanceSettingsProvider).value;
+                                if (currentSettings == null) return;
+                                final updated = await showDialog<AttendanceSettings>(
+                                  context: context,
+                                  builder: (_) => _AttendanceRulesDialog(settings: currentSettings),
+                                );
+                                if (updated != null) {
+                                  await ref.read(attendanceSettingsProvider.notifier).save(updated);
+                                  await ref.read(attendanceProvider.notifier).loadAttendance(state.selectedDate);
+                                }
+                              },
+                              icon: const Icon(Icons.tune, size: 16),
+                              label: const Text('Attendance Rules'),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: context.border),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                backgroundColor: context.cardBg,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+
+                    if (isMobile) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: dateNavRow,
+                          ),
+                          const SizedBox(height: 12),
+                          actionButtons,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        dateNavRow,
+                        const Spacer(),
+                        actionButtons,
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -419,137 +471,188 @@ class _DailyViewState extends ConsumerState<_DailyView> {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final cardWidgets = [
-                      StatCard(
-                        title: 'Total Active Staff',
+                      _MonthStatCard(
+                        label: 'Total Active Staff',
                         tooltipMessage: 'Total registered active staff in the roster.',
-                        value: state.records.length.toString(),
+                        value: state.records.length,
                         icon: Icons.people_outline,
-                        iconColor: context.primaryColor,
-                        iconBgColor: context.infoLight,
-                        trendText: 'Roster size',
+                        color: context.primaryColor,
+                        bg: context.infoLight,
                       ),
-                      StatCard(
-                        title: 'Present Today',
+                      _MonthStatCard(
+                        label: 'Present Today',
                         tooltipMessage: 'Active staff marked present today.',
-                        value: state.presentCount.toString(),
+                        value: state.presentCount,
                         icon: Icons.check_circle_outline,
-                        iconColor: context.success,
-                        iconBgColor: context.successLight,
-                        trendText: 'Present staff',
+                        color: context.success,
+                        bg: context.successLight,
                       ),
-                      StatCard(
-                        title: 'On Leave',
+                      _MonthStatCard(
+                        label: 'On Leave',
                         tooltipMessage: 'Staff on approved leaves.',
-                        value: state.leaveCount.toString(),
+                        value: state.leaveCount,
                         icon: Icons.beach_access_outlined,
-                        iconColor: context.warning,
-                        iconBgColor: context.warningLight,
-                        trendText: 'Approved absences',
+                        color: context.warning,
+                        bg: context.warningLight,
                       ),
-                      StatCard(
-                        title: 'Absent',
+                      _MonthStatCard(
+                        label: 'Absent',
                         tooltipMessage: 'Unexcused absences.',
-                        value: state.absentCount.toString(),
+                        value: state.absentCount,
                         icon: Icons.error_outline,
-                        iconColor: context.error,
-                        iconBgColor: context.errorLight,
-                        trendText: 'Unexcused',
+                        color: context.error,
+                        bg: context.errorLight,
                       ),
-                      StatCard(
-                        title: 'Half Day / WFH',
+                      _MonthStatCard(
+                        label: 'Half Day / WFH',
                         tooltipMessage: 'Staff working half day or remotely.',
-                        value: '${state.halfDayCount + state.workFromHomeCount}',
+                        value: state.halfDayCount + state.workFromHomeCount,
                         icon: Icons.home_work_outlined,
-                        iconColor: context.info,
-                        iconBgColor: context.infoLight,
-                        trendText: '${state.halfDayCount} HD • ${state.workFromHomeCount} WFH',
+                        color: context.info,
+                        bg: context.infoLight,
                       ),
-                      StatCard(
-                        title: 'Late Arrivals',
+                      _MonthStatCard(
+                        label: 'Late Arrivals',
                         tooltipMessage: 'Checked in past allowed start time.',
-                        value: lateCount.toString(),
+                        value: lateCount,
                         icon: Icons.schedule_outlined,
-                        iconColor: const Color(0xFFD97706),
-                        iconBgColor: const Color(0xFFFEF3C7),
-                        trendText: 'Past grace period',
+                        color: const Color(0xFFD97706),
+                        bg: const Color(0xFFFEF3C7),
                       ),
                     ];
 
-                    if (constraints.maxWidth < 800) {
-                      return Column(
-                        children: cardWidgets.map((c) => Padding(padding: const EdgeInsets.only(bottom: 12), child: c)).toList(),
+                    if (constraints.maxWidth < 650) {
+                      return GridView.count(
+                        crossAxisCount: 2,
+                        shrinkWrap: true,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1.35,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: cardWidgets,
                       );
                     }
-                    return GridView.count(
-                      crossAxisCount: constraints.maxWidth > 1400 ? 6 : 3,
-                      shrinkWrap: true,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: constraints.maxWidth > 1400 ? 1.8 : 2.2,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: cardWidgets,
+                    if (constraints.maxWidth < 1050) {
+                      return GridView.count(
+                        crossAxisCount: 3,
+                        shrinkWrap: true,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1.8,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: cardWidgets,
+                      );
+                    }
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: cardWidgets
+                            .map((w) => Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                                    child: w,
+                                  ),
+                                ))
+                            .toList(),
+                      ),
                     );
                   },
                 ),
                 const SizedBox(height: 24),
 
                 // ── Filter Bar ─────────────────────────
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search employee, department, designation, notes...',
-                          prefixIcon: const Icon(Icons.search, size: 18),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          filled: true,
-                          fillColor: context.cardBg,
-                        ),
-                        onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                LayoutBuilder(
+                  builder: (context, filterConstraints) {
+                    final isFilterMobile = filterConstraints.maxWidth < 600;
+                    final searchWidget = TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search employee, department, designation...',
+                        prefixIcon: const Icon(Icons.search, size: 18),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        filled: true,
+                        fillColor: context.cardBg,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 1,
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        value: departments.contains(_selectedDepartment) ? _selectedDepartment : 'All',
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                          filled: true,
-                          fillColor: context.cardBg,
-                        ),
-                        dropdownColor: context.cardBg,
-                        items: departments
-                            .map((d) => DropdownMenuItem(
-                                  value: d,
-                                  child: Text(
-                                    d == 'All' ? 'All Departments' : d,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ))
-                            .toList(),
-                        onChanged: (val) {
-                          if (val != null) setState(() => _selectedDepartment = val);
-                        },
+                      onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                    );
+
+                    final deptWidget = DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      value: departments.contains(_selectedDepartment) ? _selectedDepartment : 'All',
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        filled: true,
+                        fillColor: context.cardBg,
                       ),
-                    ),
-                  ],
+                      dropdownColor: context.cardBg,
+                      items: departments
+                          .map((d) => DropdownMenuItem(
+                                value: d,
+                                child: Text(
+                                  d == 'All' ? 'All Departments' : d,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) setState(() => _selectedDepartment = val);
+                      },
+                    );
+
+                    final searchRow = Row(
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _showFilters = !_showFilters;
+                            });
+                          },
+                          icon: Icon(
+                            Icons.filter_list,
+                            color: _showFilters ? context.primaryColor : context.textMuted,
+                          ),
+                          tooltip: 'Toggle Filters',
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(child: searchWidget),
+                      ],
+                    );
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        searchRow,
+                        if (_showFilters) ...[
+                          const SizedBox(height: 12),
+                          if (isFilterMobile)
+                            deptWidget
+                          else
+                            Row(
+                              children: [
+                                Expanded(child: deptWidget),
+                                const Expanded(flex: 2, child: SizedBox()),
+                              ],
+                            ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
 
                 // ── Attendance Roster Table ─────────────
                 GlassCard(
                   child: Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 6,
                           children: [
                             Text(
                               'Daily Attendance Log',
@@ -800,6 +903,23 @@ class _MonthlyView extends ConsumerStatefulWidget {
 class _MonthlyViewState extends ConsumerState<_MonthlyView> {
   String _searchQuery = '';
   String _selectedDepartment = 'All';
+  bool _showFilters = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(attendanceProvider.notifier).loadMonthlyAttendance(widget.selectedMonth);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _MonthlyView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedMonth != widget.selectedMonth) {
+      ref.read(attendanceProvider.notifier).loadMonthlyAttendance(widget.selectedMonth);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -847,96 +967,130 @@ class _MonthlyViewState extends ConsumerState<_MonthlyView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Filter Bar ──────────────────
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search by Employee Name',
-                    prefixIcon: const Icon(Icons.search, size: 18),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: context.cardBg,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 700;
+              final searchField = TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search by Employee Name',
+                  prefixIcon: const Icon(Icons.search, size: 18),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-                  onChanged: (val) => setState(() => _searchQuery = val),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  filled: true,
+                  fillColor: context.cardBg,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 1,
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  value: departments.contains(_selectedDepartment)
-                      ? _selectedDepartment
-                      : 'All',
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: context.cardBg,
+                onChanged: (val) => setState(() => _searchQuery = val),
+              );
+
+              final deptDropdown = DropdownButtonFormField<String>(
+                isExpanded: true,
+                value: departments.contains(_selectedDepartment)
+                    ? _selectedDepartment
+                    : 'All',
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
                   ),
-                  dropdownColor: context.cardBg,
-                  items: departments
-                      .map((d) => DropdownMenuItem(
-                            value: d,
-                            child: Text(
-                              d == 'All' ? 'All Departments' : d,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ))
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedDepartment = val);
-                  },
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  filled: true,
+                  fillColor: context.cardBg,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 1,
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  value: widget.selectedMonth,
-                  decoration: InputDecoration(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: context.cardBg,
-                  ),
-                  dropdownColor: context.cardBg,
-                  items: widget.monthOptions
-                      .map(
-                        (m) => DropdownMenuItem(
-                          value: m,
+                dropdownColor: context.cardBg,
+                items: departments
+                    .map((d) => DropdownMenuItem(
+                          value: d,
                           child: Text(
-                            widget.monthLabel(m),
+                            d == 'All' ? 'All Departments' : d,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null) widget.onMonthChanged(val);
-                  },
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedDepartment = val);
+                },
+              );
+
+              final monthDropdown = DropdownButtonFormField<String>(
+                isExpanded: true,
+                value: widget.selectedMonth,
+                decoration: InputDecoration(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  filled: true,
+                  fillColor: context.cardBg,
                 ),
-              ),
-            ],
+                dropdownColor: context.cardBg,
+                items: widget.monthOptions
+                    .map(
+                      (m) => DropdownMenuItem(
+                        value: m,
+                        child: Text(
+                          widget.monthLabel(m),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) widget.onMonthChanged(val);
+                },
+              );
+
+              final searchRow = Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _showFilters = !_showFilters;
+                      });
+                    },
+                    icon: Icon(
+                      Icons.filter_list,
+                      color: _showFilters ? context.primaryColor : context.textMuted,
+                    ),
+                    tooltip: 'Toggle Filters',
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: searchField),
+                ],
+              );
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  searchRow,
+                  if (_showFilters) ...[
+                    const SizedBox(height: 12),
+                    if (isMobile) ...[
+                      deptDropdown,
+                      const SizedBox(height: 8),
+                      monthDropdown,
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(child: deptDropdown),
+                          const SizedBox(width: 12),
+                          Expanded(child: monthDropdown),
+                          const Expanded(flex: 2, child: SizedBox()),
+                        ],
+                      ),
+                  ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
 
@@ -988,14 +1142,23 @@ class _MonthlyViewState extends ConsumerState<_MonthlyView> {
                 ];
 
                 if (constraints.maxWidth < 900) {
-                  return Column(
-                    children: statWidgets.map((w) => Padding(padding: const EdgeInsets.only(bottom: 12), child: w)).toList(),
+                  return GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1.35,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: statWidgets,
                   );
                 }
-                return Row(
-                  children: statWidgets
-                      .map((w) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: w)))
-                      .toList(),
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: statWidgets
+                        .map((w) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: w)))
+                        .toList(),
+                  ),
                 );
               },
             ),
@@ -1009,10 +1172,10 @@ class _MonthlyViewState extends ConsumerState<_MonthlyView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                  LayoutBuilder(
+                    builder: (context, tblConstraints) {
+                      final isMobile = tblConstraints.maxWidth < 650;
+                      final titleCol = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -1028,8 +1191,8 @@ class _MonthlyViewState extends ConsumerState<_MonthlyView> {
                             style: TextStyle(fontSize: 11, color: context.textSecondary),
                           ),
                         ],
-                      ),
-                      ExportButton(
+                      );
+                      final exportBtn = ExportButton(
                         title: 'Attendance Summary - ${widget.monthLabel(widget.selectedMonth)}',
                         fileName: 'monthly_attendance_${widget.selectedMonth}',
                         headers: const [
@@ -1063,8 +1226,26 @@ class _MonthlyViewState extends ConsumerState<_MonthlyView> {
                             '${s.attendancePercent.toStringAsFixed(1)}%',
                           ];
                         }).toList(),
-                      ),
-                    ],
+                      );
+                      if (isMobile) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            titleCol,
+                            const SizedBox(height: 12),
+                            exportBtn,
+                          ],
+                        );
+                      }
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(child: titleCol),
+                          const SizedBox(width: 12),
+                          exportBtn,
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -1173,7 +1354,10 @@ class _MonthStatCard extends StatelessWidget {
     Widget card = GlassCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(10),
@@ -1183,26 +1367,26 @@ class _MonthStatCard extends StatelessWidget {
               ),
               child: Icon(icon, color: color, size: 20),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    value.toString(),
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: context.textPrimary,
-                    ),
+            const SizedBox(height: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value.toString(),
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: context.textPrimary,
                   ),
-                  Text(
-                    label,
-                    style: TextStyle(color: context.textSecondary, fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(color: context.textSecondary, fontSize: 12),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
             ),
           ],
         ),
@@ -1230,6 +1414,9 @@ class _MonthlySummaryRow extends ConsumerWidget {
     final pct = summary.attendancePercent;
     final employees = ref.watch(employeesProvider).employees;
     final emp = employees.where((e) => e.id == summary.employeeId).firstOrNull;
+    final displayName = (emp != null && emp.name.trim().isNotEmpty)
+        ? emp.name
+        : (summary.employeeName.trim().isNotEmpty ? summary.employeeName : 'Unknown Employee');
     final deptName = emp != null && emp.department.isNotEmpty ? emp.department : 'General';
 
     Color pctColor;
@@ -1254,8 +1441,8 @@ class _MonthlySummaryRow extends ConsumerWidget {
                   radius: 15,
                   backgroundColor: context.primaryColor.withValues(alpha: 0.15),
                   child: Text(
-                    summary.employeeName.isNotEmpty
-                        ? summary.employeeName[0].toUpperCase()
+                    displayName.isNotEmpty
+                        ? displayName[0].toUpperCase()
                         : '?',
                     style: TextStyle(
                       color: context.primaryColor,
@@ -1270,7 +1457,7 @@ class _MonthlySummaryRow extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        summary.employeeName,
+                        displayName,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: context.textPrimary,
@@ -1477,8 +1664,14 @@ class _AttendanceRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final adminState = ref.watch(adminProvider);
+    final canEdit = adminState.hasPermission(AppModule.attendance, PermissionAction.edit);
+    final canCreate = adminState.hasPermission(AppModule.attendance, PermissionAction.create);
     final employees = ref.watch(employeesProvider).employees;
     final emp = employees.where((e) => e.id == record.employeeId).firstOrNull;
+    final displayName = (emp != null && emp.name.trim().isNotEmpty)
+        ? emp.name
+        : (record.employeeName.trim().isNotEmpty ? record.employeeName : 'Unknown Employee');
     final deptName = emp != null && emp.department.isNotEmpty ? emp.department : 'General';
     final desigName = emp != null && emp.designation.isNotEmpty ? emp.designation : 'Staff';
 
@@ -1521,324 +1714,332 @@ class _AttendanceRow extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 850;
+          final isNarrow = constraints.maxWidth < 850;
+
+          final employeeInfo = Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: context.primaryColor.withValues(alpha: 0.12),
+                child: Text(
+                  displayName.isNotEmpty
+                      ? displayName[0].toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                    color: context.primaryColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: context.textPrimary,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$deptName • $desigName',
+                      style: TextStyle(
+                        color: context.textSecondary,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (record.notes != null && record.notes!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          record.notes!,
+                          style: TextStyle(
+                            color: context.textMuted,
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          final badgesWrap = Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              // Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  record.status,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              // Late Badge (Separated from status!)
+              if (record.status == 'Present' && isLate)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFF59E0B)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.alarm, size: 12, color: Color(0xFFB45309)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Late (${lateMins}m)',
+                        style: const TextStyle(
+                          color: Color(0xFFB45309),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Working Duration Badge
+              if (record.checkIn != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: record.workingHoursDisplay == 'Incomplete'
+                        ? context.warningLight
+                        : context.scaffoldBg,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: record.workingHoursDisplay == 'Incomplete'
+                          ? context.warning.withValues(alpha: 0.5)
+                          : context.border,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        record.workingHoursDisplay == 'Incomplete'
+                            ? Icons.timelapse
+                            : Icons.check_circle_outline,
+                        size: 11,
+                        color: record.workingHoursDisplay == 'Incomplete'
+                            ? context.warning
+                            : context.success,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        record.workingHoursDisplay,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: record.workingHoursDisplay == 'Incomplete'
+                              ? context.warning
+                              : context.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Times (visible on both narrow and wide views)
+              if (const {'Present', 'Half Day', 'Work From Home', 'Official Visit'}.contains(record.status)) ...[
+                if (record.checkIn != null)
+                  _buildTimeBadge('In:', record.checkIn, context),
+                if (record.checkOut != null)
+                  _buildTimeBadge('Out:', record.checkOut, context),
+              ],
+            ],
+          );
+
+          final actionsWidget = (!canEdit && !canCreate)
+              ? const SizedBox.shrink()
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (canEdit) ...[
+                      TextButton.icon(
+                        onPressed: () => _showEditDialog(context, ref),
+                        icon: const Icon(Icons.edit, size: 14),
+                        label: const Text('Update'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: context.primaryColor,
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      PopupMenuButton<String>(
+                        initialValue: record.status,
+                        tooltip: 'Quick Status Change',
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: context.primaryColor.withValues(alpha: 0.3),
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                            color: context.primaryColor.withValues(alpha: 0.05),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.arrow_drop_down,
+                                size: 16,
+                                color: context.primaryColor,
+                              ),
+                              Text(
+                                'Status',
+                                style: TextStyle(
+                                  color: context.primaryColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(value: 'Not Marked', child: Text('Not Marked')),
+                          PopupMenuItem(value: 'Present', child: Text('Present')),
+                          PopupMenuItem(value: 'Absent', child: Text('Absent')),
+                          PopupMenuItem(value: 'Half Day', child: Text('Half Day')),
+                          PopupMenuItem(value: 'Leave', child: Text('Leave')),
+                          PopupMenuItem(value: 'Work From Home', child: Text('Work From Home')),
+                          PopupMenuItem(value: 'Official Visit', child: Text('Official Visit')),
+                          PopupMenuItem(value: 'Off', child: Text('Off')),
+                          PopupMenuItem(value: 'Holiday', child: Text('Holiday')),
+                        ],
+                        onSelected: (val) {
+                          if (!canEdit) return;
+                          if (val != record.status) {
+                            final allowsTime = const {'Present', 'Half Day', 'Work From Home', 'Official Visit'}.contains(val);
+                            final updated = record.copyWith(
+                              status: val,
+                              checkIn: allowsTime ? record.checkIn : null,
+                              checkOut: allowsTime ? record.checkOut : null,
+                            );
+                            ref.read(attendanceProvider.notifier).updateRecord(updated);
+                          }
+                        },
+                      ),
+                    ],
+                    if (const {'Present', 'Half Day', 'Work From Home', 'Official Visit'}.contains(record.status)) ...[
+                      const SizedBox(width: 6),
+                      if (record.checkIn == null && (canCreate || canEdit))
+                        ElevatedButton(
+                          onPressed: () => ref
+                              .read(attendanceProvider.notifier)
+                              .checkInEmployee(record.employeeId),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: context.success,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          child: const Text(
+                            'In',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      else if (record.checkOut == null && canEdit)
+                        ElevatedButton(
+                          onPressed: () => ref
+                              .read(attendanceProvider.notifier)
+                              .checkOutEmployee(record.employeeId),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: context.primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          child: const Text(
+                            'Out',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
+                );
+
+          if (isNarrow) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(width: 200, child: employeeInfo),
+                    const SizedBox(width: 12),
+                    badgesWrap,
+                    const SizedBox(width: 12),
+                    actionsWidget,
+                  ],
+                ),
+              ),
+            );
+          }
+
           return Row(
             children: [
-              // Employee Name, Department & Designation
-              Expanded(
-                flex: 3,
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: context.primaryColor.withValues(alpha: 0.12),
-                      child: Text(
-                        record.employeeName.isNotEmpty
-                            ? record.employeeName[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          color: context.primaryColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            record.employeeName,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: context.textPrimary,
-                              fontSize: 14,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$deptName • $desigName',
-                            style: TextStyle(
-                              color: context.textSecondary,
-                              fontSize: 11,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (record.notes != null && record.notes!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                record.notes!,
-                                style: TextStyle(
-                                  color: context.textMuted,
-                                  fontSize: 10,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Status badge, Late Pill, Duration badge & Times
-              Expanded(
-                flex: 5,
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    // Status Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                      ),
-                      child: Text(
-                        record.status,
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                    // Late Badge (Separated from status!)
-                    if (record.status == 'Present' && isLate)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFF59E0B)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.alarm, size: 12, color: Color(0xFFB45309)),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Late (${lateMins}m)',
-                              style: const TextStyle(
-                                color: Color(0xFFB45309),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Working Duration Badge
-                    if (record.checkIn != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: record.workingHoursDisplay == 'Incomplete'
-                              ? context.warningLight
-                              : context.scaffoldBg,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: record.workingHoursDisplay == 'Incomplete'
-                                ? context.warning.withValues(alpha: 0.5)
-                                : context.border,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              record.workingHoursDisplay == 'Incomplete'
-                                  ? Icons.timelapse
-                                  : Icons.check_circle_outline,
-                              size: 11,
-                              color: record.workingHoursDisplay == 'Incomplete'
-                                  ? context.warning
-                                  : context.success,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              record.workingHoursDisplay,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: record.workingHoursDisplay == 'Incomplete'
-                                    ? context.warning
-                                    : context.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    // Times (wide only)
-                    if (isWide) ...[
-                      _buildTimeBadge(
-                        'In:',
-                        const {'Present', 'Half Day', 'Work From Home', 'Official Visit'}
-                                .contains(record.status)
-                            ? record.checkIn
-                            : null,
-                        context,
-                      ),
-                      _buildTimeBadge(
-                        'Out:',
-                        const {'Present', 'Half Day', 'Work From Home', 'Official Visit'}
-                                .contains(record.status)
-                            ? record.checkOut
-                            : null,
-                        context,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              // Actions
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => _showEditDialog(context, ref),
-                    icon: const Icon(Icons.edit, size: 14),
-                    label: const Text('Update'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: context.primaryColor,
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  PopupMenuButton<String>(
-                    initialValue: record.status,
-                    tooltip: 'Quick Status Change',
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: context.primaryColor.withValues(alpha: 0.3),
-                        ),
-                        borderRadius: BorderRadius.circular(6),
-                        color: context.primaryColor.withValues(alpha: 0.05),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.arrow_drop_down,
-                            size: 16,
-                            color: context.primaryColor,
-                          ),
-                          Text(
-                            'Status',
-                            style: TextStyle(
-                              color: context.primaryColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(value: 'Not Marked', child: Text('Not Marked')),
-                      PopupMenuItem(value: 'Present', child: Text('Present')),
-                      PopupMenuItem(value: 'Absent', child: Text('Absent')),
-                      PopupMenuItem(value: 'Half Day', child: Text('Half Day')),
-                      PopupMenuItem(value: 'Leave', child: Text('Leave')),
-                      PopupMenuItem(value: 'Work From Home', child: Text('Work From Home')),
-                      PopupMenuItem(value: 'Official Visit', child: Text('Official Visit')),
-                      PopupMenuItem(value: 'Off', child: Text('Off')),
-                      PopupMenuItem(value: 'Holiday', child: Text('Holiday')),
-                    ],
-                    onSelected: (val) {
-                      if (val != record.status) {
-                        final allowsTime = const {'Present', 'Half Day', 'Work From Home', 'Official Visit'}.contains(val);
-                        final updated = record.copyWith(
-                          status: val,
-                          checkIn: allowsTime ? record.checkIn : null,
-                          checkOut: allowsTime ? record.checkOut : null,
-                        );
-                        ref.read(attendanceProvider.notifier).updateRecord(updated);
-                      }
-                    },
-                  ),
-                  if (const {'Present', 'Half Day', 'Work From Home', 'Official Visit'}.contains(record.status)) ...[
-                    const SizedBox(width: 6),
-                    if (record.checkIn == null)
-                      ElevatedButton(
-                        onPressed: () => ref
-                            .read(attendanceProvider.notifier)
-                            .checkInEmployee(record.employeeId),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: context.success,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                        child: const Text(
-                          'In',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    else if (record.checkOut == null)
-                      ElevatedButton(
-                        onPressed: () => ref
-                            .read(attendanceProvider.notifier)
-                            .checkOutEmployee(record.employeeId),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: context.primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                        child: const Text(
-                          'Out',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ],
-              ),
+              Expanded(flex: 3, child: employeeInfo),
+              Expanded(flex: 5, child: badgesWrap),
+              actionsWidget,
             ],
           );
         },
@@ -1877,6 +2078,7 @@ class _AttendanceRow extends ConsumerWidget {
   }
 
   void _showEditDialog(BuildContext context, WidgetRef ref) {
+    if (!ref.read(adminProvider).hasPermission(AppModule.attendance, PermissionAction.edit)) return;
     showDialog(
       context: context,
       builder: (_) => _EditAttendanceDialog(record: record),
@@ -2013,11 +2215,11 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                     setState(() {
                       _status = val;
                       if (const {'Present', 'Work From Home', 'Official Visit'}.contains(val)) {
-                        if (_checkInController.text.isEmpty) _checkInController.text = '09:00 AM';
-                        if (_checkOutController.text.isEmpty) _checkOutController.text = '06:00 PM';
+                        if (_checkInController.text.isEmpty) _checkInController.text = '10:00 AM';
+                        if (_checkOutController.text.isEmpty) _checkOutController.text = '07:00 PM';
                       } else if (val == 'Half Day') {
-                        if (_checkInController.text.isEmpty) _checkInController.text = '09:00 AM';
-                        if (_checkOutController.text.isEmpty) _checkOutController.text = '01:30 PM';
+                        if (_checkInController.text.isEmpty) _checkInController.text = '10:00 AM';
+                        if (_checkOutController.text.isEmpty) _checkOutController.text = '02:30 PM';
                       } else {
                         _checkInController.clear();
                         _checkOutController.clear();
@@ -2041,7 +2243,7 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                             readOnly: true,
                             onTap: () => _selectTime(_checkInController),
                             style: TextStyle(color: context.textPrimary, fontSize: 13),
-                            decoration: _buildInputDecoration('e.g. 09:00 AM').copyWith(
+                            decoration: _buildInputDecoration('e.g. 10:00 AM').copyWith(
                               suffixIcon: IconButton(
                                 icon: Icon(Icons.access_time, color: context.primaryColor, size: 18),
                                 onPressed: () => _selectTime(_checkInController),
@@ -2063,7 +2265,7 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                             readOnly: true,
                             onTap: () => _selectTime(_checkOutController),
                             style: TextStyle(color: context.textPrimary, fontSize: 13),
-                            decoration: _buildInputDecoration('e.g. 06:00 PM').copyWith(
+                            decoration: _buildInputDecoration('e.g. 07:00 PM').copyWith(
                               suffixIcon: IconButton(
                                 icon: Icon(Icons.access_time, color: context.primaryColor, size: 18),
                                 onPressed: () => _selectTime(_checkOutController),
@@ -2085,13 +2287,13 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                     children: [
                       ActionChip(
                         avatar: const Icon(Icons.schedule, size: 14),
-                        label: const Text('09:00 AM - 06:00 PM', style: TextStyle(fontSize: 11)),
+                        label: const Text('10:00 AM - 07:00 PM', style: TextStyle(fontSize: 11)),
                         backgroundColor: context.primaryColor.withValues(alpha: 0.1),
                         side: BorderSide(color: context.primaryColor.withValues(alpha: 0.3)),
                         onPressed: () {
                           setState(() {
-                            _checkInController.text = '09:00 AM';
-                            _checkOutController.text = '06:00 PM';
+                            _checkInController.text = '10:00 AM';
+                            _checkOutController.text = '07:00 PM';
                           });
                         },
                       ),
@@ -2142,10 +2344,20 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
               ),
               const SizedBox(height: 24),
 
-              Row(
+              Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 12,
                 children: [
                   TextButton.icon(
                     onPressed: () async {
+                      if (!ref.read(adminProvider).hasPermission(AppModule.attendance, PermissionAction.edit)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Access Denied: You do not have permission to edit attendance.')),
+                        );
+                        return;
+                      }
                       final confirm = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
@@ -2196,7 +2408,6 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                       ),
                     ),
                   ),
-                  const Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: TextButton.styleFrom(
@@ -2204,9 +2415,14 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                     ),
                     child: const Text('Cancel'),
                   ),
-                  const SizedBox(width: 12),
                   ElevatedButton(
                     onPressed: () {
+                      if (!ref.read(adminProvider).hasPermission(AppModule.attendance, PermissionAction.edit)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Access Denied: You do not have permission to edit attendance.')),
+                        );
+                        return;
+                      }
                       String? notes = _notesController.text.trim().isNotEmpty
                           ? _notesController.text.trim()
                           : null;
@@ -2312,6 +2528,7 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
   String _selectedDepartment = 'All';
   String _selectedStatus = 'All';
   String _selectedMonth = 'All';
+  bool _showFilters = false;
 
   final List<String> _months = [
     'All',
@@ -2453,353 +2670,372 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Filter Bar ──────────────────
-          GlassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    crossAxisAlignment: WrapCrossAlignment.end,
-                    children: [
-                      // Month Filter Dropdown
-                      SizedBox(
-                        width: 150,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Month Filter',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.textSecondary,
-                                fontWeight: FontWeight.bold,
-                              ),
+          Row(
+            children: [
+              Text(
+                'Attendance Records',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: context.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => setState(() => _showFilters = !_showFilters),
+                icon: Icon(
+                  _showFilters ? Icons.filter_list_off : Icons.filter_list,
+                  color: _showFilters ? context.primaryColor : context.textMuted,
+                ),
+                tooltip: 'Toggle Filters',
+              ),
+            ],
+          ),
+          if (_showFilters) ...[
+            const SizedBox(height: 12),
+            GlassCard(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  children: [
+                    // Month Filter Dropdown
+                    SizedBox(
+                      width: 150,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Month Filter',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.textSecondary,
+                              fontWeight: FontWeight.bold,
                             ),
-                            const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: _selectedMonth,
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 10,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                filled: true,
-                                fillColor: context.scaffoldBg,
+                          ),
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            value: _selectedMonth,
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 10,
                               ),
-                              dropdownColor: context.cardBg,
-                              items: _months
-                                  .map((m) => DropdownMenuItem(
-                                        value: m,
-                                        child: Text(
-                                          m == 'All' ? 'All Months' : m,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ))
-                                  .toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    _selectedMonth = val;
-                                    if (val != 'All') {
-                                      final monthIndex = _months.indexOf(val);
-                                      final year = DateTime.now().year;
-                                      _fromDate = DateTime(year, monthIndex, 1);
-                                      _toDate = DateTime(year, monthIndex + 1, 0);
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: context.scaffoldBg,
+                            ),
+                            dropdownColor: context.cardBg,
+                            items: _months
+                                .map((m) => DropdownMenuItem(
+                                      value: m,
+                                      child: Text(
+                                        m == 'All' ? 'All Months' : m,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _selectedMonth = val;
+                                  if (val != 'All') {
+                                    final monthIndex = _months.indexOf(val);
+                                    final year = DateTime.now().year;
+                                    _fromDate = DateTime(year, monthIndex, 1);
+                                    _toDate = DateTime(year, monthIndex + 1, 0);
+                                  }
+                                });
+                                _loadData();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Department Filter
+                    SizedBox(
+                      width: 160,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Department',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.textSecondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            value: departments.contains(_selectedDepartment) ? _selectedDepartment : 'All',
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: context.scaffoldBg,
+                            ),
+                            dropdownColor: context.cardBg,
+                            items: departments
+                                .map((d) => DropdownMenuItem(
+                                      value: d,
+                                      child: Text(
+                                        d == 'All' ? 'All Depts' : d,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _selectedDepartment = val);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Employee Dropdown
+                    SizedBox(
+                      width: 170,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Employee',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.textSecondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            value: _selectedEmployeeId,
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: context.scaffoldBg,
+                            ),
+                            dropdownColor: context.cardBg,
+                            items: empItems,
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _selectedEmployeeId = val);
+                                _loadData();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Date Range
+                    SizedBox(
+                      width: 250,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Date Range',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.textSecondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () async {
+                                    final d = await showDatePicker(
+                                      context: context,
+                                      initialDate: _fromDate ?? DateTime.now(),
+                                      firstDate: DateTime(2020),
+                                      lastDate: DateTime(2030),
+                                    );
+                                    if (d != null) {
+                                      setState(() {
+                                        _fromDate = d;
+                                        _selectedMonth = 'All';
+                                      });
+                                      _loadData();
                                     }
-                                  });
-                                  _loadData();
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Department Filter
-                      SizedBox(
-                        width: 160,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Department',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.textSecondary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: departments.contains(_selectedDepartment) ? _selectedDepartment : 'All',
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 10,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                filled: true,
-                                fillColor: context.scaffoldBg,
-                              ),
-                              dropdownColor: context.cardBg,
-                              items: departments
-                                  .map((d) => DropdownMenuItem(
-                                        value: d,
-                                        child: Text(
-                                          d == 'All' ? 'All Depts' : d,
-                                          overflow: TextOverflow.ellipsis,
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 11,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: context.border),
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: context.scaffoldBg,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.calendar_today, size: 12),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            _formatDate(_fromDate),
+                                            style: const TextStyle(fontSize: 11),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
                                         ),
-                                      ))
-                                  .toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() => _selectedDepartment = val);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Employee Dropdown
-                      SizedBox(
-                        width: 170,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Employee',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.textSecondary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: _selectedEmployeeId,
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 10,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                filled: true,
-                                fillColor: context.scaffoldBg,
-                              ),
-                              dropdownColor: context.cardBg,
-                              items: empItems,
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() => _selectedEmployeeId = val);
-                                  _loadData();
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Date Range
-                      SizedBox(
-                        width: 250,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Date Range',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.textSecondary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () async {
-                                      final d = await showDatePicker(
-                                        context: context,
-                                        initialDate: _fromDate ?? DateTime.now(),
-                                        firstDate: DateTime(2020),
-                                        lastDate: DateTime(2030),
-                                      );
-                                      if (d != null) {
-                                        setState(() {
-                                          _fromDate = d;
-                                          _selectedMonth = 'All';
-                                        });
-                                        _loadData();
-                                      }
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 11,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: context.border),
-                                        borderRadius: BorderRadius.circular(8),
-                                        color: context.scaffoldBg,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(Icons.calendar_today, size: 12),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              _formatDate(_fromDate),
-                                              style: const TextStyle(fontSize: 11),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 1,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                      ],
                                     ),
                                   ),
                                 ),
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 4),
-                                  child: Text('to', style: TextStyle(fontSize: 11)),
-                                ),
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () async {
-                                      final d = await showDatePicker(
-                                        context: context,
-                                        initialDate: _toDate ?? DateTime.now(),
-                                        firstDate: DateTime(2020),
-                                        lastDate: DateTime(2030),
-                                      );
-                                      if (d != null) {
-                                        setState(() {
-                                          _toDate = d;
-                                          _selectedMonth = 'All';
-                                        });
-                                        _loadData();
-                                      }
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 11,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: context.border),
-                                        borderRadius: BorderRadius.circular(8),
-                                        color: context.scaffoldBg,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(Icons.calendar_today, size: 12),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              _formatDate(_toDate),
-                                              style: const TextStyle(fontSize: 11),
-                                              overflow: TextOverflow.ellipsis,
-                                              maxLines: 1,
-                                            ),
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4),
+                                child: Text('to', style: TextStyle(fontSize: 11)),
+                              ),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () async {
+                                    final d = await showDatePicker(
+                                      context: context,
+                                      initialDate: _toDate ?? DateTime.now(),
+                                      firstDate: DateTime(2020),
+                                      lastDate: DateTime(2030),
+                                    );
+                                    if (d != null) {
+                                      setState(() {
+                                        _toDate = d;
+                                        _selectedMonth = 'All';
+                                      });
+                                      _loadData();
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 11,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: context.border),
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: context.scaffoldBg,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.calendar_today, size: 12),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            _formatDate(_toDate),
+                                            style: const TextStyle(fontSize: 11),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Status
-                      SizedBox(
-                        width: 150,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Status',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.textSecondary,
-                                fontWeight: FontWeight.bold,
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              value: _selectedStatus,
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 10,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                filled: true,
-                                fillColor: context.scaffoldBg,
-                              ),
-                              dropdownColor: context.cardBg,
-                              items: statusItems,
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() => _selectedStatus = val);
-                                  _loadData();
-                                }
-                              },
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
+                        ],
                       ),
+                    ),
 
-                      // Actions
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: context.textSecondary,
-                          side: BorderSide(color: context.border),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                    // Status
+                    SizedBox(
+                      width: 150,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Status',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.textSecondary,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 13,
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            value: _selectedStatus,
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              filled: true,
+                              fillColor: context.scaffoldBg,
+                            ),
+                            dropdownColor: context.cardBg,
+                            items: statusItems,
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _selectedStatus = val);
+                                _loadData();
+                              }
+                            },
                           ),
-                        ),
-                        onPressed: _clearFilters,
-                        icon: const Icon(Icons.filter_alt_off, size: 15),
-                        label: const Text('Reset', style: TextStyle(fontSize: 12)),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+
+                    // Actions
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: context.textSecondary,
+                        side: BorderSide(color: context.border),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 13,
+                        ),
+                      ),
+                      onPressed: _clearFilters,
+                      icon: const Icon(Icons.filter_alt_off, size: 15),
+                      label: const Text('Reset', style: TextStyle(fontSize: 12)),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
           const SizedBox(height: 20),
 
           // ── Summary Stat Cards ──────────────────
           if (!state.isRangeLoading) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: _MonthStatCard(
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final statCards = [
+                  _MonthStatCard(
                     label: 'Present Records',
                     tooltipMessage: 'Recorded present instances.',
                     value: totalPresent,
@@ -2807,10 +3043,7 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                     bg: context.successLight,
                     icon: Icons.check_circle_outline,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MonthStatCard(
+                  _MonthStatCard(
                     label: 'Half Day Records',
                     tooltipMessage: 'Recorded half day instances.',
                     value: totalHalfDay,
@@ -2818,10 +3051,7 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                     bg: const Color(0xFFFEF3C7),
                     icon: Icons.timelapse_outlined,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MonthStatCard(
+                  _MonthStatCard(
                     label: 'Leave Records',
                     tooltipMessage: 'Approved leave records in this date range.',
                     value: totalLeave,
@@ -2829,10 +3059,7 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                     bg: context.warningLight,
                     icon: Icons.beach_access_outlined,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MonthStatCard(
+                  _MonthStatCard(
                     label: 'Absent Records',
                     tooltipMessage: 'Marked absences in this range.',
                     value: totalAbsent,
@@ -2840,10 +3067,7 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                     bg: context.errorLight,
                     icon: Icons.error_outline,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MonthStatCard(
+                  _MonthStatCard(
                     label: 'Late Occurrences',
                     tooltipMessage: 'Present records that arrived past grace period.',
                     value: totalLate,
@@ -2851,8 +3075,28 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                     bg: Colors.deepOrange.withValues(alpha: 0.12),
                     icon: Icons.schedule_outlined,
                   ),
-                ),
-              ],
+                ];
+
+                if (constraints.maxWidth < 900) {
+                  return GridView.count(
+                    crossAxisCount: constraints.maxWidth < 600 ? 2 : 3,
+                    shrinkWrap: true,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: constraints.maxWidth < 600 ? 1.35 : 1.7,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: statCards,
+                  );
+                }
+                return IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: statCards
+                        .map((w) => Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 6), child: w)))
+                        .toList(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
           ],
@@ -2864,10 +3108,10 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 650;
+                      final titleCol = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -2883,8 +3127,9 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                             style: TextStyle(fontSize: 11, color: context.textSecondary),
                           ),
                         ],
-                      ),
-                      ExportButton(
+                      );
+
+                      final exportBtn = ExportButton(
                         title: 'Attendance History Logs',
                         fileName: 'attendance_logs_${_formatDate(_fromDate)}_${_formatDate(_toDate)}',
                         headers: const [
@@ -2923,8 +3168,27 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                             r.notes ?? '',
                           ];
                         }).toList(),
-                      ),
-                    ],
+                      );
+
+                      if (isMobile) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            titleCol,
+                            const SizedBox(height: 12),
+                            exportBtn,
+                          ],
+                        );
+                      }
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(child: titleCol),
+                          const SizedBox(width: 12),
+                          exportBtn,
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 

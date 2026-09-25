@@ -628,7 +628,7 @@ class _AddEditPurchaseOrderDialogState extends ConsumerState<_AddEditPurchaseOrd
       backgroundColor: context.cardBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 650, maxHeight: 750),
+        constraints: BoxConstraints(maxWidth: 650, maxHeight: MediaQuery.of(context).size.height * 0.85),
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,

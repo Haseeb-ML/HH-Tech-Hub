@@ -22,15 +22,18 @@ class ShellScreen extends ConsumerStatefulWidget {
 class _ShellScreenState extends ConsumerState<ShellScreen> {
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
+
     // Auto-collapse sidebar if screen is tablet width
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final width = MediaQuery.of(context).size.width;
-      final isCurrentlyCollapsed = ref.read(sidebarCollapsedProvider);
-      
-      if (width < 1100 && !isCurrentlyCollapsed) {
-        ref.read(sidebarCollapsedProvider.notifier).setCollapsed(true);
-      } else if (width >= 1100 && isCurrentlyCollapsed) {
-        ref.read(sidebarCollapsedProvider.notifier).setCollapsed(false);
+      if (!isMobile) {
+        final isCurrentlyCollapsed = ref.read(sidebarCollapsedProvider);
+        if (screenWidth < 1100 && !isCurrentlyCollapsed) {
+          ref.read(sidebarCollapsedProvider.notifier).setCollapsed(true);
+        } else if (screenWidth >= 1100 && isCurrentlyCollapsed) {
+          ref.read(sidebarCollapsedProvider.notifier).setCollapsed(false);
+        }
       }
     });
 
@@ -45,30 +48,47 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
         },
       },
       child: Scaffold(
-        body: Row(
-          children: [
-            // Sidebar
-            CollapsibleSidebar(navigationShell: widget.navigationShell),
-            
-            // Main Content Panel (Topbar + Module Content)
-            Expanded(
-              child: Column(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        drawer: isMobile
+            ? Drawer(
+                child: CollapsibleSidebar(
+                  navigationShell: widget.navigationShell,
+                  isDrawer: true,
+                ),
+              )
+            : null,
+        body: isMobile
+            ? SafeArea(
+                child: Column(
+                  children: [
+                    TopAppBar(navigationShell: widget.navigationShell, isMobile: true),
+                    Expanded(
+                      child: Container(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        child: widget.navigationShell,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : Row(
                 children: [
-                  // Top App Bar
-                  TopAppBar(navigationShell: widget.navigationShell),
-                  
-                  // Screen content body
+                  CollapsibleSidebar(navigationShell: widget.navigationShell),
                   Expanded(
-                    child: Container(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: widget.navigationShell,
+                    child: Column(
+                      children: [
+                        TopAppBar(navigationShell: widget.navigationShell, isMobile: false),
+                        Expanded(
+                          child: Container(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            child: widget.navigationShell,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

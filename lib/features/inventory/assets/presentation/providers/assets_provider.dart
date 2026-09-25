@@ -5,6 +5,8 @@ import '../../domain/repositories/assets_repository.dart';
 import '../../data/repositories/assets_repository_impl.dart';
 import '../../../../finance/expenses/presentation/providers/expenses_provider.dart';
 import '../../../../finance/ledger/presentation/providers/ledger_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 
 class AssetsState {
@@ -94,20 +96,40 @@ class AssetsNotifier extends Notifier<AssetsState> {
   }
 
   Future<void> addAsset(Asset asset) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.assets, PermissionAction.create)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.addAsset(asset);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Added asset: ${asset.name} (Type: ${asset.type}, Cost: ${asset.cost})',
+      module: 'Inventory',
+    );
     final updated = await _repository.getAssets();
     state = state.copyWith(assets: updated, isLoading: false);
   }
 
   Future<void> updateAsset(Asset asset) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.assets, PermissionAction.edit)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.updateAsset(asset);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated asset: ${asset.name} (Type: ${asset.type}, Status: ${asset.status})',
+      module: 'Inventory',
+    );
     final updated = await _repository.getAssets();
     state = state.copyWith(assets: updated, isLoading: false);
   }
 
   Future<void> deleteAsset(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.assets, PermissionAction.delete)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
 
     // 1. Clean up associated purchase expenses and ledger entries
@@ -124,12 +146,21 @@ class AssetsNotifier extends Notifier<AssetsState> {
     // 2. Delete asset record from database
     await _repository.deleteAsset(id);
 
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted asset: $id',
+      module: 'Inventory',
+    );
+
     // 3. Reload assets
     final updated = await _repository.getAssets();
     state = state.copyWith(assets: updated, isLoading: false);
   }
 
   Future<void> deleteAllAssets() async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.assets, PermissionAction.delete)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     final all = await _repository.getAssets();
     for (final asset in all) {
@@ -144,6 +175,10 @@ class AssetsNotifier extends Notifier<AssetsState> {
       }
       await _repository.deleteAsset(asset.id);
     }
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted all assets (${all.length} assets)',
+      module: 'Inventory',
+    );
     final updated = await _repository.getAssets();
     state = state.copyWith(assets: updated, isLoading: false);
   }

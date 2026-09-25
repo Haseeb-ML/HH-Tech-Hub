@@ -15,6 +15,10 @@ import '../../../../clients/clients/domain/entities/client.dart';
 import '../../../../hr/employees/presentation/providers/employees_provider.dart';
 import '../../../../hr/employees/domain/entities/employee.dart';
 import '../../../tasks/presentation/providers/tasks_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import '../../domain/entities/project_addon.dart';
+import '../providers/project_addons_provider.dart';
 
 import '../../../../finance/accounts/presentation/providers/accounts_provider.dart';
 import '../../../../finance/accounts/domain/entities/bank_account.dart';
@@ -139,7 +143,7 @@ class ProjectsScreen extends ConsumerWidget {
     final width = MediaQuery.of(context).size.width;
     int crossAxisCount = width >= 1400
         ? 4
-        : (width >= 900 ? 3 : (width >= 600 ? 2 : 1));
+        : (width >= 900 ? 3 : 2);
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -150,149 +154,177 @@ class ProjectsScreen extends ConsumerWidget {
                 const ProjectsSubNav(activeRoute: '/projects/list'),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+                    padding: EdgeInsets.all(width < 600 ? 12 : 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Title + Add Button Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  tr('Projects & Operations'),
-                                  style: theme.textTheme.displaySmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: context.textPrimary,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Track software house software projects, deliverables, timelines, and budgets.',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: context.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: () async {
-                                final hasDraft =
-                                    await _AddEditProjectDialog.hasDraft();
-                                var resumeDraft = false;
-                                if (hasDraft && context.mounted) {
-                                  final choice = await showDialog<String>(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text(
-                                        'Unsaved Project Draft',
-                                      ),
-                                      content: const Text(
-                                        'A previously started project form was saved. Would you like to resume it?',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, 'new'),
-                                          child: const Text('Start New'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context, 'resume'),
-                                          child: const Text('Resume Draft'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (choice == null) return;
-                                  resumeDraft = choice == 'resume';
-                                  if (!resumeDraft) {
-                                    await _AddEditProjectDialog.clearDraft();
-                                  }
-                                }
-                                final result = await showDialog<Project>(
-                                  context: context,
-                                  builder: (context) => _AddEditProjectDialog(
-                                    resumeDraft: resumeDraft,
-                                  ),
-                                );
-                                if (result != null) {
-                                  ref
-                                      .read(projectsProvider.notifier)
-                                      .addProject(result);
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+    final adminState = ref.watch(adminProvider);
+    final canCreate = adminState.hasPermission(AppModule.projectsList, PermissionAction.create);
 
-                                  // Automatically sync inflow transaction to Finance Accounts
-                                  if (result.advancedPayment > 0) {
-                                    String targetAccId = result.bankAccountId;
-                                    final caList = ref.read(clientAccountsProvider);
-                                    final ca = caList.where((c) =>
-                                        c.name == result.clientPaymentSource ||
-                                        c.id == result.clientPaymentSource ||
-                                        (result.clientPaymentSource.contains(c.name)) ||
-                                        (result.clientId.isNotEmpty && c.clientId == result.clientId)).firstOrNull;
-                                    if (ca != null && ca.paymentMethod == 'Bank' && (targetAccId.isEmpty || targetAccId.contains('cash'))) {
-                                      final bankAcc = ref.read(accountsProvider).accounts.where((a) => a.type == 'Bank' && a.status == 'Active').firstOrNull;
-                                      targetAccId = bankAcc?.id ?? ca.id;
-                                    }
+    final isNarrow = constraints.maxWidth < 650;
+    final titleCol = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          tr('Projects & Operations'),
+          style: theme.textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: context.textPrimary,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Track software house software projects, deliverables, timelines, and budgets.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: context.textSecondary,
+          ),
+        ),
+      ],
+    );
 
-                                    final incomeRecord = IncomeRecord(
-                                      id: 'inc_${DateTime.now().millisecondsSinceEpoch}',
-                                      date: result.startDate,
-                                      clientId: result.clientId,
-                                      clientName: result.clientName,
-                                      amount: result.advancedPayment,
-                                      accountId: targetAccId.isNotEmpty ? targetAccId : result.bankAccountId,
-                                      invoiceNumber: 'INV-${result.id}',
-                                      description:
-                                          'Project Advance: ${result.name} (Source: ${result.clientPaymentSource})',
-                                      status: 'Received',
-                                      projectId: result.id,
-                                      projectName: result.name,
-                                      projectPaymentType: 'Advance',
-                                    );
-                                    ref
-                                        .read(incomeProvider.notifier)
-                                        .addIncome(incomeRecord);
-                                  }
+    final addBtn = ElevatedButton.icon(
+      onPressed: () async {
+        final hasDraft =
+            await _AddEditProjectDialog.hasDraft();
+        var resumeDraft = false;
+        if (hasDraft && context.mounted) {
+          final choice = await showDialog<String>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text(
+                'Unsaved Project Draft',
+              ),
+              content: const Text(
+                'A previously started project form was saved. Would you like to resume it?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () =>
+                      Navigator.pop(context, 'new'),
+                  child: const Text('Start New'),
+                ),
+                ElevatedButton(
+                  onPressed: () =>
+                      Navigator.pop(context, 'resume'),
+                  child: const Text('Resume Draft'),
+                ),
+              ],
+            ),
+          );
+          if (choice == null) return;
+          resumeDraft = choice == 'resume';
+          if (!resumeDraft) {
+            await _AddEditProjectDialog.clearDraft();
+          }
+        }
+        final result = await showDialog<Project>(
+          context: context,
+          builder: (context) => _AddEditProjectDialog(
+            resumeDraft: resumeDraft,
+          ),
+        );
+        if (result != null) {
+          ref
+              .read(projectsProvider.notifier)
+              .addProject(result);
 
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '${tr("Project")} "${result.name}" ${tr("added successfully.")}',
-                                      ),
-                                      behavior: SnackBarBehavior.floating,
-                                      backgroundColor: context.success,
-                                    ),
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Add Project'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: context.primaryColor,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                            ),
-                          ],
+          // Automatically sync inflow transaction to Finance Accounts
+          if (result.advancedPayment > 0) {
+            String targetAccId = result.bankAccountId;
+            final caList = ref.read(clientAccountsProvider);
+            final ca = caList.where((c) =>
+                c.name == result.clientPaymentSource ||
+                c.id == result.clientPaymentSource ||
+                (result.clientPaymentSource.contains(c.name)) ||
+                (result.clientId.isNotEmpty && c.clientId == result.clientId)).firstOrNull;
+            if (ca != null && ca.paymentMethod == 'Bank' && (targetAccId.isEmpty || targetAccId.contains('cash'))) {
+              final bankAcc = ref.read(accountsProvider).accounts.where((a) => a.type == 'Bank' && a.status == 'Active').firstOrNull;
+              targetAccId = bankAcc?.id ?? ca.id;
+            }
+
+            final incomeRecord = IncomeRecord(
+              id: 'inc_${DateTime.now().millisecondsSinceEpoch}',
+              date: result.startDate,
+              clientId: result.clientId,
+              clientName: result.clientName,
+              amount: result.advancedPayment,
+              accountId: targetAccId.isNotEmpty ? targetAccId : result.bankAccountId,
+              invoiceNumber: 'INV-${result.id}',
+              description:
+                  'Project Advance: ${result.name} (Source: ${result.clientPaymentSource})',
+              status: 'Received',
+              projectId: result.id,
+              projectName: result.name,
+              projectPaymentType: 'Advance',
+            );
+            ref
+                .read(incomeProvider.notifier)
+                .addIncome(incomeRecord);
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${tr("Project")} "${result.name}" ${tr("added successfully.")}',
+              ),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: context.success,
+            ),
+          );
+        }
+      },
+      icon: const Icon(Icons.add, size: 18),
+      label: const Text('Add Project'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: context.primaryColor,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+      ),
+    );
+
+    if (isNarrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          titleCol,
+          if (canCreate) ...[
+            const SizedBox(height: 14),
+            addBtn,
+          ],
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Flexible(child: titleCol),
+        if (canCreate) ...[
+          const SizedBox(width: 16),
+          addBtn,
+        ],
+      ],
+    );
+                          },
                         ),
                         const SizedBox(height: 24),
 
                         // Metrics Cards
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final gridCrossCount = constraints.maxWidth >= 1200
-                                ? 4
-                                : (constraints.maxWidth >= 600 ? 2 : 1);
+                            final gridCrossCount = constraints.maxWidth >= 1200 ? 4 : 2;
+                            final childAspect = constraints.maxWidth < 600 ? 1.25 : (gridCrossCount == 4 ? 1.6 : 2.5);
                             return GridView(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
@@ -301,9 +333,7 @@ class ProjectsScreen extends ConsumerWidget {
                                     crossAxisCount: gridCrossCount,
                                     crossAxisSpacing: 16,
                                     mainAxisSpacing: 16,
-                                    childAspectRatio: gridCrossCount == 4
-                                        ? 1.6
-                                        : 2.5,
+                                    childAspectRatio: childAspect,
                                   ),
                               children: [
                                 StatCard(
@@ -355,55 +385,51 @@ class ProjectsScreen extends ConsumerWidget {
                         GlassCard(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                // Search
-                                Expanded(
-                                  child: Container(
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode
-                                          ? const Color(0xFF111827)
-                                          : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: context.border,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: TextField(
-                                      onChanged: (val) => ref
-                                          .read(projectsProvider.notifier)
-                                          .setSearchQuery(val),
-                                      style: TextStyle(
-                                        color: context.textPrimary,
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText: tr(
-                                          'Search by project name, client, or description...',
-                                        ),
-                                        hintStyle: TextStyle(
-                                          fontSize: 13,
-                                          color: context.textMuted,
-                                        ),
-                                        prefixIcon: Icon(
-                                          Icons.search,
-                                          size: 18,
-                                          color: context.textMuted,
-                                        ),
-                                        border: InputBorder.none,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              vertical: 10,
-                                            ),
-                                      ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isNarrow = constraints.maxWidth < 600;
+                                final searchWidget = Container(
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: context.isDarkMode
+                                        ? const Color(0xFF111827)
+                                        : context.scaffoldBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: context.border,
+                                      width: 1,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 16),
+                                  child: TextField(
+                                    onChanged: (val) => ref
+                                        .read(projectsProvider.notifier)
+                                        .setSearchQuery(val),
+                                    style: TextStyle(
+                                      color: context.textPrimary,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: tr(
+                                        'Search by project name, client, or description...',
+                                      ),
+                                      hintStyle: TextStyle(
+                                        fontSize: 13,
+                                        color: context.textMuted,
+                                      ),
+                                      prefixIcon: Icon(
+                                        Icons.search,
+                                        size: 18,
+                                        color: context.textMuted,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            vertical: 10,
+                                          ),
+                                    ),
+                                  ),
+                                );
 
-                                // Status Filter
-                                Container(
+                                final statusWidget = Container(
                                   height: 40,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
@@ -451,8 +477,27 @@ class ProjectsScreen extends ConsumerWidget {
                                       },
                                     ),
                                   ),
-                                ),
-                              ],
+                                );
+
+                                if (isNarrow) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      searchWidget,
+                                      const SizedBox(height: 12),
+                                      statusWidget,
+                                    ],
+                                  );
+                                }
+
+                                return Row(
+                                  children: [
+                                    Expanded(child: searchWidget),
+                                    const SizedBox(width: 16),
+                                    statusWidget,
+                                  ],
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -467,9 +512,9 @@ class ProjectsScreen extends ConsumerWidget {
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: crossAxisCount,
-                                      crossAxisSpacing: 16,
-                                      mainAxisSpacing: 16,
-                                      childAspectRatio: 1.15,
+                                      crossAxisSpacing: width < 600 ? 10 : 16,
+                                      mainAxisSpacing: width < 600 ? 10 : 16,
+                                      childAspectRatio: width < 600 ? 0.62 : 1.02,
                                     ),
                                 itemCount: state.filteredProjects.length,
                                 itemBuilder: (context, index) {
@@ -535,6 +580,10 @@ class _ProjectCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final adminState = ref.watch(adminProvider);
+    final canEdit = adminState.hasPermission(AppModule.projectsList, PermissionAction.edit);
+    final canDelete = adminState.hasPermission(AppModule.projectsList, PermissionAction.delete);
 
     // Watch live project state so dialog updates in real time
     final liveProject =
@@ -587,7 +636,7 @@ class _ProjectCard extends ConsumerWidget {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isMobile ? 10 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -604,7 +653,7 @@ class _ProjectCard extends ConsumerWidget {
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: context.textPrimary,
-                          fontSize: 15,
+                          fontSize: isMobile ? 13 : 15,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -614,18 +663,20 @@ class _ProjectCard extends ConsumerWidget {
                         'Client: ${project.clientName}',
                         style: TextStyle(
                           color: context.textSecondary,
-                          fontSize: 11,
+                          fontSize: isMobile ? 10 : 11,
                           fontWeight: FontWeight.w600,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 6 : 8,
+                    vertical: isMobile ? 3 : 4,
                   ),
                   decoration: BoxDecoration(
                     color: statusBg,
@@ -635,93 +686,122 @@ class _ProjectCard extends ConsumerWidget {
                     tr(project.status),
                     style: TextStyle(
                       color: statusColor,
-                      fontSize: 9,
+                      fontSize: isMobile ? 8 : 9,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.more_vert,
-                    size: 18,
-                    color: context.textSecondary,
-                  ),
-                  color: context.cardBg,
-                  padding: EdgeInsets.zero,
-                  onSelected: (val) async {
-                    if (val == 'delete') {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Delete Project'),
-                          content: Text(
-                            '${tr("Are you sure you want to delete project")} "${project.name}"? ${tr("This action cannot be undone.")}',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: Text(
-                                tr('Cancel'),
-                                style: TextStyle(color: context.textSecondary),
-                              ),
+                if (canEdit || canDelete)
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert,
+                      size: isMobile ? 16 : 18,
+                      color: context.textSecondary,
+                    ),
+                    color: context.cardBg,
+                    padding: EdgeInsets.zero,
+                    onSelected: (val) async {
+                      if (val == 'delete' && canDelete) {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Delete Project'),
+                            content: Text(
+                              '${tr("Are you sure you want to delete project")} "${project.name}"? ${tr("This action cannot be undone.")}',
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: Text(
-                                tr('Delete'),
-                                style: TextStyle(color: context.error),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: Text(
+                                  tr('Cancel'),
+                                  style: TextStyle(color: context.textSecondary),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: Text(
+                                  tr('Delete'),
+                                  style: TextStyle(color: context.error),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          ref
+                              .read(projectsProvider.notifier)
+                              .deleteProject(project.id);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${tr("Project")} "${project.name}" ${tr("deleted.")}',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: context.error,
+                            ),
+                          );
+                        }
+                      } else if (val == 'addons') {
+                        showDialog(
+                          context: context,
+                          builder: (context) =>
+                              _ProjectAddonsDialog(project: liveProject),
+                        );
+                      } else if (val == 'edit' && canEdit) {
+                        final result = await showDialog<Project>(
+                          context: context,
+                          builder: (context) =>
+                              _AddEditProjectDialog(project: project),
+                        );
+                        if (result != null) {
+                          ref
+                              .read(projectsProvider.notifier)
+                              .updateProject(result);
+                        }
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'addons',
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.extension_outlined,
+                              size: 16,
+                              color: Colors.purple,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Add-Ons & Scope',
+                              style: TextStyle(
+                                color: context.textPrimary,
+                                fontSize: 13,
                               ),
                             ),
                           ],
                         ),
-                      );
-                      if (confirm == true) {
-                        ref
-                            .read(projectsProvider.notifier)
-                            .deleteProject(project.id);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${tr("Project")} "${project.name}" ${tr("deleted.")}',
+                      ),
+                      if (canEdit)
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Text(
+                            tr('Edit Details'),
+                            style: TextStyle(
+                              color: context.textPrimary,
+                              fontSize: 13,
                             ),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: context.error,
                           ),
-                        );
-                      }
-                    } else if (val == 'edit') {
-                      final result = await showDialog<Project>(
-                        context: context,
-                        builder: (context) =>
-                            _AddEditProjectDialog(project: project),
-                      );
-                      if (result != null) {
-                        ref
-                            .read(projectsProvider.notifier)
-                            .updateProject(result);
-                      }
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text(
-                        tr('Edit Details'),
-                        style: TextStyle(
-                          color: context.textPrimary,
-                          fontSize: 13,
                         ),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text(
-                        'Delete Project',
-                        style: TextStyle(color: context.error, fontSize: 13),
-                      ),
-                    ),
-                  ],
-                ),
+                      if (canDelete)
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text(
+                            'Delete Project',
+                            style: TextStyle(color: context.error, fontSize: 13),
+                          ),
+                        ),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 8),
@@ -742,6 +822,14 @@ class _ProjectCard extends ConsumerWidget {
 
             // Row 4: Financials (Budget, Advanced/Received, Remaining)
             (() {
+              final projectAddons = ref
+                  .watch(projectAddonsProvider)
+                  .where((a) => a.projectId == project.id)
+                  .toList();
+              final double totalAddonsAmount =
+                  projectAddons.fold(0.0, (sum, a) => sum + a.amount);
+              final double totalRevisedBudget = project.budget + totalAddonsAmount;
+
               final projectIncomes = ref
                   .watch(incomeProvider)
                   .incomes
@@ -749,77 +837,207 @@ class _ProjectCard extends ConsumerWidget {
                   .toList();
               final double actualReceived = projectIncomes.isNotEmpty
                   ? projectIncomes.fold(0.0, (sum, i) => sum + i.amount)
-                  : (project.advancedPayment + project.partialPayments + project.finalPayment);
-              final double actualRemaining = (project.budget - actualReceived).clamp(0.0, double.infinity);
+                  : (project.advancedPayment +
+                      project.partialPayments +
+                      project.finalPayment);
+              final double actualRemaining =
+                  (totalRevisedBudget - actualReceived).clamp(0.0, double.infinity);
 
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tr('Budget'),
-                        style: TextStyle(
-                          color: context.textMuted,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
+              if (isMobile) {
+                return Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                tr('Budget'),
+                                style: TextStyle(
+                                  color: context.textMuted,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Rs. ${totalRevisedBudget.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  color: context.primaryColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (totalAddonsAmount > 0)
+                                Text(
+                                  '+Rs. ${totalAddonsAmount.toStringAsFixed(0)} Add-on',
+                                  style: const TextStyle(
+                                    color: Colors.purple,
+                                    fontSize: 7.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Rs. ${project.budget.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          color: context.primaryColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                tr('Remaining Payment'),
+                                style: TextStyle(
+                                  color: context.textMuted,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                actualRemaining <= 0
+                                    ? 'Fully Paid'
+                                    : 'Rs. ${actualRemaining.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  color: actualRemaining > 0
+                                      ? context.error
+                                      : context.success,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        tr('Received Payment'),
-                        style: TextStyle(
-                          color: context.textMuted,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                tr('Received Payment'),
+                                style: TextStyle(
+                                  color: context.textMuted,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Rs. ${actualReceived.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  color: context.primaryColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
+                      ],
+                    ),
+                  ],
+                );
+              } else {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tr('Budget'),
+                            style: TextStyle(
+                              color: context.textMuted,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Rs. ${totalRevisedBudget.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              color: context.primaryColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (totalAddonsAmount > 0)
+                            Text(
+                              '+Rs. ${totalAddonsAmount.toStringAsFixed(0)} Add-on',
+                              style: const TextStyle(
+                                color: Colors.purple,
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
                       ),
-                      Text(
-                        'Rs. ${actualReceived.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          color: context.primaryColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            tr('Received Payment'),
+                            style: TextStyle(
+                              color: context.textMuted,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Rs. ${actualReceived.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              color: context.primaryColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        tr('Remaining Payment'),
-                        style: TextStyle(
-                          color: context.textMuted,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            tr('Remaining Payment'),
+                            style: TextStyle(
+                              color: context.textMuted,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            actualRemaining <= 0
+                                ? 'Fully Paid'
+                                : 'Rs. ${actualRemaining.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              color: actualRemaining > 0
+                                  ? context.error
+                                  : context.success,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      Text(
-                        'Rs. ${actualRemaining.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          color: actualRemaining > 0 ? context.error : context.success,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
+                    ),
+                  ],
+                );
+              }
             })(),
             const SizedBox(height: 10),
 
@@ -858,7 +1076,7 @@ class _ProjectCard extends ConsumerWidget {
                 // Team member overlapping avatars
                 SizedBox(
                   height: 28,
-                  width: 90,
+                  width: isMobile ? 55 : 90,
                   child: Stack(
                     alignment: Alignment.centerRight,
                     children: List.generate(
@@ -910,6 +1128,128 @@ class _ProjectCard extends ConsumerWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+
+            // Row 6: Project Add-Ons Bar / Button
+            Builder(
+              builder: (context) {
+                final projectAddons = ref
+                    .watch(projectAddonsProvider)
+                    .where((a) => a.projectId == project.id)
+                    .toList();
+                final totalAddons = projectAddons.length;
+                final totalAddonAmount =
+                    projectAddons.fold(0.0, (sum, a) => sum + a.amount);
+                final totalAddonPaid =
+                    projectAddons.fold(0.0, (sum, a) => sum + a.amountPaid);
+                final totalAddonPending = totalAddonAmount - totalAddonPaid;
+
+                return InkWell(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) =>
+                          _ProjectAddonsDialog(project: liveProject),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: totalAddons > 0
+                          ? (totalAddonPending > 0
+                              ? Colors.purple.withOpacity(0.08)
+                              : context.success.withOpacity(0.08))
+                          : context.primaryColor.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: totalAddons > 0
+                            ? (totalAddonPending > 0
+                                ? Colors.purple.withOpacity(0.3)
+                                : context.success.withOpacity(0.3))
+                            : context.primaryColor.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.extension_rounded,
+                              size: 13,
+                              color: totalAddons > 0
+                                  ? Colors.purple
+                                  : context.primaryColor,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              totalAddons > 0
+                                  ? '$totalAddons Add-On${totalAddons > 1 ? 's' : ''} (+Rs. ${totalAddonAmount.toStringAsFixed(0)})'
+                                  : '+ Add-On / Scope Change',
+                              style: TextStyle(
+                                fontSize: isMobile ? 9.5 : 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: totalAddons > 0
+                                    ? Colors.purple
+                                    : context.primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (totalAddons > 0 && totalAddonPending > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: context.error.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Rs. ${totalAddonPending.toStringAsFixed(0)} Due',
+                              style: TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.bold,
+                                color: context.error,
+                              ),
+                            ),
+                          )
+                        else if (totalAddons > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: context.success.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'All Paid',
+                              style: TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.bold,
+                                color: context.success,
+                              ),
+                            ),
+                          )
+                        else
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 9,
+                            color: context.textMuted,
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -1133,12 +1473,16 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 750,
-        padding: const EdgeInsets.all(24),
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 750),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Consumer(
           builder: (context, ref, child) {
             final clients = ref
@@ -1210,268 +1554,515 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                     const SizedBox(height: 16),
 
                     // Client & Budget Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    if (isMobile) ...[
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  _buildLabel(tr('Client')),
-                                  GestureDetector(
-                                    onTap: () async {
-                                      final newClient =
-                                          await showDialog<Client>(
-                                            context: context,
-                                            builder: (context) =>
-                                                AddClientDialog(),
-                                          );
-                                      if (newClient != null) {
-                                        setState(() {
-                                          _pendingNewClient = newClient;
-                                          _selectedClientId = newClient.id;
-                                          _selectedClientName = newClient.name;
-                                          if (newClient.fullPayment > 0) {
-                                            _budgetController.text = newClient
-                                                .fullPayment
-                                                .toStringAsFixed(0);
-                                          }
-                                          if (newClient.advancedPayment > 0) {
-                                            _advancedController.text = newClient
-                                                .advancedPayment
-                                                .toStringAsFixed(0);
-                                          }
-                                        });
-                                        _queueDraftSave();
-                                      }
-                                    },
-                                    child: Text(
-                                      '+ Add Client',
-                                      style: TextStyle(
-                                        color: context.primaryColor,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Builder(
-                                builder: (context) {
-                                  final displayedClients = [...clients];
-                                  if (_pendingNewClient != null &&
-                                      !displayedClients.any((c) => c.id == _pendingNewClient!.id)) {
-                                    displayedClients.add(_pendingNewClient!);
-                                  }
-                                  return DropdownButtonFormField<String>(
-                                    value: displayedClients.any(
-                                      (c) => c.id == _selectedClientId,
-                                    )
-                                        ? _selectedClientId
-                                        : null,
-                                    dropdownColor: context.cardBg,
-                                    style: TextStyle(
-                                      color: context.textPrimary,
-                                      fontSize: 13,
-                                    ),
-                                    decoration: _buildInputDecoration('Select Client').copyWith(
-                                      suffixIcon: _selectedClientId == null
-                                          ? null
-                                          : IconButton(
-                                              tooltip: 'Edit Client',
-                                              icon: const Icon(Icons.edit_outlined, size: 18),
-                                              color: context.primaryColor,
-                                              onPressed: () async {
-                                                final selectedClient = _pendingNewClient?.id == _selectedClientId
-                                                    ? _pendingNewClient!
-                                                    : displayedClients.firstWhere(
-                                                        (client) => client.id == _selectedClientId,
-                                                      );
-                                                final updatedClient = await showDialog<Client>(
-                                                  context: context,
-                                                  builder: (context) => AddClientDialog(client: selectedClient),
-                                                );
-                                                if (updatedClient != null) {
-                                                  if (_pendingNewClient?.id == _selectedClientId) {
-                                                    setState(() {
-                                                      _pendingNewClient = updatedClient;
-                                                      _selectedClientName = updatedClient.name;
-                                                      if (updatedClient.fullPayment > 0) {
-                                                        _budgetController.text = updatedClient.fullPayment.toStringAsFixed(0);
-                                                      }
-                                                      if (updatedClient.advancedPayment > 0) {
-                                                        _advancedController.text = updatedClient.advancedPayment.toStringAsFixed(0);
-                                                      }
-                                                    });
-                                                    _queueDraftSave();
-                                                  } else {
-                                                    await ref
-                                                        .read(clientsProvider.notifier)
-                                                        .updateClient(updatedClient);
-                                                    setState(() {
-                                                      _selectedClientName = updatedClient.name;
-                                                      if (updatedClient.fullPayment > 0) {
-                                                        _budgetController.text = updatedClient.fullPayment.toStringAsFixed(0);
-                                                      }
-                                                      if (updatedClient.advancedPayment > 0) {
-                                                        _advancedController.text = updatedClient.advancedPayment.toStringAsFixed(0);
-                                                      }
-                                                    });
-                                                    _queueDraftSave();
-                                                  }
-                                                }
-                                              },
-                                            ),
-                                    ),
-                                    validator: (val) =>
-                                        val == null ? 'Select client' : null,
-                                    items: displayedClients.map((c) {
-                                      return DropdownMenuItem(
-                                        value: c.id,
-                                        child: Text(c.name),
+                              _buildLabel(tr('Client')),
+                              GestureDetector(
+                                onTap: () async {
+                                  final newClient =
+                                      await showDialog<Client>(
+                                        context: context,
+                                        builder: (context) =>
+                                            AddClientDialog(),
                                       );
-                                    }).toList(),
-                                    onChanged: (val) {
-                                      if (val != null) {
-                                        final client = displayedClients.firstWhere(
-                                          (c) => c.id == val,
-                                        );
-                                        final caList = ref
-                                            .read(clientAccountsProvider)
-                                            .where((ca) => ca.clientId == val)
-                                            .toList();
-                                        setState(() {
-                                          _selectedClientId = val;
-                                          _selectedClientName = client.name;
-                                          if (caList.isNotEmpty) {
-                                            _selectedClientAccountId = caList.first.id;
-                                            _selectedClientAccountName = caList.first.name;
-                                            if (caList.first.paymentMethod == 'Bank') {
-                                              final accs = ref.read(accountsProvider).accounts;
-                                              final bankAcc = accs.where((a) => a.type == 'Bank' && a.status == 'Active').firstOrNull;
-                                              if (bankAcc != null && (_selectedBankAccountId == null || _selectedBankAccountId!.contains('cash'))) {
-                                                _selectedBankAccountId = bankAcc.id;
-                                                _selectedBankAccountName = bankAcc.name;
-                                              }
-                                            }
-                                          }
-                                        });
-                                        _queueDraftSave();
+                                  if (newClient != null) {
+                                    setState(() {
+                                      _pendingNewClient = newClient;
+                                      _selectedClientId = newClient.id;
+                                      _selectedClientName = newClient.name;
+                                      if (newClient.fullPayment > 0) {
+                                        _budgetController.text = newClient
+                                            .fullPayment
+                                            .toStringAsFixed(0);
                                       }
-                                    },
-                                  );
+                                      if (newClient.advancedPayment > 0) {
+                                        _advancedController.text = newClient
+                                            .advancedPayment
+                                            .toStringAsFixed(0);
+                                      }
+                                    });
+                                    _queueDraftSave();
+                                  }
                                 },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Budget (Rs.)'),
-                              TextFormField(
-                                controller: _budgetController,
-                                keyboardType: TextInputType.number,
-                                style: TextStyle(color: context.textPrimary),
-                                decoration: _buildInputDecoration(
-                                  'Budget value',
+                                child: Text(
+                                  '+ Add Client',
+                                  style: TextStyle(
+                                    color: context.primaryColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                                validator: (val) {
-                                  if (val == null || val.trim().isEmpty)
-                                    return 'Enter budget';
-                                  if (double.tryParse(val) == null)
-                                    return 'Enter valid budget';
-                                  return null;
-                                },
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Advanced Payment & Status Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('${tr('Advanced Payment')} (Rs.)'),
-                              TextFormField(
-                                controller: _advancedController,
-                                keyboardType: TextInputType.number,
-                                style: TextStyle(color: context.textPrimary),
-                                decoration: _buildInputDecoration(
-                                  'Advanced Payment value',
-                                ),
-                                validator: (val) {
-                                  if (val == null || val.trim().isEmpty)
-                                    return 'Enter advanced payment';
-                                  final numVal = double.tryParse(val);
-                                  if (numVal == null)
-                                    return 'Enter valid amount';
-                                  final budgetVal =
-                                      double.tryParse(_budgetController.text) ??
-                                      0.0;
-                                  if (numVal > budgetVal)
-                                    return 'Cannot exceed budget';
-                                  return null;
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel(tr('Status')),
-                              DropdownButtonFormField<String>(
-                                value: _status,
+                          Builder(
+                            builder: (context) {
+                              final displayedClients = [...clients];
+                              if (_pendingNewClient != null &&
+                                  !displayedClients.any((c) => c.id == _pendingNewClient!.id)) {
+                                displayedClients.add(_pendingNewClient!);
+                              }
+                              return DropdownButtonFormField<String>(
+                                value: displayedClients.any(
+                                  (c) => c.id == _selectedClientId,
+                                )
+                                    ? _selectedClientId
+                                    : null,
                                 dropdownColor: context.cardBg,
                                 style: TextStyle(
                                   color: context.textPrimary,
                                   fontSize: 13,
                                 ),
-                                decoration: _buildInputDecoration(''),
-                                items: [
-                                  DropdownMenuItem(
-                                    value: 'Planning',
-                                    child: Text(tr('Planning')),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'In Progress',
-                                    child: Text(tr('In Progress')),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'On Hold',
-                                    child: Text(tr('On Hold')),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'Completed',
-                                    child: Text(tr('Completed')),
-                                  ),
-                                ],
+                                decoration: _buildInputDecoration('Select Client').copyWith(
+                                  suffixIcon: _selectedClientId == null
+                                      ? null
+                                      : IconButton(
+                                          tooltip: 'Edit Client',
+                                          icon: const Icon(Icons.edit_outlined, size: 18),
+                                          color: context.primaryColor,
+                                          onPressed: () async {
+                                            final selectedClient = _pendingNewClient?.id == _selectedClientId
+                                                ? _pendingNewClient!
+                                                : displayedClients.firstWhere(
+                                                    (client) => client.id == _selectedClientId,
+                                                  );
+                                            final updatedClient = await showDialog<Client>(
+                                              context: context,
+                                              builder: (context) => AddClientDialog(client: selectedClient),
+                                            );
+                                            if (updatedClient != null) {
+                                              if (_pendingNewClient?.id == _selectedClientId) {
+                                                setState(() {
+                                                  _pendingNewClient = updatedClient;
+                                                  _selectedClientName = updatedClient.name;
+                                                  if (updatedClient.fullPayment > 0) {
+                                                    _budgetController.text = updatedClient.fullPayment.toStringAsFixed(0);
+                                                  }
+                                                  if (updatedClient.advancedPayment > 0) {
+                                                    _advancedController.text = updatedClient.advancedPayment.toStringAsFixed(0);
+                                                  }
+                                                });
+                                                _queueDraftSave();
+                                              } else {
+                                                await ref
+                                                    .read(clientsProvider.notifier)
+                                                    .updateClient(updatedClient);
+                                                setState(() {
+                                                  _selectedClientName = updatedClient.name;
+                                                  if (updatedClient.fullPayment > 0) {
+                                                    _budgetController.text = updatedClient.fullPayment.toStringAsFixed(0);
+                                                  }
+                                                  if (updatedClient.advancedPayment > 0) {
+                                                    _advancedController.text = updatedClient.advancedPayment.toStringAsFixed(0);
+                                                  }
+                                                });
+                                                _queueDraftSave();
+                                              }
+                                            }
+                                          },
+                                        ),
+                                ),
+                                validator: (val) =>
+                                    val == null ? 'Select client' : null,
+                                items: displayedClients.map((c) {
+                                  return DropdownMenuItem(
+                                    value: c.id,
+                                    child: Text(c.name),
+                                  );
+                                }).toList(),
                                 onChanged: (val) {
                                   if (val != null) {
-                                    setState(() => _status = val);
+                                    final client = displayedClients.firstWhere(
+                                      (c) => c.id == val,
+                                    );
+                                    final caList = ref
+                                        .read(clientAccountsProvider)
+                                        .where((ca) => ca.clientId == val)
+                                        .toList();
+                                    setState(() {
+                                      _selectedClientId = val;
+                                      _selectedClientName = client.name;
+                                      if (caList.isNotEmpty) {
+                                        _selectedClientAccountId = caList.first.id;
+                                        _selectedClientAccountName = caList.first.name;
+                                        if (caList.first.paymentMethod == 'Bank') {
+                                          final accs = ref.read(accountsProvider).accounts;
+                                          final bankAcc = accs.where((a) => a.type == 'Bank' && a.status == 'Active').firstOrNull;
+                                          if (bankAcc != null && (_selectedBankAccountId == null || _selectedBankAccountId!.contains('cash'))) {
+                                            _selectedBankAccountId = bankAcc.id;
+                                            _selectedBankAccountName = bankAcc.name;
+                                          }
+                                        }
+                                      }
+                                    });
                                     _queueDraftSave();
                                   }
                                 },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel('Budget (Rs.)'),
+                          TextFormField(
+                            controller: _budgetController,
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(color: context.textPrimary),
+                            decoration: _buildInputDecoration(
+                              'Budget value',
+                            ),
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty)
+                                return 'Enter budget';
+                              if (double.tryParse(val) == null)
+                                return 'Enter valid budget';
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel('${tr('Advanced Payment')} (Rs.)'),
+                          TextFormField(
+                            controller: _advancedController,
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(color: context.textPrimary),
+                            decoration: _buildInputDecoration(
+                              'Advanced Payment value',
+                            ),
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty)
+                                return 'Enter advanced payment';
+                              final numVal = double.tryParse(val);
+                              if (numVal == null)
+                                return 'Enter valid amount';
+                              final budgetVal =
+                                  double.tryParse(_budgetController.text) ??
+                                  0.0;
+                              if (numVal > budgetVal)
+                                return 'Cannot exceed budget';
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel(tr('Status')),
+                          DropdownButtonFormField<String>(
+                            value: _status,
+                            dropdownColor: context.cardBg,
+                            style: TextStyle(
+                              color: context.textPrimary,
+                              fontSize: 13,
+                            ),
+                            decoration: _buildInputDecoration(''),
+                            items: [
+                              DropdownMenuItem(
+                                value: 'Planning',
+                                child: Text(tr('Planning')),
+                              ),
+                              DropdownMenuItem(
+                                value: 'In Progress',
+                                child: Text(tr('In Progress')),
+                              ),
+                              DropdownMenuItem(
+                                value: 'On Hold',
+                                child: Text(tr('On Hold')),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Completed',
+                                child: Text(tr('Completed')),
                               ),
                             ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _status = val);
+                                _queueDraftSave();
+                              }
+                            },
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    _buildLabel(tr('Client')),
+                                    GestureDetector(
+                                      onTap: () async {
+                                        final newClient =
+                                            await showDialog<Client>(
+                                              context: context,
+                                              builder: (context) =>
+                                                  AddClientDialog(),
+                                            );
+                                        if (newClient != null) {
+                                          setState(() {
+                                            _pendingNewClient = newClient;
+                                            _selectedClientId = newClient.id;
+                                            _selectedClientName = newClient.name;
+                                            if (newClient.fullPayment > 0) {
+                                              _budgetController.text = newClient
+                                                  .fullPayment
+                                                  .toStringAsFixed(0);
+                                            }
+                                            if (newClient.advancedPayment > 0) {
+                                              _advancedController.text = newClient
+                                                  .advancedPayment
+                                                  .toStringAsFixed(0);
+                                            }
+                                          });
+                                          _queueDraftSave();
+                                        }
+                                      },
+                                      child: Text(
+                                        '+ Add Client',
+                                        style: TextStyle(
+                                          color: context.primaryColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Builder(
+                                  builder: (context) {
+                                    final displayedClients = [...clients];
+                                    if (_pendingNewClient != null &&
+                                        !displayedClients.any((c) => c.id == _pendingNewClient!.id)) {
+                                      displayedClients.add(_pendingNewClient!);
+                                    }
+                                    return DropdownButtonFormField<String>(
+                                      value: displayedClients.any(
+                                        (c) => c.id == _selectedClientId,
+                                      )
+                                          ? _selectedClientId
+                                          : null,
+                                      dropdownColor: context.cardBg,
+                                      style: TextStyle(
+                                        color: context.textPrimary,
+                                        fontSize: 13,
+                                      ),
+                                      decoration: _buildInputDecoration('Select Client').copyWith(
+                                        suffixIcon: _selectedClientId == null
+                                            ? null
+                                            : IconButton(
+                                                tooltip: 'Edit Client',
+                                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                                color: context.primaryColor,
+                                                onPressed: () async {
+                                                  final selectedClient = _pendingNewClient?.id == _selectedClientId
+                                                      ? _pendingNewClient!
+                                                      : displayedClients.firstWhere(
+                                                          (client) => client.id == _selectedClientId,
+                                                        );
+                                                  final updatedClient = await showDialog<Client>(
+                                                    context: context,
+                                                    builder: (context) => AddClientDialog(client: selectedClient),
+                                                  );
+                                                  if (updatedClient != null) {
+                                                    if (_pendingNewClient?.id == _selectedClientId) {
+                                                      setState(() {
+                                                        _pendingNewClient = updatedClient;
+                                                        _selectedClientName = updatedClient.name;
+                                                        if (updatedClient.fullPayment > 0) {
+                                                          _budgetController.text = updatedClient.fullPayment.toStringAsFixed(0);
+                                                        }
+                                                        if (updatedClient.advancedPayment > 0) {
+                                                          _advancedController.text = updatedClient.advancedPayment.toStringAsFixed(0);
+                                                        }
+                                                      });
+                                                      _queueDraftSave();
+                                                    } else {
+                                                      await ref
+                                                          .read(clientsProvider.notifier)
+                                                          .updateClient(updatedClient);
+                                                      setState(() {
+                                                        _selectedClientName = updatedClient.name;
+                                                        if (updatedClient.fullPayment > 0) {
+                                                          _budgetController.text = updatedClient.fullPayment.toStringAsFixed(0);
+                                                        }
+                                                        if (updatedClient.advancedPayment > 0) {
+                                                          _advancedController.text = updatedClient.advancedPayment.toStringAsFixed(0);
+                                                        }
+                                                      });
+                                                      _queueDraftSave();
+                                                    }
+                                                  }
+                                                },
+                                              ),
+                                      ),
+                                      validator: (val) =>
+                                          val == null ? 'Select client' : null,
+                                      items: displayedClients.map((c) {
+                                        return DropdownMenuItem(
+                                          value: c.id,
+                                          child: Text(c.name),
+                                        );
+                                      }).toList(),
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          final client = displayedClients.firstWhere(
+                                            (c) => c.id == val,
+                                          );
+                                          final caList = ref
+                                              .read(clientAccountsProvider)
+                                              .where((ca) => ca.clientId == val)
+                                              .toList();
+                                          setState(() {
+                                            _selectedClientId = val;
+                                            _selectedClientName = client.name;
+                                            if (caList.isNotEmpty) {
+                                              _selectedClientAccountId = caList.first.id;
+                                              _selectedClientAccountName = caList.first.name;
+                                              if (caList.first.paymentMethod == 'Bank') {
+                                                final accs = ref.read(accountsProvider).accounts;
+                                                final bankAcc = accs.where((a) => a.type == 'Bank' && a.status == 'Active').firstOrNull;
+                                                if (bankAcc != null && (_selectedBankAccountId == null || _selectedBankAccountId!.contains('cash'))) {
+                                                  _selectedBankAccountId = bankAcc.id;
+                                                  _selectedBankAccountName = bankAcc.name;
+                                                }
+                                              }
+                                            }
+                                          });
+                                          _queueDraftSave();
+                                        }
+                                      },
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLabel('Budget (Rs.)'),
+                                TextFormField(
+                                  controller: _budgetController,
+                                  keyboardType: TextInputType.number,
+                                  style: TextStyle(color: context.textPrimary),
+                                  decoration: _buildInputDecoration(
+                                    'Budget value',
+                                  ),
+                                  validator: (val) {
+                                    if (val == null || val.trim().isEmpty)
+                                      return 'Enter budget';
+                                    if (double.tryParse(val) == null)
+                                      return 'Enter valid budget';
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Advanced Payment & Status Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLabel('${tr('Advanced Payment')} (Rs.)'),
+                                TextFormField(
+                                  controller: _advancedController,
+                                  keyboardType: TextInputType.number,
+                                  style: TextStyle(color: context.textPrimary),
+                                  decoration: _buildInputDecoration(
+                                    'Advanced Payment value',
+                                  ),
+                                  validator: (val) {
+                                    if (val == null || val.trim().isEmpty)
+                                      return 'Enter advanced payment';
+                                    final numVal = double.tryParse(val);
+                                    if (numVal == null)
+                                      return 'Enter valid amount';
+                                    final budgetVal =
+                                        double.tryParse(_budgetController.text) ??
+                                        0.0;
+                                    if (numVal > budgetVal)
+                                      return 'Cannot exceed budget';
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLabel(tr('Status')),
+                                DropdownButtonFormField<String>(
+                                  value: _status,
+                                  dropdownColor: context.cardBg,
+                                  style: TextStyle(
+                                    color: context.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                  decoration: _buildInputDecoration(''),
+                                  items: [
+                                    DropdownMenuItem(
+                                      value: 'Planning',
+                                      child: Text(tr('Planning')),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'In Progress',
+                                      child: Text(tr('In Progress')),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'On Hold',
+                                      child: Text(tr('On Hold')),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Completed',
+                                      child: Text(tr('Completed')),
+                                    ),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() => _status = val);
+                                      _queueDraftSave();
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
                     // Client Bank Account / Source Row
@@ -1485,8 +2076,10 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  _buildLabel(
-                                    'Client Payment Source / Account (Optional)',
+                                  Expanded(
+                                    child: _buildLabel(
+                                      'Client Payment Source',
+                                    ),
                                   ),
                                   GestureDetector(
                                     onTap: () async {
@@ -1699,115 +2292,219 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                     const SizedBox(height: 16),
 
                     // Start Date & End Date Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Start Date'),
-                              OutlinedButton(
-                                onPressed: () async {
-                                  final picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: _startDate,
-                                    firstDate: DateTime(2020),
-                                    lastDate: DateTime(2030),
-                                  );
-                                  if (picked != null) {
-                                    setState(() => _startDate = picked);
-                                    _queueDraftSave();
-                                  }
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: context.border),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 14,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _startDate.toIso8601String().substring(
-                                        0,
-                                        10,
-                                      ),
-                                      style: TextStyle(
-                                        color: context.textPrimary,
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: 16,
-                                      color: context.primaryColor,
-                                    ),
-                                  ],
-                                ),
+                    if (isMobile) ...[
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel('Start Date'),
+                          OutlinedButton(
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _startDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                setState(() => _startDate = picked);
+                                _queueDraftSave();
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: context.border),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('End Date (Optional)'),
-                              OutlinedButton(
-                                onPressed: () async {
-                                  final picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: _endDate,
-                                    firstDate: DateTime(2020),
-                                    lastDate: DateTime(2030),
-                                  );
-                                  if (picked != null) {
-                                    setState(() => _endDate = picked);
-                                    _queueDraftSave();
-                                  }
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: context.border),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 14,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _endDate.toIso8601String().substring(
-                                        0,
-                                        10,
-                                      ),
-                                      style: TextStyle(
-                                        color: context.textPrimary,
-                                      ),
-                                    ),
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: 16,
-                                      color: context.primaryColor,
-                                    ),
-                                  ],
-                                ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _startDate.toIso8601String().substring(
+                                    0,
+                                    10,
+                                  ),
+                                  style: TextStyle(
+                                    color: context.textPrimary,
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: context.primaryColor,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel('End Date (Optional)'),
+                          OutlinedButton(
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _endDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                setState(() => _endDate = picked);
+                                _queueDraftSave();
+                              }
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: context.border),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _endDate.toIso8601String().substring(
+                                    0,
+                                    10,
+                                  ),
+                                  style: TextStyle(
+                                    color: context.textPrimary,
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: context.primaryColor,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLabel('Start Date'),
+                                OutlinedButton(
+                                  onPressed: () async {
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: _startDate,
+                                      firstDate: DateTime(2020),
+                                      lastDate: DateTime(2030),
+                                    );
+                                    if (picked != null) {
+                                      setState(() => _startDate = picked);
+                                      _queueDraftSave();
+                                    }
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: context.border),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        _startDate.toIso8601String().substring(
+                                          0,
+                                          10,
+                                        ),
+                                        style: TextStyle(
+                                          color: context.textPrimary,
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.calendar_today,
+                                        size: 16,
+                                        color: context.primaryColor,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLabel('End Date (Optional)'),
+                                OutlinedButton(
+                                  onPressed: () async {
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: _endDate,
+                                      firstDate: DateTime(2020),
+                                      lastDate: DateTime(2030),
+                                    );
+                                    if (picked != null) {
+                                      setState(() => _endDate = picked);
+                                      _queueDraftSave();
+                                    }
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(color: context.border),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        _endDate.toIso8601String().substring(
+                                          0,
+                                          10,
+                                        ),
+                                        style: TextStyle(
+                                          color: context.textPrimary,
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.calendar_today,
+                                        size: 16,
+                                        color: context.primaryColor,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
                     _buildLabel('Assign Team Members'),
@@ -2055,6 +2752,23 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                               );
 
                               if (widget.project == null) {
+                                final canCreate = ref
+                                    .read(adminProvider)
+                                    .hasPermission(
+                                      AppModule.projectsList,
+                                      PermissionAction.create,
+                                    );
+                                if (!canCreate) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Access Denied: You do not have permission to create projects.',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
                                 if (_pendingNewClient != null &&
                                     _selectedClientId == _pendingNewClient!.id) {
                                   await ref
@@ -2066,6 +2780,23 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                 // Adding a new project, return it as usual
                                 Navigator.of(context).pop(proj);
                               } else {
+                                final canEdit = ref
+                                    .read(adminProvider)
+                                    .hasPermission(
+                                      AppModule.projectsList,
+                                      PermissionAction.edit,
+                                    );
+                                if (!canEdit) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Access Denied: You do not have permission to edit projects.',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                  return;
+                                }
                                 if (_pendingNewClient != null &&
                                     _selectedClientId == _pendingNewClient!.id) {
                                   await ref
@@ -2192,6 +2923,17 @@ void _showStatusChangeDialog(
   WidgetRef ref,
   Project project,
 ) {
+  final canEdit = ref.read(adminProvider).hasPermission(AppModule.projectsList, PermissionAction.edit);
+  if (!canEdit) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Access Denied: You do not have permission to edit projects.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
   final List<String> statuses = [
     'Planning',
     'In Progress',
@@ -2253,6 +2995,7 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final canEdit = ref.watch(adminProvider).hasPermission(AppModule.projectsList, PermissionAction.edit);
 
     // Watch live project state so dialog updates in real time
     final liveProject =
@@ -2307,12 +3050,16 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
         .whereType<Employee>()
         .toList();
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 800,
-        padding: const EdgeInsets.all(24),
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 800),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2352,23 +3099,47 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () =>
-                        _showStatusChangeDialog(context, ref, liveProject),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusBg,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
+                  canEdit
+                      ? InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () =>
+                              _showStatusChangeDialog(context, ref, liveProject),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusBg,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  tr(liveProject.status),
+                                  style: TextStyle(
+                                    color: statusColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(Icons.edit, size: 12, color: statusColor),
+                              ],
+                            ),
+                          ),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
                             tr(liveProject.status),
                             style: TextStyle(
                               color: statusColor,
@@ -2376,12 +3147,7 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Icon(Icons.edit, size: 12, color: statusColor),
-                        ],
-                      ),
-                    ),
-                  ),
+                        ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -2427,32 +3193,70 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      _showPartialPaymentDialog(context, ref, liveProject);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: context.primaryColor,
-                      side: BorderSide(
-                        color: context.primaryColor.withOpacity(0.5),
-                        width: 1.5,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) =>
+                                _ProjectAddonsDialog(project: liveProject),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.purple,
+                          side: const BorderSide(
+                            color: Colors.purple,
+                            width: 1.2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
+                        icon: const Icon(Icons.extension_outlined, size: 15),
+                        label: Text(
+                          'Add-Ons (${ref.watch(projectAddonsProvider).where((a) => a.projectId == liveProject.id).length})',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                    ),
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text(
-                      'Add Payment',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
+                      if (canEdit)
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            _showPartialPaymentDialog(context, ref, liveProject);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: context.primaryColor,
+                            side: BorderSide(
+                              color: context.primaryColor.withOpacity(0.5),
+                              width: 1.2,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                          ),
+                          icon: const Icon(Icons.add, size: 15),
+                          label: const Text(
+                            'Add Payment',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -2565,7 +3369,7 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                               ? Colors.green
                               : (pType == 'Final'
                                     ? const Color(0xFF2563EB)
-                                    : Colors.orange);
+                                    : (pType == 'Add-on' ? Colors.purple : Colors.orange));
                           return _buildNewPaymentRow(
                             context,
                             index: idx,
@@ -2609,7 +3413,7 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                       return <Widget>[];
                     })(),
 
-                    // Remaining Payment Bottom Row
+                    // Remaining Payment Bottom Row & Add-ons Summary
                     Builder(
                       builder: (context) {
                         final projectIncomes = ref
@@ -2617,12 +3421,20 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                             .incomes
                             .where((inc) => inc.projectId == liveProject.id)
                             .toList();
+                        final projectAddons = ref
+                            .watch(projectAddonsProvider)
+                            .where((a) => a.projectId == liveProject.id)
+                            .toList();
+                        final double totalAddonsAmount =
+                            projectAddons.fold(0.0, (sum, a) => sum + a.amount);
+                        final double totalRevisedBudget =
+                            liveProject.budget + totalAddonsAmount;
                         final double actualReceived = projectIncomes.isNotEmpty
                             ? projectIncomes.fold(0.0, (sum, i) => sum + i.amount)
                             : (liveProject.advancedPayment +
                                 liveProject.partialPayments +
                                 liveProject.finalPayment);
-                        final double actualRemaining = (liveProject.budget - actualReceived)
+                        final double actualRemaining = (totalRevisedBudget - actualReceived)
                             .clamp(0.0, double.infinity);
 
                         return Container(
@@ -2643,28 +3455,60 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                               bottomRight: Radius.circular(8),
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          child: Column(
                             children: [
-                              Text(
-                                'Remaining Payment',
-                                style: TextStyle(
-                                  color: actualRemaining <= 0
-                                      ? context.success
-                                      : Colors.orange,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
+                              if (totalAddonsAmount > 0) ...[
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Base: Rs. ${liveProject.budget.toStringAsFixed(0)}  •  Add-Ons: Rs. ${totalAddonsAmount.toStringAsFixed(0)}',
+                                      style: TextStyle(
+                                        color: context.textSecondary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Revised Budget: Rs. ${totalRevisedBudget.toStringAsFixed(0)}',
+                                      style: TextStyle(
+                                        color: context.textPrimary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              Text(
-                                'Rs. ${actualRemaining.toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  color: actualRemaining <= 0
-                                      ? context.success
-                                      : Colors.orange,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                const SizedBox(height: 6),
+                                const Divider(height: 1),
+                                const SizedBox(height: 6),
+                              ],
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Remaining Payment',
+                                    style: TextStyle(
+                                      color: actualRemaining <= 0
+                                          ? context.success
+                                          : Colors.orange,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    actualRemaining <= 0
+                                        ? 'Fully Paid'
+                                        : 'Rs. ${actualRemaining.toStringAsFixed(0)}',
+                                    style: TextStyle(
+                                      color: actualRemaining <= 0
+                                          ? context.success
+                                          : Colors.orange,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -3337,6 +4181,7 @@ class _PartialPaymentDialogContentState
 
                 _buildLabel('Payment Type *'),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: _selectedPaymentType,
                   dropdownColor: context.cardBg,
                   icon: Icon(
@@ -3471,6 +4316,7 @@ class _PartialPaymentDialogContentState
 
                 _buildLabel('Received In (Your Account) *'),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: accounts.any((a) => a.id == _selectedAccountId)
                       ? _selectedAccountId
                       : null,
@@ -3743,6 +4589,23 @@ class _PartialPaymentDialogContentState
                     ),
                     ElevatedButton.icon(
                       onPressed: () async {
+                        final canEdit = ref
+                            .read(adminProvider)
+                            .hasPermission(
+                              AppModule.projectsList,
+                              PermissionAction.edit,
+                            );
+                        if (!canEdit) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Access Denied: You do not have permission to edit projects or record payments.',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
                         if (widget.formKey.currentState!.validate()) {
                           final amount = double.parse(
                             widget.amountController.text.trim(),
@@ -4084,4 +4947,1561 @@ Widget _buildNewPaymentRow(
       ],
     ),
   );
+}
+
+// ============================================================================
+// PROJECT ADD-ONS & SCOPE EXTENSIONS DIALOGS
+// ============================================================================
+
+class _ProjectAddonsDialog extends ConsumerStatefulWidget {
+  final Project project;
+
+  const _ProjectAddonsDialog({required this.project});
+
+  @override
+  ConsumerState<_ProjectAddonsDialog> createState() =>
+      _ProjectAddonsDialogState();
+}
+
+class _ProjectAddonsDialogState extends ConsumerState<_ProjectAddonsDialog> {
+  String _selectedFilter = 'All';
+
+  @override
+  Widget build(BuildContext context) {
+    final tr = ref.watch(translationProvider);
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final canEdit = ref.watch(adminProvider).hasPermission(
+          AppModule.projectsList,
+          PermissionAction.edit,
+        );
+
+    final allAddons = ref.watch(projectAddonsProvider);
+    final projectAddons = allAddons
+        .where((a) => a.projectId == widget.project.id)
+        .toList();
+
+    final filteredAddons = _selectedFilter == 'All'
+        ? projectAddons
+        : projectAddons.where((a) => a.status == _selectedFilter).toList();
+
+    final double totalAddonsAmount =
+        projectAddons.fold(0.0, (sum, a) => sum + a.amount);
+    final double totalAddonsPaid =
+        projectAddons.fold(0.0, (sum, a) => sum + a.amountPaid);
+    final double totalAddonsPending =
+        (totalAddonsAmount - totalAddonsPaid).clamp(0.0, double.infinity);
+    final double totalRevisedBudget =
+        widget.project.budget + totalAddonsAmount;
+
+    return Dialog(
+      backgroundColor: context.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 850, maxHeight: 720),
+        child: Padding(
+          padding: EdgeInsets.all(isMobile ? 16 : 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.extension_rounded,
+                      color: Colors.purple,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Project Scope & Add-Ons',
+                          style: TextStyle(
+                            fontSize: isMobile ? 16 : 18,
+                            fontWeight: FontWeight.bold,
+                            color: context.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${widget.project.name} • Client: ${widget.project.clientName}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: context.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (canEdit)
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => _AddAddonModalDialog(
+                            project: widget.project,
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.add, size: 16),
+                      label: Text(
+                        isMobile ? 'Add' : 'New Add-On / Scope',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 10 : 16,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: Icon(Icons.close, color: context.textSecondary),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Metrics Financial Summary Row
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.isDarkMode
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: context.border),
+                ),
+                child: Row(
+                  children: [
+                    _buildSummaryMetric(
+                      context,
+                      label: 'Base Budget',
+                      value: 'Rs. ${widget.project.budget.toStringAsFixed(0)}',
+                      color: context.textPrimary,
+                    ),
+                    _buildSummaryDivider(context),
+                    _buildSummaryMetric(
+                      context,
+                      label: 'Add-Ons (${projectAddons.length})',
+                      value: 'Rs. ${totalAddonsAmount.toStringAsFixed(0)}',
+                      color: Colors.purple,
+                    ),
+                    _buildSummaryDivider(context),
+                    _buildSummaryMetric(
+                      context,
+                      label: 'Revised Total',
+                      value: 'Rs. ${totalRevisedBudget.toStringAsFixed(0)}',
+                      color: context.primaryColor,
+                    ),
+                    _buildSummaryDivider(context),
+                    _buildSummaryMetric(
+                      context,
+                      label: 'Add-Ons Due',
+                      value: totalAddonsPending <= 0
+                          ? 'All Paid'
+                          : 'Rs. ${totalAddonsPending.toStringAsFixed(0)}',
+                      color: totalAddonsPending <= 0
+                          ? context.success
+                          : context.error,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Filter Tabs
+              Row(
+                children: [
+                  Text(
+                    'Filter:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: context.textMuted,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  for (final tab in ['All', 'Pending', 'In Progress', 'Completed'])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        label: Text(
+                          tab,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: _selectedFilter == tab
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: _selectedFilter == tab
+                                ? Colors.purple
+                                : context.textSecondary,
+                          ),
+                        ),
+                        selected: _selectedFilter == tab,
+                        selectedColor: Colors.purple.withOpacity(0.15),
+                        backgroundColor: context.cardBg,
+                        side: BorderSide(
+                          color: _selectedFilter == tab
+                              ? Colors.purple
+                              : context.border,
+                        ),
+                        onSelected: (selected) {
+                          if (selected) setState(() => _selectedFilter = tab);
+                        },
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Addons List / Empty State
+              Expanded(
+                child: filteredAddons.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.extension_off_outlined,
+                              size: 48,
+                              color: context.textMuted.withOpacity(0.5),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              projectAddons.isEmpty
+                                  ? 'No Scope Add-Ons Yet'
+                                  : 'No Add-Ons match filter "$_selectedFilter"',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: context.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              projectAddons.isEmpty
+                                  ? 'When client requests extra features or scope changes, record them here.'
+                                  : 'Try choosing another filter tab above.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            if (projectAddons.isEmpty && canEdit) ...[
+                              const SizedBox(height: 14),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => _AddAddonModalDialog(
+                                      project: widget.project,
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('Add First Add-On'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.purple,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: filteredAddons.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final addon = filteredAddons[index];
+                          return _buildAddonItemCard(context, addon, canEdit);
+                        },
+                      ),
+              ),
+
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+
+              // Bottom Close Button
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: context.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: Text(tr('Close')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryMetric(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: context.textMuted,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryDivider(BuildContext context) {
+    return Container(
+      height: 28,
+      width: 1,
+      color: context.border,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+    );
+  }
+
+  Widget _buildAddonItemCard(
+    BuildContext context,
+    ProjectAddon addon,
+    bool canEdit,
+  ) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    // Status colors
+    Color statusColor;
+    Color statusBg;
+    if (addon.status == 'Completed') {
+      statusColor = context.success;
+      statusBg = context.successLight;
+    } else if (addon.status == 'In Progress') {
+      statusColor = context.warning;
+      statusBg = context.warningLight;
+    } else {
+      statusColor = Colors.purple;
+      statusBg = Colors.purple.withOpacity(0.12);
+    }
+
+    // Payment colors
+    Color payColor;
+    Color payBg;
+    if (addon.paymentStatus == 'Paid') {
+      payColor = context.success;
+      payBg = context.successLight;
+    } else if (addon.paymentStatus == 'Partially Paid') {
+      payColor = Colors.orange;
+      payBg = Colors.orange.withOpacity(0.12);
+    } else {
+      payColor = context.error;
+      payBg = context.errorLight;
+    }
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 12 : 14),
+      decoration: BoxDecoration(
+        color: context.cardBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: context.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Row 1: Title + Status + Payment Status + Menu
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  addon.title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  addon.status,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Payment Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: payBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  addon.paymentStatus,
+                  style: TextStyle(
+                    color: payColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (canEdit) ...[
+                const SizedBox(width: 4),
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert,
+                    size: 18,
+                    color: context.textSecondary,
+                  ),
+                  color: context.cardBg,
+                  padding: EdgeInsets.zero,
+                  onSelected: (val) async {
+                    if (val == 'delete') {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete Add-On'),
+                          content: Text(
+                            'Are you sure you want to delete add-on "${addon.title}"? This cannot be undone.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(color: context.textSecondary),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: Text(
+                                'Delete',
+                                style: TextStyle(color: context.error),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await ref
+                            .read(projectAddonsProvider.notifier)
+                            .deleteAddon(addon.id);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Add-on "${addon.title}" deleted.'),
+                              backgroundColor: context.error,
+                            ),
+                          );
+                        }
+                      }
+                    } else if (val.startsWith('status_')) {
+                      final newStatus = val.replaceFirst('status_', '');
+                      await ref
+                          .read(projectAddonsProvider.notifier)
+                          .updateAddon(addon.copyWith(status: newStatus));
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      enabled: false,
+                      child: Text(
+                        'Change Status',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'status_Pending',
+                      child: Text('• Mark Pending'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'status_In Progress',
+                      child: Text('• Mark In Progress'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'status_Completed',
+                      child: Text('• Mark Completed'),
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(
+                        'Delete Add-On',
+                        style: TextStyle(color: context.error),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+
+          // Description (if any)
+          if (addon.description.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              addon.description,
+              style: TextStyle(
+                fontSize: 12,
+                color: context.textSecondary,
+                height: 1.3,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 10),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+
+          // Financial Breakdown & Receive Payment button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Cost: ',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Rs. ${addon.amount.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: context.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Paid: ',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: context.textMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Rs. ${addon.amountPaid.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: context.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (addon.remainingAmount > 0)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Due: ',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: context.textMuted,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          'Rs. ${addon.remainingAmount.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: context.error,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (addon.estimatedDelivery.isNotEmpty)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.calendar_today, size: 11, color: context.textMuted),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Est: ${addon.estimatedDelivery}',
+                          style: TextStyle(fontSize: 11, color: context.textMuted),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              if (canEdit && addon.remainingAmount > 0)
+                ElevatedButton.icon(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => _ReceiveAddonPaymentDialog(
+                        project: widget.project,
+                        addon: addon,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.payment_outlined, size: 14),
+                  label: const Text(
+                    'Receive Payment',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// MODAL TO CREATE A NEW PROJECT ADD-ON / SCOPE EXTENSION
+// ============================================================================
+
+class _AddAddonModalDialog extends ConsumerStatefulWidget {
+  final Project project;
+
+  const _AddAddonModalDialog({required this.project});
+
+  @override
+  ConsumerState<_AddAddonModalDialog> createState() =>
+      _AddAddonModalDialogState();
+}
+
+class _AddAddonModalDialogState extends ConsumerState<_AddAddonModalDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _paymentAmountController = TextEditingController();
+
+  DateTime? _estimatedDeliveryDate;
+  bool _receivePaymentNow = false;
+  String? _selectedAccountId;
+  String? _selectedAccountName;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    _amountController.dispose();
+    _paymentAmountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = ref.watch(accountsProvider).accounts;
+
+    if (_selectedAccountId == null && widget.project.bankAccountId.isNotEmpty) {
+      _selectedAccountId = widget.project.bankAccountId;
+      _selectedAccountName = widget.project.bankAccountName;
+    }
+
+    return Dialog(
+      backgroundColor: context.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title Row
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.add_task_rounded,
+                          color: Colors.purple,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Add Scope Change / Add-On',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: context.textPrimary,
+                              ),
+                            ),
+                            Text(
+                              'Project: ${widget.project.name}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: context.textSecondary),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 14),
+
+                  // Add-on Title
+                  _buildFormLabel(context, 'Add-On / Scope Title *'),
+                  TextFormField(
+                    controller: _titleController,
+                    style: TextStyle(color: context.textPrimary, fontSize: 13),
+                    decoration: _buildInputDeco(
+                      context,
+                      'e.g. Payment Gateway Integration, Custom Reports, Mobile App Fix',
+                    ),
+                    validator: (val) =>
+                        val == null || val.trim().isEmpty ? 'Title is required' : null,
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Scope Description
+                  _buildFormLabel(context, 'Scope Description / Deliverables'),
+                  TextFormField(
+                    controller: _descController,
+                    maxLines: 2,
+                    style: TextStyle(color: context.textPrimary, fontSize: 13),
+                    decoration: _buildInputDeco(
+                      context,
+                      'Describe specific features or changes agreed with client',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Price / Amount
+                  _buildFormLabel(context, 'Add-On Amount / Cost (Rs.) *'),
+                  TextFormField(
+                    controller: _amountController,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: context.textPrimary, fontSize: 13),
+                    decoration: _buildInputDeco(
+                      context,
+                      '0',
+                      prefixText: 'Rs. ',
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Amount is required';
+                      }
+                      final d = double.tryParse(val.trim());
+                      if (d == null || d <= 0) return 'Enter a valid amount';
+                      return null;
+                    },
+                    onChanged: (val) {
+                      if (_receivePaymentNow && _paymentAmountController.text.isEmpty) {
+                        _paymentAmountController.text = val;
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Estimated Delivery Date
+                  _buildFormLabel(context, 'Estimated Delivery Date (Optional)'),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: _estimatedDeliveryDate ??
+                            DateTime.now().add(const Duration(days: 7)),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2035),
+                      );
+                      if (picked != null) {
+                        setState(() => _estimatedDeliveryDate = picked);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: context.border),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _estimatedDeliveryDate == null
+                                ? 'Select estimated delivery date'
+                                : '${_estimatedDeliveryDate!.day}/${_estimatedDeliveryDate!.month}/${_estimatedDeliveryDate!.year}',
+                            style: TextStyle(
+                              color: _estimatedDeliveryDate == null
+                                  ? context.textMuted
+                                  : context.textPrimary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            size: 16,
+                            color: context.textSecondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Receive payment switch
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _receivePaymentNow
+                          ? Colors.purple.withValues(alpha: 0.08)
+                          : context.textMuted.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _receivePaymentNow
+                            ? Colors.purple.withValues(alpha: 0.3)
+                            : context.border,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.payments_outlined,
+                              size: 18,
+                              color: _receivePaymentNow
+                                  ? Colors.purple
+                                  : context.textSecondary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Receive Advance / Payment Now',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: context.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Switch(
+                          value: _receivePaymentNow,
+                          activeThumbColor: Colors.purple,
+                          onChanged: (val) {
+                            setState(() {
+                              _receivePaymentNow = val;
+                              if (val && _paymentAmountController.text.isEmpty) {
+                                _paymentAmountController.text =
+                                    _amountController.text;
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Additional payment inputs if switch is enabled
+                  if (_receivePaymentNow) ...[
+                    const SizedBox(height: 14),
+                    _buildFormLabel(context, 'Amount Received (Rs.) *'),
+                    TextFormField(
+                      controller: _paymentAmountController,
+                      keyboardType: TextInputType.number,
+                      style: TextStyle(color: context.textPrimary, fontSize: 13),
+                      decoration: _buildInputDeco(
+                        context,
+                        'Enter amount received',
+                        prefixText: 'Rs. ',
+                      ),
+                      validator: (val) {
+                        if (!_receivePaymentNow) return null;
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Enter received amount';
+                        }
+                        final d = double.tryParse(val.trim());
+                        if (d == null || d <= 0) return 'Enter a valid amount';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+
+                    _buildFormLabel(context, 'Receiving Bank / Cash Account *'),
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedAccountId,
+                      dropdownColor: context.cardBg,
+                      style: TextStyle(color: context.textPrimary, fontSize: 13),
+                      decoration: _buildInputDeco(context, 'Select account'),
+                      items: accounts.map((a) {
+                        return DropdownMenuItem(
+                          value: a.id,
+                          child: Text('${a.name} (${a.bankName})'),
+                        );
+                      }).toList(),
+                      validator: (val) {
+                        if (_receivePaymentNow && val == null) {
+                          return 'Select receiving account';
+                        }
+                        return null;
+                      },
+                      onChanged: (val) {
+                        if (val != null) {
+                          final a = accounts.firstWhere((acc) => acc.id == val);
+                          setState(() {
+                            _selectedAccountId = val;
+                            _selectedAccountName = a.name;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+
+                  // Action Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(color: context.textSecondary),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          if (_formKey.currentState!.validate()) {
+                            final totalAmount = double.parse(
+                              _amountController.text.trim(),
+                            );
+                            final paymentAmount = _receivePaymentNow
+                                ? (double.tryParse(
+                                        _paymentAmountController.text.trim()) ??
+                                    0.0)
+                                : 0.0;
+
+                            final addonId =
+                                'addon_${DateTime.now().millisecondsSinceEpoch}';
+
+                            final deliveryStr = _estimatedDeliveryDate != null
+                                ? '${_estimatedDeliveryDate!.day}/${_estimatedDeliveryDate!.month}/${_estimatedDeliveryDate!.year}'
+                                : '';
+
+                            final paymentStatus = paymentAmount >= totalAmount
+                                ? 'Paid'
+                                : (paymentAmount > 0
+                                    ? 'Partially Paid'
+                                    : 'Unpaid');
+
+                            final newAddon = ProjectAddon(
+                              id: addonId,
+                              projectId: widget.project.id,
+                              title: _titleController.text.trim(),
+                              description: _descController.text.trim(),
+                              amount: totalAmount,
+                              amountPaid: paymentAmount,
+                              status: 'Pending',
+                              paymentStatus: paymentStatus,
+                              createdAt: DateTime.now().toIso8601String(),
+                              estimatedDelivery: deliveryStr,
+                              bankAccountId: _selectedAccountId ?? '',
+                              bankAccountName: _selectedAccountName ?? '',
+                              paymentMethod: 'Bank',
+                            );
+
+                            // Save addon
+                            await ref
+                                .read(projectAddonsProvider.notifier)
+                                .addAddon(newAddon);
+
+                            // If payment was made, record income
+                            if (_receivePaymentNow && paymentAmount > 0) {
+                              final accId = _selectedAccountId ??
+                                  (widget.project.bankAccountId.isNotEmpty
+                                      ? widget.project.bankAccountId
+                                      : 'default_account');
+
+                              final record = IncomeRecord(
+                                id: 'inc_${DateTime.now().millisecondsSinceEpoch}',
+                                date: DateTime.now().toIso8601String(),
+                                clientId: widget.project.clientId,
+                                clientName: widget.project.clientName,
+                                amount: paymentAmount,
+                                accountId: accId,
+                                invoiceNumber: 'ADDON-$addonId',
+                                description:
+                                    'Add-On Payment: ${newAddon.title} - ${widget.project.name}',
+                                status: 'Received',
+                                projectId: widget.project.id,
+                                projectName: widget.project.name,
+                                projectPaymentType: 'Add-on',
+                              );
+
+                              await ref
+                                  .read(incomeProvider.notifier)
+                                  .addIncome(record);
+                            }
+
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Add-On "${newAddon.title}" added (+Rs. ${totalAmount.toStringAsFixed(0)}).',
+                                  ),
+                                  backgroundColor: Colors.purple,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text(
+                          'Save Add-On',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormLabel(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: context.textPrimary,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDeco(
+    BuildContext context,
+    String hint, {
+    String? prefixText,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      prefixText: prefixText,
+      hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: context.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: context.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.purple),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// MODAL TO RECEIVE PAYMENT FOR AN EXISTING ADD-ON
+// ============================================================================
+
+class _ReceiveAddonPaymentDialog extends ConsumerStatefulWidget {
+  final Project project;
+  final ProjectAddon addon;
+
+  const _ReceiveAddonPaymentDialog({
+    required this.project,
+    required this.addon,
+  });
+
+  @override
+  ConsumerState<_ReceiveAddonPaymentDialog> createState() =>
+      _ReceiveAddonPaymentDialogState();
+}
+
+class _ReceiveAddonPaymentDialogState
+    extends ConsumerState<_ReceiveAddonPaymentDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _amountController;
+  String? _selectedAccountId;
+  String? _selectedAccountName;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController = TextEditingController(
+      text: widget.addon.remainingAmount > 0
+          ? widget.addon.remainingAmount.toStringAsFixed(0)
+          : '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = ref.watch(accountsProvider).accounts;
+
+    if (_selectedAccountId == null) {
+      if (widget.addon.bankAccountId.isNotEmpty) {
+        _selectedAccountId = widget.addon.bankAccountId;
+        _selectedAccountName = widget.addon.bankAccountName;
+      } else if (widget.project.bankAccountId.isNotEmpty) {
+        _selectedAccountId = widget.project.bankAccountId;
+        _selectedAccountName = widget.project.bankAccountName;
+      }
+    }
+
+    return Dialog(
+      backgroundColor: context.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 450),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.payments_rounded,
+                        color: Colors.purple,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Receive Add-On Payment',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: context.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            widget.addon.title,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: context.textSecondary),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 14),
+
+                // Amount Status Banner
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: context.isDarkMode
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: context.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total Scope Cost',
+                            style: TextStyle(fontSize: 10, color: context.textMuted),
+                          ),
+                          Text(
+                            'Rs. ${widget.addon.amount.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: context.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Already Paid',
+                            style: TextStyle(fontSize: 10, color: context.textMuted),
+                          ),
+                          Text(
+                            'Rs. ${widget.addon.amountPaid.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: context.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Balance Due',
+                            style: TextStyle(fontSize: 10, color: context.textMuted),
+                          ),
+                          Text(
+                            'Rs. ${widget.addon.remainingAmount.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: context.error,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Amount to receive
+                Text(
+                  'Payment Amount *',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  style: TextStyle(color: context.textPrimary, fontSize: 13),
+                  decoration: InputDecoration(
+                    prefixText: 'Rs. ',
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: context.border),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.purple),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Enter amount';
+                    }
+                    final d = double.tryParse(val.trim());
+                    if (d == null || d <= 0) return 'Enter a valid amount';
+                    if (d > widget.addon.remainingAmount) {
+                      return 'Cannot exceed balance due (Rs. ${widget.addon.remainingAmount.toStringAsFixed(0)})';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // Account Selection
+                Text(
+                  'Receiving Account *',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedAccountId,
+                  dropdownColor: context.cardBg,
+                  style: TextStyle(color: context.textPrimary, fontSize: 13),
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: context.border),
+                    ),
+                    focusedBorder: const OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.purple),
+                    ),
+                  ),
+                  items: accounts.map((a) {
+                    return DropdownMenuItem(
+                      value: a.id,
+                      child: Text('${a.name} (${a.bankName})'),
+                    );
+                  }).toList(),
+                  validator: (val) => val == null ? 'Select an account' : null,
+                  onChanged: (val) {
+                    if (val != null) {
+                      final a = accounts.firstWhere((acc) => acc.id == val);
+                      setState(() {
+                        _selectedAccountId = val;
+                        _selectedAccountName = a.name;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 24),
+                const Divider(),
+                const SizedBox(height: 16),
+
+                // Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(color: context.textSecondary),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          final amount = double.parse(
+                            _amountController.text.trim(),
+                          );
+                          final accId = _selectedAccountId ??
+                              (widget.project.bankAccountId.isNotEmpty
+                                  ? widget.project.bankAccountId
+                                  : 'default_account');
+
+                          // Record income in Finance
+                          final record = IncomeRecord(
+                            id: 'inc_${DateTime.now().millisecondsSinceEpoch}',
+                            date: DateTime.now().toIso8601String(),
+                            clientId: widget.project.clientId,
+                            clientName: widget.project.clientName,
+                            amount: amount,
+                            accountId: accId,
+                            invoiceNumber: 'ADDON-${widget.addon.id}',
+                            description:
+                                'Add-On Payment: ${widget.addon.title} - ${widget.project.name}',
+                            status: 'Received',
+                            projectId: widget.project.id,
+                            projectName: widget.project.name,
+                            projectPaymentType: 'Add-on',
+                          );
+                          await ref.read(incomeProvider.notifier).addIncome(record);
+
+                          // Record payment on Add-on
+                          await ref
+                              .read(projectAddonsProvider.notifier)
+                              .recordPayment(
+                                addonId: widget.addon.id,
+                                paymentAmount: amount,
+                                bankAccountId: accId,
+                                bankAccountName: _selectedAccountName ?? '',
+                                paymentMethod: 'Bank',
+                              );
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Add-on payment of Rs. ${amount.toStringAsFixed(0)} recorded successfully.',
+                                ),
+                                backgroundColor: context.success,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.check, size: 16),
+                      label: const Text(
+                        'Confirm Payment',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

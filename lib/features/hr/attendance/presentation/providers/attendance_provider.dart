@@ -1,6 +1,8 @@
 import 'package:software_house_erp/core/services/database_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import '../../domain/entities/attendance_record.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../../data/repositories/attendance_repository_impl.dart';
@@ -282,6 +284,10 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
   }
 
   Future<void> updateRecord(AttendanceRecord record) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.attendance, PermissionAction.edit)) {
+      throw Exception('Access Denied: You do not have permission to edit attendance records.');
+    }
     final normalized = record.copyWith(
       status: AttendanceStatus.normalize(record.status),
       checkIn: (record.status == AttendanceStatus.present ||
@@ -298,11 +304,19 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
           : null,
     );
     await _repository.updateAttendance(normalized);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated attendance for ${record.employeeName} to ${record.status} (Date: ${record.date})',
+      module: 'Attendance',
+    );
     await loadAttendance(state.selectedDate);
     await loadMonthlyAttendance(state.selectedYearMonth);
   }
 
   Future<void> markAllPresent() async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.attendance, PermissionAction.edit)) {
+      throw Exception('Access Denied: You do not have permission to mark attendance.');
+    }
     final date = state.selectedDate;
     final today = DateTime.now().toIso8601String().substring(0, 10);
     if (date.compareTo(today) > 0) return;
@@ -322,11 +336,20 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
     for (final record in recordsToSave) {
       await _repository.updateAttendance(record);
     }
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Marked all (${recordsToSave.length}) employees present for $date',
+      module: 'Attendance',
+    );
     await loadAttendance(date);
     await loadMonthlyAttendance(state.selectedYearMonth);
   }
 
   Future<void> checkInEmployee(String empId) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.attendance, PermissionAction.create) &&
+        !adminState.hasPermission(AppModule.attendance, PermissionAction.edit)) {
+      throw Exception('Access Denied: You do not have permission to check in employees.');
+    }
     final now = DateTime.now();
     final h = now.hour;
     final m = now.minute;
@@ -350,6 +373,10 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
   }
 
   Future<void> checkOutEmployee(String empId) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.attendance, PermissionAction.edit)) {
+      throw Exception('Access Denied: You do not have permission to check out employees.');
+    }
     final now = DateTime.now();
     final h = now.hour;
     final m = now.minute;
@@ -371,7 +398,17 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
   }
 
   Future<void> deleteRecord(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.attendance, PermissionAction.delete)) {
+      throw Exception('Access Denied: You do not have permission to delete attendance records.');
+    }
+    final found = state.records.where((r) => r.id == id).firstOrNull;
+    final empName = found != null ? found.employeeName : 'ID $id';
     await _repository.deleteAttendance(id);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted attendance record of $empName',
+      module: 'Attendance',
+    );
     await loadAttendance(state.selectedDate);
     await loadMonthlyAttendance(state.selectedYearMonth);
   }

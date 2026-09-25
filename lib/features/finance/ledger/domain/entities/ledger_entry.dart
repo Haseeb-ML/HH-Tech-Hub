@@ -26,6 +26,11 @@ class LedgerEntry {
   static List<LedgerEntry> sortEntriesNewestFirst(List<LedgerEntry> entries) {
     final sorted = List<LedgerEntry>.from(entries);
     sorted.sort((a, b) {
+      final aIsOpeningBalance = a.category == 'Opening Balance' || a.id.startsWith('led_opening_');
+      final bIsOpeningBalance = b.category == 'Opening Balance' || b.id.startsWith('led_opening_');
+      if (aIsOpeningBalance && !bIsOpeningBalance) return 1;
+      if (!aIsOpeningBalance && bIsOpeningBalance) return -1;
+
       final dateA = _parseDateTime(a.date);
       final dateB = _parseDateTime(b.date);
 

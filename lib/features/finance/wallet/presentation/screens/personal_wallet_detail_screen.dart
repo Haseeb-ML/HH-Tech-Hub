@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +15,8 @@ import 'package:software_house_erp/features/finance/ledger/presentation/provider
 import 'package:software_house_erp/core/utils/export_helper.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/transaction_detail_dialog.dart';
 import '../widgets/personal_account_transaction_dialog.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class PersonalWalletDetailScreen extends ConsumerStatefulWidget {
   final String accountId;
@@ -45,7 +48,7 @@ class _PersonalWalletDetailScreenState
 
     // ── Find the account by ID ─────────────────────────────────────
     final personalAccounts = accountsState.accounts
-        .where((a) => a.accountScope == 'Personal')
+        .where((a) => a.isPersonal)
         .toList();
 
     final accountList =
@@ -82,7 +85,7 @@ class _PersonalWalletDetailScreenState
     // expense row; showing them here again would duplicate the personal cash outflow.
     final personalLoans = loansState.loans
       .where((l) =>
-        l.personalAccountId == account.id &&
+        (l.personalAccountId == account.id || (l.isPersonalExternalLoan && l.accountId == account.id)) &&
         !l.description.contains('[AutoExpense]'))
       .toList();
     final directAccountEntries = ledgerState.entries.where((entry) =>
@@ -98,20 +101,26 @@ class _PersonalWalletDetailScreenState
       .where((entry) => entry.type == 'Credit')
       .fold<double>(0.0, (sum, entry) => sum + entry.amount);
 
-    final loansReceivedInflow = personalLoans
-        .where((l) => l.type == 'Lent')
-        .fold<double>(0.0, (s, l) => s + l.amount);
-    final repaymentsReceivedInflow = personalLoans
-        .where((l) => l.type == 'Borrowed')
-        .expand((l) => l.repayments)
-        .fold<double>(0.0, (s, r) => s + r.amount);
-    final loansGivenOutflow = personalLoans
-        .where((l) => l.type == 'Borrowed')
-        .fold<double>(0.0, (s, l) => s + l.amount);
-    final repaymentsPaidOutflow = personalLoans
-        .where((l) => l.type == 'Lent')
-        .expand((l) => l.repayments)
-        .fold<double>(0.0, (s, r) => s + r.amount);
+    final internalLoans = personalLoans.where((l) => l.isInternalLoan).toList();
+    final externalLoans = personalLoans.where((l) => l.isPersonalExternalLoan).toList();
+
+    // Loan Inflows to Personal Account:
+    final loansReceivedInflow =
+        internalLoans.where((l) => l.type == 'Lent').fold<double>(0.0, (s, l) => s + l.amount) +
+        externalLoans.where((l) => l.type == 'Borrowed').fold<double>(0.0, (s, l) => s + l.amount);
+
+    final repaymentsReceivedInflow =
+        internalLoans.where((l) => l.type == 'Borrowed').expand((l) => l.repayments).fold<double>(0.0, (s, r) => s + r.amount) +
+        externalLoans.where((l) => l.type == 'Lent').expand((l) => l.repayments).fold<double>(0.0, (s, r) => s + r.amount);
+
+    // Loan Outflows from Personal Account:
+    final loansGivenOutflow =
+        internalLoans.where((l) => l.type == 'Borrowed').fold<double>(0.0, (s, l) => s + l.amount) +
+        externalLoans.where((l) => l.type == 'Lent').fold<double>(0.0, (s, l) => s + l.amount);
+
+    final repaymentsPaidOutflow =
+        internalLoans.where((l) => l.type == 'Lent').expand((l) => l.repayments).fold<double>(0.0, (s, r) => s + r.amount) +
+        externalLoans.where((l) => l.type == 'Borrowed').expand((l) => l.repayments).fold<double>(0.0, (s, r) => s + r.amount);
 
     final pureIncomeTotal =
         personalIncomes.fold<double>(0.0, (s, i) => s + i.amount) + directInflow;
@@ -123,8 +132,13 @@ class _PersonalWalletDetailScreenState
     final loansOutflowTotal = loansGivenOutflow + repaymentsPaidOutflow;
     final totalExpense = pureExpenseTotal + loansOutflowTotal;
 
-    final availableBalance =
-        account.openingBalance + totalInflow - totalExpense;
+    final availableBalance = calculateAuthoritativeAccountBalance(
+      account: account,
+      incomes: incomesState.incomes,
+      expenses: expensesState.expenses,
+      loans: loansState.loans,
+      ledgerEntries: ledgerState.entries,
+    );
 
     final todayStr = DateTime.now().toIso8601String().split('T').first;
     final todayInflow = personalIncomes
@@ -206,7 +220,7 @@ class _PersonalWalletDetailScreenState
             reference: e.vendorName,
             isPersonalExpense: e.isPersonalExpense,
           )),
-      ...personalLoans.where((l) => l.type == 'Borrowed').map((l) => _WalletTx(
+      ...internalLoans.where((l) => l.type == 'Borrowed').map((l) => _WalletTx(
             id: l.id,
             date: l.startDate,
             amount: l.amount,
@@ -216,7 +230,7 @@ class _PersonalWalletDetailScreenState
                 'Company borrowed loan from personal funds: ${l.cleanDescription}',
             isPersonalExpense: true,
           )),
-      ...personalLoans
+      ...internalLoans
           .where((l) => l.type == 'Borrowed')
           .expand((l) => l.repayments)
           .map((r) => _WalletTx(
@@ -228,7 +242,7 @@ class _PersonalWalletDetailScreenState
                 description: 'Company repaid loan installment',
                 isPersonalExpense: false,
               )),
-      ...personalLoans.where((l) => l.type == 'Lent').map((l) => _WalletTx(
+      ...internalLoans.where((l) => l.type == 'Lent').map((l) => _WalletTx(
             id: l.id,
             date: l.startDate,
             amount: l.amount,
@@ -238,7 +252,7 @@ class _PersonalWalletDetailScreenState
                 'Advance / Loan received from Company: ${l.cleanDescription}',
             isPersonalExpense: false,
           )),
-      ...personalLoans
+      ...internalLoans
           .where((l) => l.type == 'Lent')
           .expand((l) => l.repayments)
           .map((r) => _WalletTx(
@@ -250,6 +264,48 @@ class _PersonalWalletDetailScreenState
                 description: 'Repayment installment sent to Company',
                 isPersonalExpense: true,
               )),
+      ...externalLoans.where((l) => l.type == 'Borrowed').map((l) => _WalletTx(
+            id: l.id,
+            date: l.startDate,
+            amount: l.amount,
+            type: 'Income',
+            category: 'Personal Loan Borrowed',
+            description:
+                'Borrowed personal loan from ${l.borrowerName}: ${l.cleanDescription}',
+            isPersonalExpense: false,
+          )),
+      ...externalLoans
+          .where((l) => l.type == 'Borrowed')
+          .expand((l) => l.repayments.map((r) => _WalletTx(
+                id: r.id,
+                date: r.date,
+                amount: r.amount,
+                type: 'Expense',
+                category: 'Personal Loan Repayment',
+                description: 'Repaid loan installment to ${l.borrowerName}',
+                isPersonalExpense: true,
+              ))),
+      ...externalLoans.where((l) => l.type == 'Lent').map((l) => _WalletTx(
+            id: l.id,
+            date: l.startDate,
+            amount: l.amount,
+            type: 'Expense',
+            category: 'Personal Loan Lent',
+            description:
+                'Lent personal funds to ${l.borrowerName}: ${l.cleanDescription}',
+            isPersonalExpense: true,
+          )),
+      ...externalLoans
+          .where((l) => l.type == 'Lent')
+          .expand((l) => l.repayments.map((r) => _WalletTx(
+                id: r.id,
+                date: r.date,
+                amount: r.amount,
+                type: 'Income',
+                category: 'Personal Loan Repayment Recv',
+                description: 'Received loan installment from ${l.borrowerName}',
+                isPersonalExpense: false,
+              ))),
     ];
 
     allTransactions.sort(_compareTransactionsNewestFirst);
@@ -288,6 +344,8 @@ class _PersonalWalletDetailScreenState
       .take(_rowsPerPage)
       .toList();
 
+    final canCreateTransaction = ref.watch(adminProvider).hasPermission(AppModule.accounts, PermissionAction.create);
+
     // ─────────────────────────────────────────────────────────────
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -316,9 +374,10 @@ class _PersonalWalletDetailScreenState
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Add Transaction',
-            icon: const Icon(Icons.add_card_outlined),
+          if (canCreateTransaction)
+            IconButton(
+              tooltip: 'Add Transaction',
+              icon: const Icon(Icons.add_card_outlined),
             onPressed: () async {
               final transaction = await showPersonalAccountTransactionDialog(
                 context,
@@ -761,23 +820,44 @@ class _PersonalWalletDetailScreenState
             const SizedBox(height: 32),
 
             // ── Ledger Header ───────────────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '$accountOwnerLabel\'s Activity Ledger',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: context.textPrimary,
+            if (MediaQuery.of(context).size.width < 600)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$accountOwnerLabel\'s Activity Ledger',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: context.textPrimary,
+                      fontSize: 18,
+                    ),
                   ),
-                ),
-                Text(
-                  'Showing transactions for $accountOwnerLabel only',
-                  style:
-                      TextStyle(color: context.textSecondary, fontSize: 12),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Showing transactions for $accountOwnerLabel only',
+                    style:
+                        TextStyle(color: context.textSecondary, fontSize: 12),
+                  ),
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '$accountOwnerLabel\'s Activity Ledger',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: context.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    'Showing transactions for $accountOwnerLabel only',
+                    style:
+                        TextStyle(color: context.textSecondary, fontSize: 12),
+                  ),
+                ],
+              ),
             const SizedBox(height: 16),
 
             // ── Filters Bar ────────────────────────────────────────
@@ -977,7 +1057,16 @@ class _PersonalWalletDetailScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Header
+                  LayoutBuilder(
+                    builder: (context, tableConstraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: max(850.0, tableConstraints.maxWidth),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Header
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 16),
@@ -1231,11 +1320,19 @@ class _PersonalWalletDetailScreenState
                         );
                       },
                     ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   if (filtered.isNotEmpty && totalPages > 1)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisAlignment: MediaQuery.of(context).size.width < 600
+                            ? MainAxisAlignment.center
+                            : MainAxisAlignment.end,
                         children: [
                           Text(
                             'Page ${validPage + 1} of $totalPages',

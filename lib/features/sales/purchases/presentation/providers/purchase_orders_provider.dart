@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/purchase_order.dart';
 import '../../domain/repositories/purchase_orders_repository.dart';
 import '../../data/repositories/purchase_orders_repository_impl.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 // ─── State Definition ───────────────────────────
 
@@ -55,16 +56,28 @@ class PurchaseOrdersNotifier extends Notifier<PurchaseOrdersState> {
 
   Future<void> addOrder(PurchaseOrder order) async {
     await _repository.addPurchaseOrder(order);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Added purchase order: ${order.id} (Vendor: ${order.vendorName}, Total: ${order.total})',
+      module: 'Sales',
+    );
     await loadOrders();
   }
 
   Future<void> updateOrder(PurchaseOrder order) async {
     await _repository.updatePurchaseOrder(order);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated purchase order: ${order.id} (Vendor: ${order.vendorName}, Total: ${order.total})',
+      module: 'Sales',
+    );
     await loadOrders();
   }
 
   Future<void> deleteOrder(String id) async {
     await _repository.deletePurchaseOrder(id);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted purchase order: $id',
+      module: 'Sales',
+    );
     await loadOrders();
   }
 }

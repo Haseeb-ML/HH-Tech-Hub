@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:software_house_erp/core/services/database_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import '../../domain/entities/project.dart';
 import '../../domain/repositories/projects_repository.dart';
 import '../../data/repositories/projects_repository_impl.dart';
@@ -82,22 +85,52 @@ class ProjectsNotifier extends Notifier<ProjectsState> {
   }
 
   Future<void> addProject(Project project) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.projectsList, PermissionAction.create)) {
+      debugPrint('Unauthorized: Missing create permission for projects');
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.addProject(project);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Created project "${project.name}" (Client: ${project.clientName})',
+      module: 'Projects',
+    );
     final updated = await _repository.getProjects();
     state = state.copyWith(projects: updated, isLoading: false);
   }
 
   Future<void> updateProject(Project project) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.projectsList, PermissionAction.edit)) {
+      debugPrint('Unauthorized: Missing edit permission for projects');
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.updateProject(project);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated project "${project.name}" (Status: ${project.status})',
+      module: 'Projects',
+    );
     final updated = await _repository.getProjects();
     state = state.copyWith(projects: updated, isLoading: false);
   }
 
   Future<void> deleteProject(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.projectsList, PermissionAction.delete)) {
+      debugPrint('Unauthorized: Missing delete permission for projects');
+      return;
+    }
+    final found = state.projects.where((p) => p.id == id).firstOrNull;
+    final projName = found != null ? found.name : 'ID $id';
+
     state = state.copyWith(isLoading: true);
     await _repository.deleteProject(id);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted project "$projName"',
+      module: 'Projects',
+    );
     final updated = await _repository.getProjects();
     state = state.copyWith(projects: updated, isLoading: false);
   }

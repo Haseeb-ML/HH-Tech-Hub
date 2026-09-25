@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/timesheet_entry.dart';
 import '../../domain/repositories/timesheets_repository.dart';
 import '../../data/repositories/timesheets_repository_impl.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 
 class TimesheetsState {
@@ -102,22 +104,46 @@ class TimesheetsNotifier extends Notifier<TimesheetsState> {
   }
 
   Future<void> addTimesheet(TimesheetEntry entry) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.timesheets, PermissionAction.create)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.addTimesheet(entry);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Added timesheet: ${entry.taskTitle} by ${entry.employeeName} (${entry.hours}h)',
+      module: 'Projects',
+    );
     final updated = await _repository.getTimesheets();
     state = state.copyWith(entries: updated, isLoading: false);
   }
 
   Future<void> updateTimesheet(TimesheetEntry entry) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.timesheets, PermissionAction.edit)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.updateTimesheet(entry);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated timesheet: ${entry.taskTitle} by ${entry.employeeName} (${entry.hours}h, Status: ${entry.status})',
+      module: 'Projects',
+    );
     final updated = await _repository.getTimesheets();
     state = state.copyWith(entries: updated, isLoading: false);
   }
 
   Future<void> deleteTimesheet(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.timesheets, PermissionAction.delete)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.deleteTimesheet(id);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted timesheet: $id',
+      module: 'Projects',
+    );
     final updated = await _repository.getTimesheets();
     state = state.copyWith(entries: updated, isLoading: false);
   }

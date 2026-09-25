@@ -6,14 +6,14 @@ import '../../domain/repositories/accounts_repository.dart';
 
 class AccountsRepositoryImpl implements AccountsRepository {
   final DriftDatabaseService _dbService;
-  static const String _metaKey = 'bank_accounts_metadata_v1';
+  static const String metaKey = 'bank_accounts_metadata_v1';
 
   AccountsRepositoryImpl(this._dbService);
 
-  Future<Map<String, dynamic>> _getMetaMap() async {
+  static Future<Map<String, dynamic>> getGlobalMetaMap() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final str = prefs.getString(_metaKey);
+      final str = prefs.getString(metaKey);
       if (str != null) {
         final decoded = jsonDecode(str);
         if (decoded is Map<String, dynamic>) {
@@ -24,22 +24,31 @@ class AccountsRepositoryImpl implements AccountsRepository {
     return {};
   }
 
-  Future<void> _saveMeta(String accountId, Map<String, dynamic> data) async {
+  static Future<void> saveGlobalMetaMap(Map<String, dynamic> data) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final current = await _getMetaMap();
+      await prefs.setString(metaKey, jsonEncode(data));
+    } catch (_) {}
+  }
+
+  Future<Map<String, dynamic>> _getMetaMap() async {
+    return getGlobalMetaMap();
+  }
+
+  Future<void> _saveMeta(String accountId, Map<String, dynamic> data) async {
+    try {
+      final current = await getGlobalMetaMap();
       current[accountId] = data;
-      await prefs.setString(_metaKey, jsonEncode(current));
+      await saveGlobalMetaMap(current);
     } catch (_) {}
   }
 
   Future<void> _deleteMeta(String accountId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final current = await _getMetaMap();
+      final current = await getGlobalMetaMap();
       if (current.containsKey(accountId)) {
         current.remove(accountId);
-        await prefs.setString(_metaKey, jsonEncode(current));
+        await saveGlobalMetaMap(current);
       }
     } catch (_) {}
   }
@@ -48,8 +57,30 @@ class AccountsRepositoryImpl implements AccountsRepository {
   Future<List<BankAccount>> getAccounts() async {
     final list = await _dbService.db.getAll(_dbService.db.bankAccountsTable);
     final meta = await _getMetaMap();
+    final allLedgers = await _dbService.db.getAll(_dbService.db.ledgerEntriesTable);
+    final openingLedgerMap = <String, LedgerEntriesTableData>{};
+    for (final l in allLedgers) {
+      if (l.category == 'Opening Balance' || l.id.startsWith('led_opening_')) {
+        openingLedgerMap[l.accountId] = l;
+      }
+    }
+
     return list.map((a) {
       final m = (meta[a.id] as Map<String, dynamic>?) ?? {};
+      final isPersonal = (m['accountScope']?.toString().toLowerCase() == 'personal') ||
+          a.id.toLowerCase().contains('personal') ||
+          a.name.toLowerCase().contains('personal');
+      final ledgerOpening = openingLedgerMap[a.id];
+      final rawOpening = (m['openingBalance'] as num?)?.toDouble() ??
+          (ledgerOpening != null ? ledgerOpening.amount : 0.0);
+      final openingBal = rawOpening > 0 ? rawOpening : (ledgerOpening?.amount ?? (a.balance > 0 ? a.balance : 0.0));
+      final rawOwner = m['ownerName'] as String? ?? '';
+      final owner = rawOwner.isNotEmpty
+          ? rawOwner
+          : (isPersonal ? a.name.replaceAll(RegExp(r'Personal\s*Account', caseSensitive: false), '').trim() : '');
+      final rawDate = m['openingBalanceDate'] as String? ?? '';
+      final openingDate = rawDate.isNotEmpty ? rawDate : (ledgerOpening?.date ?? '');
+
       return BankAccount(
         id: a.id,
         name: a.name,
@@ -58,10 +89,10 @@ class AccountsRepositoryImpl implements AccountsRepository {
         bankName: a.bankName,
         balance: a.balance,
         status: a.status,
-        openingBalance: (m['openingBalance'] as num?)?.toDouble() ?? 0.0,
-        openingBalanceDate: m['openingBalanceDate'] as String? ?? '',
-        accountScope: m['accountScope'] as String? ?? 'Company',
-        ownerName: m['ownerName'] as String? ?? '',
+        openingBalance: openingBal,
+        openingBalanceDate: openingDate,
+        accountScope: isPersonal ? 'Personal' : 'Company',
+        ownerName: owner,
       );
     }).toList();
   }

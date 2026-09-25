@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_builder.dart';
+import '../../../../core/widgets/app_logo.dart';
 
 // Providers & Entities imports
 import 'package:software_house_erp/features/finance/income/presentation/providers/income_provider.dart';
@@ -17,6 +19,8 @@ import 'package:software_house_erp/features/projects/tasks/domain/entities/proje
 import 'package:software_house_erp/features/inventory/inventory/presentation/providers/inventory_provider.dart';
 import 'package:software_house_erp/features/inventory/assets/presentation/providers/assets_provider.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/core/services/cloud_sync_service.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -79,36 +83,59 @@ class DashboardScreen extends ConsumerWidget {
     final activeStaffCount = employeesState.employees.where((e) => e.status == 'Active').length;
     final ongoingProjectsCount = projectsState.projects.where((p) => p.status == 'In Progress').length;
 
-    // Responsive columns for stat cards
-    int crossAxisCount;
-    if (width >= 1400) {
-      crossAxisCount = 6;
-    } else if (width >= 900) {
-      crossAxisCount = 3;
-    } else {
-      crossAxisCount = 2;
-    }
+    // Check module view permissions
+    final canViewFinance = adminState.hasPermission(AppModule.finance, PermissionAction.view);
+    final canViewClients = adminState.hasPermission(AppModule.clients, PermissionAction.view);
+    final canViewHR = adminState.hasPermission(AppModule.hr, PermissionAction.view);
+    final canViewProjects = adminState.hasPermission(AppModule.projects, PermissionAction.view);
+    final canViewInventory = adminState.hasPermission(AppModule.inventory, PermissionAction.view);
+    final canViewAdministration = adminState.hasPermission(AppModule.administration, PermissionAction.view);
+
+    final currentUser = adminState.currentUser;
+    final userName = currentUser != null && currentUser.name.isNotEmpty
+        ? currentUser.name
+        : (currentUser?.username ?? 'Admin');
 
     // Dynamic Lists processing
     // 1. Transactions
     final allTransactions = [
-      ...incomesState.incomes.map((inc) => _TransactionItem(
-            inc.description.isNotEmpty ? inc.description : 'Income from ${inc.clientName}',
-            'Revenue',
-            inc.amount,
-            inc.date,
-            true,
-          )),
-      ...companyExpenses.map((exp) => _TransactionItem(
-            exp.description.isNotEmpty ? exp.description : 'Expense to ${exp.vendorName}',
-            exp.category,
-            exp.amount,
-            exp.date,
-            false,
-          )),
+      ...incomesState.incomes.map((inc) {
+        String desc = inc.description.trim();
+        if (desc.isEmpty || desc.toLowerCase() == 'no comment') {
+          desc = inc.clientName.isNotEmpty ? 'Income from ${inc.clientName}' : 'General Income';
+        }
+        return _TransactionItem(
+          desc,
+          'Revenue',
+          inc.amount,
+          inc.date,
+          true,
+        );
+      }),
+      ...companyExpenses.map((exp) {
+        String desc = exp.description.trim();
+        if (desc.isEmpty || desc.toLowerCase() == 'no comment') {
+          desc = exp.vendorName.isNotEmpty
+              ? 'Expense to ${exp.vendorName}'
+              : (exp.category.isNotEmpty ? exp.category : 'General Expense');
+        }
+        return _TransactionItem(
+          desc,
+          exp.category.isNotEmpty ? exp.category : 'Expense',
+          exp.amount,
+          exp.date,
+          false,
+        );
+      }),
     ];
-    allTransactions.sort((a, b) => b.date.compareTo(a.date));
-    final recentTransactions = allTransactions.take(4).toList();
+    allTransactions.sort((a, b) {
+      final dtA = DateTime.tryParse(a.date) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final dtB = DateTime.tryParse(b.date) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final cmp = dtB.compareTo(dtA);
+      if (cmp != 0) return cmp;
+      return b.date.compareTo(a.date);
+    });
+    final recentTransactions = allTransactions.take(5).toList();
 
     // 2. Activities (Audit Logs)
     final recentActivities = adminState.logs.map((log) {
@@ -175,211 +202,402 @@ class DashboardScreen extends ConsumerWidget {
 
     final displayAlerts = [...lowStockSupplies, ...criticalAssets].take(4).toList();
 
+    final isMobile = width < 768;
+
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Dashboard Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
+            if (isMobile)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                           color: context.isDarkMode ? Colors.white.withValues(alpha: 0.85) : Colors.white,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: context.border, width: 1),
                         ),
-                        child: Image.asset(
-                          'assets/logo.png',
-                          height: 44,
+                        child: const AppLogo(
+                          height: 36,
                           fit: BoxFit.contain,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              tr('Welcome back, Admin'),
-                              style: theme.textTheme.displaySmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              tr('Here is a quick overview of Software House performance today.'),
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: context.textSecondary,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          '${tr('Welcome back')}, $userName',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                // Fresh refresh indicator
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // Triggers hot reload/refresh notification
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: context.primaryColor,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        content: Row(
-                          children: [
-                            Icon(Icons.refresh, color: Colors.white),
-                            SizedBox(width: 12),
-                            Text(
-                              tr('Dashboard statistics updated.'),
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Refresh Data'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: context.cardBg,
-                    foregroundColor: context.textPrimary,
-                    elevation: 0,
-                    side: BorderSide(color: context.border),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 6),
+                  Text(
+                    tr('Here is a quick overview of Software House performance today.'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: context.textSecondary,
                     ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await ref.read(cloudSyncStateProvider.notifier).syncNow();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: context.success,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.white),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      tr('Dashboard data synced and updated.'),
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: context.error,
+                                content: Text(tr('Failed to sync data: $e')),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Refresh Data'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: context.cardBg,
+                        foregroundColor: context.textPrimary,
+                        elevation: 0,
+                        side: BorderSide(color: context.border),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: context.isDarkMode ? Colors.white.withValues(alpha: 0.85) : Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: context.border, width: 1),
+                          ),
+                          child: const AppLogo(
+                            height: 44,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${tr('Welcome back')}, $userName',
+                                style: theme.textTheme.displaySmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                currentUser != null && currentUser.role.isNotEmpty
+                                    ? '${tr('Role')}: ${currentUser.role} • ${tr('Here is a quick overview of Software House performance today.')}'
+                                    : tr('Here is a quick overview of Software House performance today.'),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: context.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Fresh refresh indicator
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      try {
+                        await ref.read(cloudSyncStateProvider.notifier).syncNow();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: context.success,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.check_circle, color: Colors.white),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    tr('Dashboard data synced and updated.'),
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: context.error,
+                              content: Text(tr('Failed to sync data: $e')),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Refresh Data'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: context.cardBg,
+                      foregroundColor: context.textPrimary,
+                      elevation: 0,
+                      side: BorderSide(color: context.border),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 24),
   
             // Overview Metrics Grid
-            GridView(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1.1,
-              ),
-              children: [
-                StatCard(
-                  title: tr('Total Income'),
-                  tooltipMessage: "Detailed statistics and information regarding ${tr('Total Income')}.",
-                  value: _formatCurrency(totalIncome),
-                  icon: Icons.trending_up,
-                  iconColor: context.success,
-                  iconBgColor: context.successLight,
-                  trendText: tr('Live registry inflow'),
-                  isPositiveTrend: true,
-                ),
-                StatCard(
-                  title: tr('Total Expense'),
-                  value: _formatCurrency(totalExpense),
-                  icon: Icons.trending_down,
-                  iconColor: context.error,
-                  iconBgColor: context.errorLight,
-                  trendText: tr('Live registry outflow'),
-                  isPositiveTrend: false,
-                ),
-                StatCard(
-                  title: 'Net Profit',
-                  tooltipMessage: 'Detailed statistics and information regarding Net Profit.',
-                  value: _formatCurrency(netProfit),
-                  icon: Icons.account_balance,
-                  iconColor: context.primaryColor,
-                  iconBgColor: context.infoLight,
-                  trendText: netProfit >= 0 ? 'Positive net margin' : 'Deficit margin',
-                  isPositiveTrend: netProfit >= 0,
-                ),
-                StatCard(
-                  title: 'Total Clients',
-                  tooltipMessage: 'Detailed statistics and information regarding Total Clients.',
-                  value: '$activeClientsCount Active',
-                  icon: Icons.business,
-                  iconColor: Colors.purple,
-                  iconBgColor: context.isDarkMode ? Colors.purple.withValues(alpha: 0.2) : const Color(0xFFF3E8FF),
-                  trendText: '${clientsState.clients.length} registered total',
-                  isPositiveTrend: true,
-                ),
-                StatCard(
-                  title: tr('Total Employees'),
-                  tooltipMessage: "Detailed statistics and information regarding ${tr('Total Employees')}.",
-                  value: '$totalStaffCount Staff',
-                  icon: Icons.people,
-                  iconColor: Colors.teal,
-                  iconBgColor: context.isDarkMode ? Colors.teal.withValues(alpha: 0.2) : const Color(0xFFE6FFFA),
-                  trendText: '$activeStaffCount active team members',
-                  isPositiveTrend: true,
-                ),
-                StatCard(
-                  title: tr('Active Projects'),
-                  tooltipMessage: "Detailed statistics and information regarding ${tr('Active Projects')}.",
-                  value: '$ongoingProjectsCount Ongoing',
-                  icon: Icons.task_alt,
-                  iconColor: context.warning,
-                  iconBgColor: context.warningLight,
-                  trendText: '${projectsState.projects.length} total projects',
-                  isPositiveTrend: true,
-                ),
-              ],
+            Builder(
+              builder: (context) {
+                final List<Widget> visibleStatCards = [];
+                if (canViewFinance) {
+                  visibleStatCards.addAll([
+                    StatCard(
+                      title: tr('Total Income'),
+                      tooltipMessage: "Detailed statistics and information regarding ${tr('Total Income')}.",
+                      value: _formatCurrency(totalIncome),
+                      icon: Icons.trending_up,
+                      iconColor: context.success,
+                      iconBgColor: context.successLight,
+                      trendText: tr('Live registry inflow'),
+                      isPositiveTrend: true,
+                    ),
+                    StatCard(
+                      title: tr('Total Expense'),
+                      value: _formatCurrency(totalExpense),
+                      icon: Icons.trending_down,
+                      iconColor: context.error,
+                      iconBgColor: context.errorLight,
+                      trendText: tr('Live registry outflow'),
+                      isPositiveTrend: false,
+                    ),
+                    StatCard(
+                      title: 'Net Profit',
+                      tooltipMessage: 'Detailed statistics and information regarding Net Profit.',
+                      value: _formatCurrency(netProfit),
+                      icon: Icons.account_balance,
+                      iconColor: context.primaryColor,
+                      iconBgColor: context.infoLight,
+                      trendText: netProfit >= 0 ? 'Positive net margin' : 'Deficit margin',
+                      isPositiveTrend: netProfit >= 0,
+                    ),
+                  ]);
+                }
+                if (canViewClients) {
+                  visibleStatCards.add(
+                    StatCard(
+                      title: 'Total Clients',
+                      tooltipMessage: 'Detailed statistics and information regarding Total Clients.',
+                      value: '$activeClientsCount Active',
+                      icon: Icons.business,
+                      iconColor: Colors.purple,
+                      iconBgColor: context.isDarkMode ? Colors.purple.withValues(alpha: 0.2) : const Color(0xFFF3E8FF),
+                      trendText: '${clientsState.clients.length} registered total',
+                      isPositiveTrend: true,
+                    ),
+                  );
+                }
+                if (canViewHR) {
+                  visibleStatCards.add(
+                    StatCard(
+                      title: tr('Total Employees'),
+                      tooltipMessage: "Detailed statistics and information regarding ${tr('Total Employees')}.",
+                      value: '$totalStaffCount Staff',
+                      icon: Icons.people,
+                      iconColor: Colors.teal,
+                      iconBgColor: context.isDarkMode ? Colors.teal.withValues(alpha: 0.2) : const Color(0xFFE6FFFA),
+                      trendText: '$activeStaffCount active team members',
+                      isPositiveTrend: true,
+                    ),
+                  );
+                }
+                if (canViewProjects) {
+                  visibleStatCards.add(
+                    StatCard(
+                      title: tr('Active Projects'),
+                      tooltipMessage: "Detailed statistics and information regarding ${tr('Active Projects')}.",
+                      value: '$ongoingProjectsCount Ongoing',
+                      icon: Icons.task_alt,
+                      iconColor: context.warning,
+                      iconBgColor: context.warningLight,
+                      trendText: '${projectsState.projects.length} total projects',
+                      isPositiveTrend: true,
+                    ),
+                  );
+                }
+
+                if (visibleStatCards.isEmpty) {
+                  return GlassCard(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        tr('No dashboard metrics available for your current role permissions.'),
+                        style: TextStyle(color: context.textSecondary),
+                      ),
+                    ),
+                  );
+                }
+
+                final cardCount = visibleStatCards.length;
+                int crossAxisCount;
+                double childAspectRatio;
+                if (width >= 1400) {
+                  crossAxisCount = min(cardCount, 6);
+                  childAspectRatio = 1.1;
+                } else if (width >= 900) {
+                  crossAxisCount = min(cardCount, 3);
+                  childAspectRatio = 1.15;
+                } else if (width >= 600) {
+                  crossAxisCount = min(cardCount, 2);
+                  childAspectRatio = 1.25;
+                } else {
+                  crossAxisCount = width < 360 ? 1 : min(cardCount, 2);
+                  childAspectRatio = width < 360 ? 2.2 : 0.95;
+                }
+                if (crossAxisCount < 1) crossAxisCount = 1;
+
+                return GridView(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: childAspectRatio,
+                  ),
+                  children: visibleStatCards,
+                );
+              },
             ),
             const SizedBox(height: 24),
-  
-            // Two-column layout
-            ResponsiveBuilder(
-              mobile: Column(
-                children: [
-                  _buildTransactions(context, recentTransactions, ref),
-                  const SizedBox(height: 24),
-                  _buildUpcomingTasks(context, displayTasks, ref),
-                  const SizedBox(height: 24),
-                  _buildRecentActivities(context, recentActivities),
-                  const SizedBox(height: 24),
-                  _buildLowStockAlerts(context, displayAlerts),
-                ],
-              ),
-              desktop: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left Column: Transactions & Activities
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      children: [
-                        _buildTransactions(context, recentTransactions, ref),
-                        const SizedBox(height: 24),
-                        _buildRecentActivities(context, recentActivities),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  // Right Column: Tasks & Alerts
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      children: [
-                        _buildUpcomingTasks(context, displayTasks, ref),
-                        const SizedBox(height: 24),
-                        _buildLowStockAlerts(context, displayAlerts),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+
+            // Two-column layout with permissions filtering
+            Builder(
+              builder: (context) {
+                final List<Widget> mobileWidgets = [];
+                if (canViewFinance) {
+                  if (mobileWidgets.isNotEmpty) mobileWidgets.add(const SizedBox(height: 24));
+                  mobileWidgets.add(_buildTransactions(context, recentTransactions, ref));
+                }
+                if (canViewProjects) {
+                  if (mobileWidgets.isNotEmpty) mobileWidgets.add(const SizedBox(height: 24));
+                  mobileWidgets.add(_buildUpcomingTasks(context, displayTasks, ref));
+                }
+                if (canViewAdministration) {
+                  if (mobileWidgets.isNotEmpty) mobileWidgets.add(const SizedBox(height: 24));
+                  mobileWidgets.add(_buildRecentActivities(context, recentActivities));
+                }
+                if (canViewInventory) {
+                  if (mobileWidgets.isNotEmpty) mobileWidgets.add(const SizedBox(height: 24));
+                  mobileWidgets.add(_buildLowStockAlerts(context, displayAlerts));
+                }
+
+                final List<Widget> leftColumnWidgets = [];
+                if (canViewFinance) {
+                  leftColumnWidgets.add(_buildTransactions(context, recentTransactions, ref));
+                }
+                if (canViewAdministration) {
+                  if (leftColumnWidgets.isNotEmpty) leftColumnWidgets.add(const SizedBox(height: 24));
+                  leftColumnWidgets.add(_buildRecentActivities(context, recentActivities));
+                }
+
+                final List<Widget> rightColumnWidgets = [];
+                if (canViewProjects) {
+                  rightColumnWidgets.add(_buildUpcomingTasks(context, displayTasks, ref));
+                }
+                if (canViewInventory) {
+                  if (rightColumnWidgets.isNotEmpty) rightColumnWidgets.add(const SizedBox(height: 24));
+                  rightColumnWidgets.add(_buildLowStockAlerts(context, displayAlerts));
+                }
+
+                if (mobileWidgets.isEmpty && leftColumnWidgets.isEmpty && rightColumnWidgets.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+
+                return ResponsiveBuilder(
+                  mobile: Column(children: mobileWidgets),
+                  desktop: (leftColumnWidgets.isNotEmpty && rightColumnWidgets.isNotEmpty)
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Column(children: leftColumnWidgets),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              flex: 2,
+                              child: Column(children: rightColumnWidgets),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                children: leftColumnWidgets.isNotEmpty
+                                    ? leftColumnWidgets
+                                    : rightColumnWidgets,
+                              ),
+                            ),
+                          ],
+                        ),
+                );
+              },
             ),
           ],
         ),
@@ -404,87 +622,182 @@ class DashboardScreen extends ConsumerWidget {
                 style: TextStyle(color: context.textSecondary),
               ),
             )
-          : Table(
-              columnWidths: const {
-                0: FlexColumnWidth(3),
-                1: FlexColumnWidth(1),
-                2: FlexColumnWidth(1.2),
-                3: FlexColumnWidth(1.2),
-              },
-              children: [
-                // Table Header
-                TableRow(
-                  decoration: BoxDecoration(
-                    color: context.divider,
-                  ),
-                  children: [
-                    _buildTableHeaderCell(context, 'Details'),
-                    _buildTableHeaderCell(context, tr('Type')),
-                    _buildTableHeaderCell(context, 'Amount'),
-                    _buildTableHeaderCell(context, tr('Date')),
-                  ],
-                ),
-                // Table Body
-                ...transactions.map((tx) {
-                  return TableRow(
-                    decoration: BoxDecoration(
-                      border: Border(bottom: BorderSide(color: context.divider)),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final tableWidth = max(constraints.maxWidth, 680.0);
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: Table(
+                      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                      columnWidths: const {
+                        0: FlexColumnWidth(3.0), // Details with icon & subtext
+                        1: FlexColumnWidth(1.6), // Type / Category pill badge
+                        2: FlexColumnWidth(1.8), // Amount formatted nicely
+                        3: FixedColumnWidth(140), // Date (dedicated width)
+                      },
+                      children: [
+                        // Table Header
+                        TableRow(
+                          decoration: BoxDecoration(
+                            color: context.isDarkMode
+                                ? const Color(0xFF1E293B)
+                                : Colors.grey.shade50,
+                            border: Border(bottom: BorderSide(color: context.divider)),
+                          ),
+                          children: [
+                            _buildTableHeaderCell(context, 'Details'),
+                            _buildTableHeaderCell(context, tr('Type')),
+                            _buildTableHeaderCell(context, 'Amount'),
+                            _buildTableHeaderCell(context, tr('Date')),
+                          ],
+                        ),
+                        // Table Body
+                        ...transactions.map((tx) {
+                          return TableRow(
+                            decoration: BoxDecoration(
+                              border: Border(bottom: BorderSide(color: context.divider.withValues(alpha: 0.6))),
+                            ),
+                            children: [
+                              // 0. Details with Inflow/Outflow Icon & Subtitle
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: tx.isIncome
+                                            ? context.success.withValues(alpha: 0.12)
+                                            : context.error.withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        tx.isIncome ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                                        size: 16,
+                                        color: tx.isIncome ? context.success : context.error,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            tx.details,
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: context.textPrimary,
+                                              fontSize: 13,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            tx.isIncome ? 'Inflow Receipt' : 'Outflow Expense',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: context.textMuted,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // 1. Type / Category Pill
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: tx.isIncome
+                                          ? context.success.withValues(alpha: 0.08)
+                                          : context.primaryColor.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: tx.isIncome
+                                            ? context.success.withValues(alpha: 0.25)
+                                            : context.primaryColor.withValues(alpha: 0.25),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      tx.type,
+                                      style: TextStyle(
+                                        color: tx.isIncome ? context.success : context.primaryColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // 2. Amount
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                child: Text(
+                                  _formatCurrency(tx.amount),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: tx.isIncome ? context.success : context.error,
+                                  ),
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              // 3. Date
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.calendar_today_outlined, size: 13, color: context.textMuted),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _formatDate(tx.date),
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: context.textSecondary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
+                      ],
                     ),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        child: Text(
-                          tx.details,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: context.textPrimary,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        child: Text(
-                          tx.type,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: context.textSecondary,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        child: Text(
-                          '${tx.isIncome ? '+' : ''}${_formatCurrency(tx.amount)}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: tx.isIncome ? context.success : context.error,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        child: Text(
-                          _formatDate(tx.date),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: context.textMuted,
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ],
+                  ),
+                );
+              },
             ),
     );
   }
 
   Widget _buildTableHeaderCell(BuildContext context, String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Text(
         text,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w700,
+              fontSize: 12,
               color: context.textSecondary,
+              letterSpacing: 0.3,
             ),
       ),
     );
@@ -619,20 +932,32 @@ class DashboardScreen extends ConsumerWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Row(
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 12,
+                              runSpacing: 4,
                               children: [
-                                Icon(Icons.calendar_month, size: 12, color: context.textMuted),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _formatDate(task.dueDate),
-                                  style: theme.textTheme.labelMedium?.copyWith(color: context.textSecondary),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.calendar_month, size: 12, color: context.textMuted),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _formatDate(task.dueDate),
+                                      style: theme.textTheme.labelMedium?.copyWith(color: context.textSecondary),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 12),
-                                Icon(Icons.person_outline, size: 12, color: context.textMuted),
-                                const SizedBox(width: 4),
-                                Text(
-                                  task.assignee,
-                                  style: theme.textTheme.labelMedium?.copyWith(color: context.textSecondary),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.person_outline, size: 12, color: context.textMuted),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      task.assignee,
+                                      style: theme.textTheme.labelMedium?.copyWith(color: context.textSecondary),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

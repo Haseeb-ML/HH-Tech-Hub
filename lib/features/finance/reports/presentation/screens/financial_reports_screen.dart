@@ -12,10 +12,17 @@ import 'package:software_house_erp/features/finance/income/domain/entities/incom
 import 'package:software_house_erp/features/hr/salaries/domain/entities/salary_record.dart';
 import 'package:software_house_erp/features/finance/income/presentation/providers/income_provider.dart';
 import 'package:software_house_erp/features/finance/expenses/presentation/providers/expenses_provider.dart';
+import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
+import 'package:software_house_erp/features/finance/loans/presentation/providers/loans_provider.dart';
 import 'package:software_house_erp/features/hr/salaries/presentation/providers/salaries_provider.dart';
 import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
+import 'package:software_house_erp/features/inventory/inventory/presentation/providers/inventory_provider.dart';
+import 'package:software_house_erp/features/inventory/assets/presentation/providers/assets_provider.dart';
+import 'package:software_house_erp/features/sales/sales/presentation/providers/sales_invoices_provider.dart';
+import 'package:software_house_erp/features/sales/purchases/presentation/providers/purchase_orders_provider.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/transaction_detail_dialog.dart';
 import 'package:software_house_erp/features/projects/projects/presentation/providers/projects_provider.dart';
+import 'package:software_house_erp/core/services/cloud_sync_service.dart';
 import '../providers/financial_reports_provider.dart';
 import '../../domain/entities/financial_summary_model.dart';
 
@@ -42,7 +49,6 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   String _incomeCategoryFilter = 'All';
   String _incomeClientFilter = 'All';
   String _incomeAccountFilter = 'All';
-  String _incomePaymentMethodFilter = 'All';
   int _incomeCurrentPage = 0;
   static const int _incomeRowsPerPage = 10;
 
@@ -51,6 +57,9 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
 
   String _payrollPeriodFilter = 'This Month';
   DateTimeRange? _payrollCustomDateRange;
+
+  String _profitLossPeriodFilter = 'This Month';
+  DateTimeRange? _profitLossCustomDateRange;
 
   final List<ReportTabItem> _reportTabs = const [
     ReportTabItem(0, 'Finance Summary', Icons.grid_view_rounded),
@@ -75,6 +84,24 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<SyncState>(cloudSyncStateProvider, (previous, next) {
+        if ((next.status == SyncStatus.success || next.status == SyncStatus.offline) &&
+          previous?.status == SyncStatus.syncing) {
+        ref.invalidate(financialReportsProvider);
+        ref.invalidate(accountsProvider);
+        ref.invalidate(incomeProvider);
+        ref.invalidate(expensesProvider);
+        ref.invalidate(salariesProvider);
+        ref.invalidate(ledgerProvider);
+        ref.invalidate(loansProvider);
+        ref.invalidate(inventoryProvider);
+        ref.invalidate(salesInvoicesProvider);
+        ref.invalidate(purchaseOrdersProvider);
+        ref.invalidate(assetsProvider);
+        ref.invalidate(projectsProvider);
+      }
+    });
+
     final theme = Theme.of(context);
     final activeTab = _reportTabs.firstWhere((t) => t.index == _selectedIndex);
     final reportState = ref.watch(financialReportsProvider);
@@ -83,14 +110,16 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     final pl = reportState.profitLoss;
     final al = reportState.assetsLiabilities;
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       body: Column(
         children: [
-          // Top Horizontal Sub-Navigation Tab Bar (Matching Finance & Accounts Tab Bar)
+          // Finance Reports module navigation
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+            padding: EdgeInsets.fromLTRB(isMobile ? 12 : 24, 12, isMobile ? 12 : 24, 0),
             decoration: BoxDecoration(
               color: context.cardBg,
               border: Border(
@@ -162,7 +191,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
           // Main Body Content View
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(isMobile ? 12 : 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -172,7 +201,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                     children: [
                       Text(
                         activeTab.label,
-                        style: theme.textTheme.displaySmall?.copyWith(
+                        style: (isMobile ? theme.textTheme.headlineSmall : theme.textTheme.displaySmall)?.copyWith(
                           fontWeight: FontWeight.w800,
                           color: context.textPrimary,
                           letterSpacing: -0.5,
@@ -313,103 +342,91 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Top 4 Stat Cards
-        Row(
-          children: [
-            Expanded(
-              child: StatCard(
-                title: 'TOTAL REVENUE',
-                value: 'Rs. ${(pl.totalRevenue / 1000).toStringAsFixed(1)}k',
-                icon: Icons.trending_up,
-                iconColor: context.success,
-                iconBgColor: context.successLight,
-                trendText: 'Income ($periodLabel)',
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'TOTAL EXPENSES',
-                value: 'Rs. ${(pl.totalExpenses / 1000).toStringAsFixed(1)}k',
-                icon: Icons.trending_down,
-                iconColor: context.error,
-                iconBgColor: context.errorLight,
-                trendText: 'Costs ($periodLabel)',
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'NET PROFIT',
-                value: 'Rs. ${(pl.netProfit / 1000).toStringAsFixed(1)}k',
-                icon: Icons.account_balance_wallet_outlined,
-                iconColor: pl.netProfit >= 0 ? context.success : context.error,
-                iconBgColor: pl.netProfit >= 0 ? context.successLight : context.errorLight,
-                trendText: '${pl.totalRevenue > 0 ? ((pl.netProfit / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}% margin',
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'CASH & BANK',
-                value: 'Rs. ${(al.cashAndBankBalance / 1000).toStringAsFixed(1)}k',
-                icon: Icons.account_balance_outlined,
-                iconColor: context.info,
-                iconBgColor: context.infoLight,
-                trendText: 'Current liquid balance',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
+        // 8 Responsive Stat Cards
+        LayoutBuilder(
+          builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final isMobile = width < 600;
+              final crossAxisCount = isMobile ? 1 : (width >= 1050 ? 4 : 2);
+              final childAspectRatio = isMobile ? 2.2 : (width >= 1100 ? 1.6 : 1.4);
 
-        // Bottom 4 Stat Cards
-        Row(
-          children: [
-            Expanded(
-              child: StatCard(
-                title: 'RECEIVABLES',
-                value: 'Rs. ${(al.accountsReceivable / 1000).toStringAsFixed(1)}k',
-                icon: Icons.receipt_long_outlined,
-                iconColor: context.warning,
-                iconBgColor: context.warningLight,
-                trendText: 'Outstanding income',
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'PAYABLES',
-                value: 'Rs. ${(al.accountsPayable / 1000).toStringAsFixed(1)}k',
-                icon: Icons.money_off_outlined,
-                iconColor: context.error,
-                iconBgColor: context.errorLight,
-                trendText: 'Outstanding bills',
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'TOTAL ASSETS',
-                value: 'Rs. ${(al.totalCurrentAssets / 1000).toStringAsFixed(1)}k',
-                icon: Icons.pie_chart_outline_outlined,
-                iconColor: context.success,
-                iconBgColor: context.successLight,
-                trendText: 'Cash + AR + Inventory',
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'TOTAL LIABILITIES',
-                value: 'Rs. ${(al.totalCurrentLiabilities / 1000).toStringAsFixed(1)}k',
-                icon: Icons.credit_card_off_outlined,
-                iconColor: context.error,
-                iconBgColor: context.errorLight,
-                trendText: 'AP + Short-term loans',
-              ),
-            ),
-          ],
+            return GridView.count(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: 14,
+              mainAxisSpacing: 14,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: childAspectRatio,
+              children: [
+                StatCard(
+                  title: 'TOTAL REVENUE',
+                  value: 'Rs. ${(pl.totalRevenue / 1000).toStringAsFixed(1)}k',
+                  icon: Icons.trending_up,
+                  iconColor: context.success,
+                  iconBgColor: context.successLight,
+                  trendText: 'Income ($periodLabel)',
+                ),
+                StatCard(
+                  title: 'TOTAL EXPENSES',
+                  value: 'Rs. ${(pl.totalExpenses / 1000).toStringAsFixed(1)}k',
+                  icon: Icons.trending_down,
+                  iconColor: context.error,
+                  iconBgColor: context.errorLight,
+                  trendText: 'Costs ($periodLabel)',
+                ),
+                StatCard(
+                  title: 'NET PROFIT',
+                  value: 'Rs. ${(pl.netProfit / 1000).toStringAsFixed(1)}k',
+                  icon: Icons.account_balance_wallet_outlined,
+                  iconColor: pl.netProfit >= 0 ? context.success : context.error,
+                  iconBgColor: pl.netProfit >= 0 ? context.successLight : context.errorLight,
+                  trendText: '${pl.totalRevenue > 0 ? ((pl.netProfit / pl.totalRevenue) * 100).toStringAsFixed(1) : "0"}% margin',
+                ),
+                StatCard(
+                  title: 'CASH & BANK',
+                  value: 'Rs. ${(al.cashAndBankBalance / 1000).toStringAsFixed(1)}k',
+                  icon: Icons.account_balance_outlined,
+                  iconColor: context.info,
+                  iconBgColor: context.infoLight,
+                  trendText: 'Current liquid balance',
+                ),
+                StatCard(
+                  title: 'RECEIVABLES',
+                  value: 'Rs. ${(al.accountsReceivable / 1000).toStringAsFixed(1)}k',
+                  icon: Icons.receipt_long_outlined,
+                  iconColor: context.warning,
+                  iconBgColor: context.warningLight,
+                  trendText: 'Outstanding income',
+                ),
+                StatCard(
+                  title: 'PAYABLES',
+                  value: 'Rs. ${(((al.accountsPayable + al.shortTermLoans)) / 1000).toStringAsFixed(1)}k',
+                  icon: Icons.money_off_outlined,
+                  iconColor: context.error,
+                  iconBgColor: context.errorLight,
+                  trendText: al.shortTermLoans > 0
+                      ? (al.accountsPayable > 0 ? 'Bills & Borrowed Loans' : 'Borrowed loans to pay')
+                      : 'Outstanding bills',
+                ),
+                StatCard(
+                  title: 'TOTAL ASSETS',
+                  value: 'Rs. ${(al.totalCurrentAssets / 1000).toStringAsFixed(1)}k',
+                  icon: Icons.pie_chart_outline_outlined,
+                  iconColor: context.success,
+                  iconBgColor: context.successLight,
+                  trendText: 'Cash + AR + Inventory',
+                ),
+                StatCard(
+                  title: 'TOTAL LIABILITIES',
+                  value: 'Rs. ${(al.totalCurrentLiabilities / 1000).toStringAsFixed(1)}k',
+                  icon: Icons.credit_card_off_outlined,
+                  iconColor: context.error,
+                  iconBgColor: context.errorLight,
+                  trendText: 'AP + Short-term loans',
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 20),
 
@@ -534,9 +551,10 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       return r > 0 || e > 0;
     }).toList();
 
-    final displayRows = activeRows.isNotEmpty
+    // Show latest months on top (descending order)
+    final displayRows = (activeRows.isNotEmpty
         ? activeRows
-        : (monthlyRows.isNotEmpty ? [monthlyRows.last] : <Map<String, dynamic>>[]);
+        : (monthlyRows.isNotEmpty ? [monthlyRows.last] : <Map<String, dynamic>>[])).reversed.toList();
 
     double ytdNetProfit = ytdRevenue - ytdExpenses;
     double ytdMargin = ytdRevenue > 0 ? (ytdNetProfit / ytdRevenue) * 100 : 0.0;
@@ -559,8 +577,11 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Card Title Header with Overview — Monthly Breakdown & Export Data Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     Text(
                       'Overview',
@@ -570,7 +591,10 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                         fontSize: 16,
                       ),
                     ),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
+                      runSpacing: 8,
                       children: [
                         Text(
                           'Jan–${months[currentMonthIndex - 1].substring(0, 3)} ${now.year}',
@@ -580,7 +604,6 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(width: 12),
                         ExportButton(
                           title: 'Overview Report',
                           fileName: 'overview_monthly_breakdown_report',
@@ -607,6 +630,63 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                   ],
                 ),
                 const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text(
+                      'Period:',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: context.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: ['This Month', 'This Year', 'All Time', 'Custom Date'].map((period) {
+                            final isSelected = _profitLossPeriodFilter == period;
+                            String chipLabel = period;
+                            if (period == 'Custom Date' && _profitLossCustomDateRange != null) {
+                              final startStr = DateFormat('dd MMM yyyy').format(_profitLossCustomDateRange!.start);
+                              final endStr = DateFormat('dd MMM yyyy').format(_profitLossCustomDateRange!.end);
+                              chipLabel = 'Custom ($startStr - $endStr)';
+                            }
+                            
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(chipLabel),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  if (period == 'Custom Date') {
+                                    _selectProfitLossCustomDateRange(context);
+                                  } else {
+                                    setState(() {
+                                      _profitLossPeriodFilter = period;
+                                    });
+                                  }
+                                },
+                                selectedColor: context.primaryColor.withValues(alpha: 0.15),
+                                backgroundColor: context.scaffoldBg,
+                                labelStyle: TextStyle(
+                                  color: isSelected ? context.primaryColor : context.textSecondary,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  fontSize: 12,
+                                ),
+                                side: BorderSide(
+                                  color: isSelected ? context.primaryColor : context.border,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 8),
 
@@ -615,8 +695,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                   builder: (context, constraints) {
                     return SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                      child: SizedBox(
+                        width: max(900.0, constraints.maxWidth),
                         child: DataTable(
                           headingRowHeight: 40,
                           dataRowMinHeight: 48,
@@ -758,7 +838,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     final double profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0.0;
 
     final double cashAndBank = accountsState.accounts
-        .where((a) => a.accountScope != 'Personal' && a.status == 'Active')
+        .where((a) => a.isCompany && a.status == 'Active')
         .fold(0.0, (sum, a) => sum + a.balance);
 
     double projectReceivables = 0.0;
@@ -772,10 +852,10 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       }
     }
 
-    final double payables = al.accountsPayable;
+    final double payables = al.accountsPayable + al.shortTermLoans;
     final double inventoryVal = al.inventoryValue;
     final double totalAssets = cashAndBank + projectReceivables + inventoryVal;
-    final double totalLiabilities = payables + al.shortTermLoans;
+    final double totalLiabilities = al.totalCurrentLiabilities;
 
     final int incomeCount = periodIncomes.length;
     final int expenseCount = periodExpenses.length;
@@ -800,19 +880,23 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(Icons.assessment_outlined, color: context.primaryColor, size: 24),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Financial Summary — $periodLabel',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: context.textPrimary,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Icon(Icons.assessment_outlined, color: context.primaryColor, size: 24),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Financial Summary — $periodLabel',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: context.textPrimary,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close),
@@ -875,13 +959,16 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 10),
-              Text(label, style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-            ],
+          Expanded(
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 10),
+                Expanded(child: Text(label, style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w500))),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Text(value, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold)),
         ],
       ),
@@ -898,12 +985,10 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     final categories = {'All', ...incomeState.incomes.map((i) => i.projectName?.isNotEmpty == true ? 'Project: ${i.projectName}' : (i.projectPaymentType ?? 'Client Payment'))}.toList();
     final clients = {'All', ...incomeState.incomes.map((i) => i.clientName).where((c) => c.isNotEmpty)}.toList();
     final accounts = {'All', ...accountsState.accounts.map((a) => a.name)}.toList();
-    final paymentMethods = ['All', 'Bank Transfer', 'Cash', 'Wallet', 'Cheque', 'Online'];
 
     String tempCategory = _incomeCategoryFilter;
     String tempClient = _incomeClientFilter;
     String tempAccount = _incomeAccountFilter;
-    String tempMethod = _incomePaymentMethodFilter;
     DateTimeRange? tempDateRange = _incomeDateRange;
 
     showDialog(
@@ -914,7 +999,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
             return Dialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: Container(
-                width: 500,
+                width: MediaQuery.of(context).size.width * 0.9,
+                constraints: const BoxConstraints(maxWidth: 500),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: context.cardBg,
@@ -927,12 +1013,16 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.filter_list_rounded, color: context.primaryColor, size: 22),
-                            const SizedBox(width: 8),
-                            Text('Filter Income Records', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textPrimary)),
-                          ],
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(Icons.filter_list_rounded, color: context.primaryColor, size: 22),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text('Filter Income Records', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.textPrimary), overflow: TextOverflow.ellipsis),
+                              ),
+                            ],
+                          ),
                         ),
                         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                       ],
@@ -979,7 +1069,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                     Text('Income Category / Source', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.textPrimary)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
-                      value: categories.contains(tempCategory) ? tempCategory : 'All',
+                      initialValue: categories.contains(tempCategory) ? tempCategory : 'All',
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -994,7 +1084,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                     Text('Client', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.textPrimary)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
-                      value: clients.contains(tempClient) ? tempClient : 'All',
+                      initialValue: clients.contains(tempClient) ? tempClient : 'All',
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1009,7 +1099,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                     Text('Account', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.textPrimary)),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
-                      value: accounts.contains(tempAccount) ? tempAccount : 'All',
+                      initialValue: accounts.contains(tempAccount) ? tempAccount : 'All',
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1019,25 +1109,13 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                         if (val != null) setModalState(() => tempAccount = val);
                       },
                     ),
-                    const SizedBox(height: 16),
-
-                    Text('Payment Method', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: context.textPrimary)),
-                    const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
-                      value: paymentMethods.contains(tempMethod) ? tempMethod : 'All',
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      items: paymentMethods.map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 13)))).toList(),
-                      onChanged: (val) {
-                        if (val != null) setModalState(() => tempMethod = val);
-                      },
-                    ),
                     const SizedBox(height: 24),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
                       children: [
                         TextButton.icon(
                           onPressed: () {
@@ -1045,27 +1123,26 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                               tempCategory = 'All';
                               tempClient = 'All';
                               tempAccount = 'All';
-                              tempMethod = 'All';
                               tempDateRange = null;
                             });
                           },
                           icon: const Icon(Icons.refresh, size: 16, color: Colors.redAccent),
                           label: const Text('Clear Filters', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
                         ),
-                        Row(
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
                           children: [
                             OutlinedButton(
                               onPressed: () => Navigator.pop(context),
                               child: const Text('Cancel'),
                             ),
-                            const SizedBox(width: 12),
                             ElevatedButton(
                               onPressed: () {
                                 setState(() {
                                   _incomeCategoryFilter = tempCategory;
                                   _incomeClientFilter = tempClient;
                                   _incomeAccountFilter = tempAccount;
-                                  _incomePaymentMethodFilter = tempMethod;
                                   _incomeDateRange = tempDateRange;
                                   _incomeCurrentPage = 0;
                                 });
@@ -1124,15 +1201,21 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         return false;
       }
 
-      if (_incomePaymentMethodFilter != 'All') {
-        final method = acc != null ? acc.type : 'Bank Transfer';
-        if (!method.toLowerCase().contains(_incomePaymentMethodFilter.toLowerCase())) {
-          return false;
-        }
-      }
-
       return true;
     }).toList();
+
+    // Sort in descending order (newest date / entry on top)
+    filteredIncomes.sort((a, b) {
+      final dateA = DateTime.tryParse(a.date) ?? DateTime(1970);
+      final dateB = DateTime.tryParse(b.date) ?? DateTime(1970);
+      final dateCmp = dateB.compareTo(dateA);
+      if (dateCmp != 0) return dateCmp;
+      final aStr = a.id.replaceAll(RegExp(r'[^0-9]'), '');
+      final bStr = b.id.replaceAll(RegExp(r'[^0-9]'), '');
+      final aNum = BigInt.tryParse(aStr) ?? BigInt.zero;
+      final bNum = BigInt.tryParse(bStr) ?? BigInt.zero;
+      return bNum.compareTo(aNum);
+    });
 
     // Calculate pagination stats
     final totalEntries = filteredIncomes.length;
@@ -1170,7 +1253,6 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     final isFiltered = _incomeCategoryFilter != 'All' ||
         _incomeClientFilter != 'All' ||
         _incomeAccountFilter != 'All' ||
-        _incomePaymentMethodFilter != 'All' ||
         _incomeDateRange != null;
 
     return Column(
@@ -1183,8 +1265,11 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header: LEFT: Income, RIGHT: [ Filters ] [ Export Data ]
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     Text(
                       'Income',
@@ -1194,7 +1279,10 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                         fontSize: 16,
                       ),
                     ),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         OutlinedButton.icon(
                           onPressed: () => _showIncomeFilterDialog(context),
@@ -1217,7 +1305,6 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           ),
                         ),
-                        const SizedBox(width: 12),
                         ExportButton(
                           title: 'Income Report',
                           fileName: 'income_report',
@@ -1341,8 +1428,11 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                 const SizedBox(height: 12),
 
                 // Bottom Pagination: [Previous] [1] [2] [3] [Next] + Showing X–Y of Z entries
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 10,
                   children: [
                     Text(
                       totalEntries == 0
@@ -1350,54 +1440,57 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                           : 'Showing ${startIndex + 1}–$endIndex of $totalEntries entries',
                       style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
-                    Row(
-                      children: [
-                        OutlinedButton(
-                          onPressed: _incomeCurrentPage > 0
-                              ? () => setState(() => _incomeCurrentPage--)
-                              : null,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          OutlinedButton(
+                            onPressed: _incomeCurrentPage > 0
+                                ? () => setState(() => _incomeCurrentPage--)
+                                : null,
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            child: const Text('Previous', style: TextStyle(fontSize: 12)),
                           ),
-                          child: const Text('Previous', style: TextStyle(fontSize: 12)),
-                        ),
-                        const SizedBox(width: 8),
-                        for (int p = 0; p < totalPages; p++) ...[
-                          InkWell(
-                            onTap: () => setState(() => _incomeCurrentPage = p),
-                            borderRadius: BorderRadius.circular(6),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              margin: const EdgeInsets.symmetric(horizontal: 2),
-                              decoration: BoxDecoration(
-                                color: _incomeCurrentPage == p ? context.primaryColor : context.cardBg,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: _incomeCurrentPage == p ? context.primaryColor : context.border,
+                          const SizedBox(width: 8),
+                          for (int p = 0; p < totalPages; p++) ...[
+                            InkWell(
+                              onTap: () => setState(() => _incomeCurrentPage = p),
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                margin: const EdgeInsets.symmetric(horizontal: 2),
+                                decoration: BoxDecoration(
+                                  color: _incomeCurrentPage == p ? context.primaryColor : context.cardBg,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: _incomeCurrentPage == p ? context.primaryColor : context.border,
+                                  ),
                                 ),
-                              ),
-                              child: Text(
-                                '${p + 1}',
-                                style: TextStyle(
-                                  color: _incomeCurrentPage == p ? Colors.white : context.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                                child: Text(
+                                  '${p + 1}',
+                                  style: TextStyle(
+                                    color: _incomeCurrentPage == p ? Colors.white : context.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ),
+                          ],
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: _incomeCurrentPage < totalPages - 1
+                                ? () => setState(() => _incomeCurrentPage++)
+                                : null,
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            child: const Text('Next', style: TextStyle(fontSize: 12)),
                           ),
                         ],
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: _incomeCurrentPage < totalPages - 1
-                              ? () => setState(() => _incomeCurrentPage++)
-                              : null,
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          child: const Text('Next', style: TextStyle(fontSize: 12)),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
@@ -1435,7 +1528,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
 
   List<ExpenseRecord> _getFilteredExpensesForReport(List<ExpenseRecord> allExpenses) {
     final now = DateTime.now();
-    return allExpenses.where((exp) {
+    final list = allExpenses.where((exp) {
       final d = DateTime.tryParse(exp.date);
       if (d == null) return false;
 
@@ -1453,6 +1546,9 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       }
       return true;
     }).toList();
+
+    // Sort in descending order (newest date / entry on top)
+    return ExpenseRecord.sortExpensesNewestFirst(list);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1488,8 +1584,11 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     Text(
                       'Expenses Report',
@@ -1678,14 +1777,18 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      catName,
-                                      style: TextStyle(
-                                        color: context.textPrimary,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
+                                    Expanded(
+                                      child: Text(
+                                        catName,
+                                        style: TextStyle(
+                                          color: context.textPrimary,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Text(
                                       'Rs. ${currencyFormat.format(catAmount)} (${(percent * 100).toStringAsFixed(1)}%)',
                                       style: TextStyle(
@@ -1857,9 +1960,28 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     }
   }
 
+  Future<void> _selectProfitLossCustomDateRange(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 5),
+      initialDateRange: _profitLossCustomDateRange ?? DateTimeRange(
+        start: DateTime(now.year, now.month, 1),
+        end: DateTime(now.year, now.month, now.day),
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _profitLossCustomDateRange = picked;
+        _profitLossPeriodFilter = 'Custom Date';
+      });
+    }
+  }
+
   List<SalaryRecord> _getFilteredSalariesForReport(List<SalaryRecord> allSalaries) {
     final now = DateTime.now();
-    return allSalaries.where((sal) {
+    final list = allSalaries.where((sal) {
       final d = DateTime.tryParse(sal.paymentDate);
       if (d == null) return false;
 
@@ -1875,6 +1997,21 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       }
       return true;
     }).toList();
+
+    // Sort in descending order (newest date / entry on top)
+    list.sort((a, b) {
+      final dateA = DateTime.tryParse(a.paymentDate) ?? DateTime(1970);
+      final dateB = DateTime.tryParse(b.paymentDate) ?? DateTime(1970);
+      final dateCmp = dateB.compareTo(dateA);
+      if (dateCmp != 0) return dateCmp;
+      final aStr = a.id.replaceAll(RegExp(r'[^0-9]'), '');
+      final bStr = b.id.replaceAll(RegExp(r'[^0-9]'), '');
+      final aNum = BigInt.tryParse(aStr) ?? BigInt.zero;
+      final bNum = BigInt.tryParse(bStr) ?? BigInt.zero;
+      return bNum.compareTo(aNum);
+    });
+
+    return list;
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1911,8 +2048,11 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     Text(
                       'Payroll Report',
@@ -2005,74 +2145,153 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         GlassCard(
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobileCard = constraints.maxWidth < 650;
+                if (isMobileCard) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(Icons.payments_outlined, color: Colors.green, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
                         children: [
-                          Text(
-                            'TOTAL NET PAID',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: context.textSecondary,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.payments_outlined, color: Colors.green, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'TOTAL NET PAID',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: context.textSecondary,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Rs. ${currencyFormat.format(totalNetPaid)}',
+                                  style: theme.textTheme.headlineMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: context.textPrimary,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Rs. ${currencyFormat.format(totalNetPaid)}',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: context.textPrimary,
-                              fontSize: 22,
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Divider(color: context.border, height: 1),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Total Base Salary', style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 2),
+                                Text('Rs. ${currencyFormat.format(totalBaseSalary)}', style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                          Container(height: 30, width: 1, color: context.border),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Total Records', style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 2),
+                                Text('${filteredSalaries.length} Records', style: TextStyle(color: context.primaryColor, fontSize: 13, fontWeight: FontWeight.bold)),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ],
-                  ),
-                ),
-                Container(height: 40, width: 1, color: context.border),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Total Base Salary', style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
-                        const SizedBox(height: 2),
-                        Text('Rs. ${currencyFormat.format(totalBaseSalary)}', style: TextStyle(color: context.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
-                      ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.payments_outlined, color: Colors.green, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'TOTAL NET PAID',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: context.textSecondary,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Rs. ${currencyFormat.format(totalNetPaid)}',
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: context.textPrimary,
+                                  fontSize: 22,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                Container(height: 40, width: 1, color: context.border),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Total Records', style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
-                        const SizedBox(height: 2),
-                        Text('${filteredSalaries.length} Records', style: TextStyle(color: context.primaryColor, fontSize: 14, fontWeight: FontWeight.bold)),
-                      ],
+                    Container(height: 40, width: 1, color: context.border),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Total Base Salary', style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 2),
+                            Text('Rs. ${currencyFormat.format(totalBaseSalary)}', style: TextStyle(color: context.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                    Container(height: 40, width: 1, color: context.border),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Total Records', style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 2),
+                            Text('${filteredSalaries.length} Records', style: TextStyle(color: context.primaryColor, fontSize: 14, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
@@ -2180,8 +2399,23 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
 
     final currencyFormat = NumberFormat('#,##0.00');
 
-    final startDate = reportsState.startDate;
-    final endDate = reportsState.endDate;
+    final localNow = DateTime.now();
+    DateTime startDate = reportsState.startDate;
+    DateTime endDate = reportsState.endDate;
+
+    if (_profitLossPeriodFilter == 'This Month') {
+      startDate = DateTime(localNow.year, localNow.month, 1);
+      endDate = DateTime(localNow.year, localNow.month + 1, 0, 23, 59, 59);
+    } else if (_profitLossPeriodFilter == 'This Year') {
+      startDate = DateTime(localNow.year, 1, 1);
+      endDate = DateTime(localNow.year, 12, 31, 23, 59, 59);
+    } else if (_profitLossPeriodFilter == 'Custom Date' && _profitLossCustomDateRange != null) {
+      startDate = DateTime(_profitLossCustomDateRange!.start.year, _profitLossCustomDateRange!.start.month, _profitLossCustomDateRange!.start.day, 0, 0, 0);
+      endDate = DateTime(_profitLossCustomDateRange!.end.year, _profitLossCustomDateRange!.end.month, _profitLossCustomDateRange!.end.day, 23, 59, 59);
+    } else if (_profitLossPeriodFilter == 'All Time') {
+       startDate = DateTime(2020);
+       endDate = localNow;
+    }
     final daysDiff = endDate.difference(startDate).inDays;
 
     final List<String> monthLabels = [];
@@ -2253,9 +2487,23 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
       }
     }
 
-    final double totalRevenueVal = pl.totalRevenue as double;
-    final double totalExpensesVal = pl.totalExpenses as double;
-    final double netProfitVal = pl.netProfit as double;
+    final double totalRevenueVal = incomeState.incomes.where((i) {
+      final d = DateTime.tryParse(i.date);
+      return d != null && !d.isBefore(startDate) && !d.isAfter(endDate);
+    }).fold(0.0, (s, i) => s + i.amount);
+
+    final double expensesRaw = expensesState.expenses.where((e) {
+      final d = DateTime.tryParse(e.date);
+      return d != null && !d.isBefore(startDate) && !d.isAfter(endDate);
+    }).fold(0.0, (s, e) => s + e.amount);
+
+    final double payrollRaw = salariesState.salaries.where((sal) {
+      final d = DateTime.tryParse(sal.paymentDate);
+      return d != null && sal.status == 'Paid' && !d.isBefore(startDate) && !d.isAfter(endDate);
+    }).fold(0.0, (s, sal) => s + sal.netPaid);
+
+    final double totalExpensesVal = expensesRaw + payrollRaw;
+    final double netProfitVal = totalRevenueVal - totalExpensesVal;
 
     final double expMargin = totalRevenueVal > 0 ? ((totalExpensesVal / totalRevenueVal) * 100) : 0.0;
     final double netMargin = totalRevenueVal > 0 ? ((netProfitVal / totalRevenueVal) * 100) : 0.0;
@@ -2269,8 +2517,11 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     Text(
                       'Profit & Loss Statement',
@@ -2391,8 +2642,11 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 12,
+                            runSpacing: 8,
                             children: [
                               Text(
                                 'Income Statement',
@@ -2937,8 +3191,11 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     final headerCard = GlassCard(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
           children: [
             InkWell(
               onTap: () async {
@@ -3279,71 +3536,85 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: context.cardBg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: context.border),
-                            ),
-                            child: Column(
-                              children: [
-                                Text('Total Assets', style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Rs. ${totalAssetsVal.toStringAsFixed(0)}',
-                                  style: const TextStyle(color: Colors.blue, fontSize: 20, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
+                    LayoutBuilder(
+                      builder: (context, boxConstraints) {
+                        final isNarrow = boxConstraints.maxWidth < 600;
+                        final card1 = Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: context.cardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: context.border),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: context.cardBg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: context.border),
-                            ),
-                            child: Column(
-                              children: [
-                                Text('Total Liabilities', style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Rs. ${totalLiabVal.toStringAsFixed(0)}',
-                                  style: const TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
+                          child: Column(
+                            children: [
+                              Text('Total Assets', style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Rs. ${totalAssetsVal.toStringAsFixed(0)}',
+                                style: const TextStyle(color: Colors.blue, fontSize: 20, fontWeight: FontWeight.bold),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: context.cardBg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: context.border),
-                            ),
-                            child: Column(
-                              children: [
-                                Text('Total Equity', style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Rs. ${totalEquityVal.toStringAsFixed(0)}',
-                                  style: const TextStyle(color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
+                        );
+                        final card2 = Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: context.cardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: context.border),
                           ),
-                        ),
-                      ],
+                          child: Column(
+                            children: [
+                              Text('Total Liabilities', style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Rs. ${totalLiabVal.toStringAsFixed(0)}',
+                                style: const TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        );
+                        final card3 = Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: context.cardBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: context.border),
+                          ),
+                          child: Column(
+                            children: [
+                              Text('Total Equity', style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Rs. ${totalEquityVal.toStringAsFixed(0)}',
+                                style: const TextStyle(color: Colors.green, fontSize: 20, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (isNarrow) {
+                          return Column(
+                            children: [
+                              card1,
+                              const SizedBox(height: 10),
+                              card2,
+                              const SizedBox(height: 10),
+                              card3,
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(child: card1),
+                            const SizedBox(width: 16),
+                            Expanded(child: card2),
+                            const SizedBox(width: 16),
+                            Expanded(child: card3),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                     Container(
@@ -3354,8 +3625,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: isMatched ? Colors.green.withValues(alpha: 0.3) : Colors.red.withValues(alpha: 0.3)),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
@@ -3365,16 +3636,19 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                                 size: 20,
                               ),
                               const SizedBox(width: 10),
-                              Text(
-                                'Assets = Liabilities + Equity',
-                                style: TextStyle(
-                                  color: isMatched ? Colors.green : Colors.redAccent,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
+                              Expanded(
+                                child: Text(
+                                  'Assets = Liabilities + Equity',
+                                  style: TextStyle(
+                                    color: isMatched ? Colors.green : Colors.redAccent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
+                          const SizedBox(height: 8),
                           Text(
                             isMatched
                                 ? 'Rs. ${totalAssetsVal.toStringAsFixed(0)} = Rs. ${totalLiabAndEquityVal.toStringAsFixed(0)}  ✓ MATCH'
@@ -3382,7 +3656,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                             style: TextStyle(
                               color: isMatched ? Colors.green : Colors.redAccent,
                               fontWeight: FontWeight.w900,
-                              fontSize: 15,
+                              fontSize: 13,
                             ),
                           ),
                         ],
@@ -3437,28 +3711,36 @@ class OverviewTrendChartWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              height: 260,
-              width: double.infinity,
-              child: CustomPaint(
-                painter: _TrendChartPainter(
-                  monthLabels: monthLabels,
-                  revenueData: revenueData,
-                  expensesData: expensesData,
-                  netProfitData: netProfitData,
-                  textColor: context.textSecondary,
-                  gridColor: context.border.withValues(alpha: 0.5),
-                ),
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final minWidth = max(constraints.maxWidth, monthLabels.length * (constraints.maxWidth < 600 ? 40.0 : 52.0));
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    height: 260,
+                    width: minWidth,
+                    child: CustomPaint(
+                      painter: _TrendChartPainter(
+                        monthLabels: monthLabels,
+                        revenueData: revenueData,
+                        expensesData: expensesData,
+                        netProfitData: netProfitData,
+                        textColor: context.textSecondary,
+                        gridColor: context.border.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 20,
+              runSpacing: 8,
               children: [
                 _buildLegendItem(Colors.redAccent, 'Expenses'),
-                const SizedBox(width: 24),
                 _buildLegendItem(Colors.green, 'Net Profit'),
-                const SizedBox(width: 24),
                 _buildLegendItem(Colors.blue, 'Revenue'),
               ],
             ),
@@ -3522,18 +3804,26 @@ class IncomeTrendChartWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              height: 260,
-              width: double.infinity,
-              child: CustomPaint(
-                painter: _IncomeBarChartPainter(
-                  monthLabels: monthLabels,
-                  incomeData: incomeData,
-                  textColor: context.textSecondary,
-                  gridColor: context.border.withValues(alpha: 0.5),
-                  barColor: const Color(0xFF10B981),
-                ),
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final minWidth = max(constraints.maxWidth, monthLabels.length * (constraints.maxWidth < 600 ? 40.0 : 52.0));
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    height: 260,
+                    width: minWidth,
+                    child: CustomPaint(
+                      painter: _IncomeBarChartPainter(
+                        monthLabels: monthLabels,
+                        incomeData: incomeData,
+                        textColor: context.textSecondary,
+                        gridColor: context.border.withValues(alpha: 0.5),
+                        barColor: const Color(0xFF10B981),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             Row(
@@ -3589,7 +3879,7 @@ class _IncomeBarChartPainter extends CustomPainter {
 
     if (monthLabels.isEmpty) return;
 
-    double maxVal = 10000;
+    double maxVal = 0;
     for (var v in incomeData) {
       if (v > maxVal) maxVal = v;
     }
@@ -3716,30 +4006,36 @@ class ExpensesTrendChartWidget extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              height: 260,
-              width: double.infinity,
-              child: CustomPaint(
-                painter: _ExpensesCategoryBarChartPainter(
-                  monthLabels: monthLabels,
-                  categoryMonthlyData: categoryMonthlyData,
-                  textColor: context.textSecondary,
-                  gridColor: context.border.withValues(alpha: 0.5),
-                ),
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final minWidth = max(constraints.maxWidth, monthLabels.length * (constraints.maxWidth < 600 ? 40.0 : 52.0));
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    height: 260,
+                    width: minWidth,
+                    child: CustomPaint(
+                      painter: _ExpensesCategoryBarChartPainter(
+                        monthLabels: monthLabels,
+                        categoryMonthlyData: categoryMonthlyData,
+                        textColor: context.textSecondary,
+                        gridColor: context.border.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 16,
+              runSpacing: 8,
               children: [
                 _buildLegendItem(const Color(0xFF0088FE), 'COGS'),
-                const SizedBox(width: 16),
                 _buildLegendItem(const Color(0xFFD6BBFC), 'Other'),
-                const SizedBox(width: 16),
                 _buildLegendItem(const Color(0xFF9333EA), 'Rent'),
-                const SizedBox(width: 16),
                 _buildLegendItem(const Color(0xFF4F46E5), 'Salaries'),
-                const SizedBox(width: 16),
                 _buildLegendItem(const Color(0xFFC084FC), 'Utilities'),
               ],
             ),
@@ -3801,7 +4097,7 @@ class _ExpensesCategoryBarChartPainter extends CustomPainter {
 
     if (monthLabels.isEmpty) return;
 
-    double maxVal = 10000;
+    double maxVal = 0;
     for (var mData in categoryMonthlyData) {
       for (var val in mData.values) {
         if (val > maxVal) maxVal = val;
@@ -3934,7 +4230,7 @@ class _TrendChartPainter extends CustomPainter {
 
     if (monthLabels.isEmpty) return;
 
-    double maxVal = 10000;
+    double maxVal = 0;
     for (var v in revenueData) {
       if (v > maxVal) maxVal = v;
     }
@@ -4131,7 +4427,7 @@ class _CurrentVsPriorYearChartPainter extends CustomPainter {
       {'label': 'Operating Exp.', 'current': currentOpEx, 'prior': priorOpEx},
     ];
 
-    double maxVal = 1000;
+    double maxVal = 0;
     for (var it in items) {
       if ((it['current'] as double) > maxVal) maxVal = it['current'] as double;
       if ((it['prior'] as double) > maxVal) maxVal = it['prior'] as double;

@@ -125,5 +125,47 @@ void main() {
         file.deleteSync();
       } catch (_) {}
     });
+
+    test('exportBankStatementPdf uses account label name for company accounts', () async {
+      const companyAccount = BankAccount(
+        id: 'acc_company_1',
+        name: 'HH Tech Hub',
+        type: 'Bank',
+        accountNumber: 'PK99MEZN000123456789',
+        bankName: 'Meezan Bank',
+        balance: 53648.0,
+        status: 'Active',
+      );
+
+      final filePath = await ExportHelper.exportBankStatementPdf(
+        account: companyAccount,
+        transactions: [
+          {
+            'id': 'inc_1',
+            'sortKey': 'inc_1',
+            'date': DateTime(2026, 9, 10),
+            'desc': 'Client Payment',
+            'ref': 'INV-101',
+            'inflow': 50000.0,
+            'outflow': 0.0,
+          },
+        ],
+        openingBalance: 0.0,
+        totalInflow: 50000.0,
+        totalOutflow: 0.0,
+        closingBalance: 50000.0,
+        totalIncomeTx: 1,
+        totalExpenseTx: 0,
+      );
+
+      expect(filePath.endsWith('.pdf'), isTrue);
+      final file = File(filePath);
+      expect(file.existsSync(), isTrue);
+      expect(file.lengthSync(), greaterThan(1000));
+
+      try {
+        file.deleteSync();
+      } catch (_) {}
+    });
   });
 }

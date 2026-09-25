@@ -81,64 +81,72 @@ class TransactionDetailDialog extends StatelessWidget {
       formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(dt);
     } catch (_) {}
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 40, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 460,
-        padding: const EdgeInsets.all(24),
+        width: isMobile ? double.infinity : 480,
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+        padding: EdgeInsets.all(isMobile ? 18 : 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: bgColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        isInflow ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
-                        color: primaryColor,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tr('Transaction Details'),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: context.textPrimary,
-                          ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: bgColor,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            typeLabel,
-                            style: TextStyle(
-                              color: primaryColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                        child: Icon(
+                          isInflow ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                          color: primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tr('Transaction Details'),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: context.textPrimary,
+                                fontSize: isMobile ? 15 : 16,
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 2),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: bgColor,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                typeLabel,
+                                style: TextStyle(
+                                  color: primaryColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -147,55 +155,66 @@ class TransactionDetailDialog extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             const Divider(height: 1),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Amount Banner Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: context.scaffoldBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    tr('Total Amount'),
-                    style: TextStyle(color: context.textMuted, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${isInflow ? '+' : '-'} Rs. ${amount.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: primaryColor,
+            // Scrollable Content
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Amount Banner Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: context.scaffoldBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: context.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text(
+                            tr('Total Amount'),
+                            style: TextStyle(color: context.textMuted, fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${isInflow ? '+' : '-'} Rs. ${amount.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontSize: isMobile ? 22 : 24,
+                              fontWeight: FontWeight.w800,
+                              color: primaryColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            category.isNotEmpty ? category : 'General Transaction',
+                            style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    category.isNotEmpty ? category : 'General Transaction',
-                    style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+
+                    // Detail Fields
+                    _buildDetailRow(context, tr('Date & Time'), formattedDate, Icons.calendar_today_outlined, isMobile: isMobile),
+                    _buildDetailRow(context, tr('Account'), accountName + (accountScope != null ? ' ($accountScope)' : ''), Icons.account_balance_wallet_outlined, isMobile: isMobile),
+                    _buildDetailRow(context, tr('Reference'), reference.isNotEmpty ? reference : id, Icons.tag, isMobile: isMobile),
+                    if (clientOrVendor != null && clientOrVendor!.isNotEmpty)
+                      _buildDetailRow(context, tr('Party / Client / Vendor'), clientOrVendor!, Icons.person_outline, isMobile: isMobile),
+                    if (description.isNotEmpty)
+                      _buildDetailRow(context, tr('Description'), description, Icons.notes_outlined, isMobile: isMobile),
+                  ],
+                ),
               ),
             ),
+
             const SizedBox(height: 16),
-
-            // Detail Fields
-            _buildDetailRow(context, tr('Date & Time'), formattedDate, Icons.calendar_today_outlined),
-            _buildDetailRow(context, tr('Account'), accountName + (accountScope != null ? ' ($accountScope)' : ''), Icons.account_balance_wallet_outlined),
-            _buildDetailRow(context, tr('Reference'), reference.isNotEmpty ? reference : id, Icons.tag),
-            if (clientOrVendor != null && clientOrVendor!.isNotEmpty)
-              _buildDetailRow(context, tr('Party / Client / Vendor'), clientOrVendor!, Icons.person_outline),
-            if (description.isNotEmpty)
-              _buildDetailRow(context, tr('Description'), description, Icons.notes_outlined, maxLines: 3),
-
-            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -222,8 +241,45 @@ class TransactionDetailDialog extends StatelessWidget {
     String label,
     String value,
     IconData icon, {
-    int maxLines = 1,
+    bool isMobile = false,
   }) {
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: context.textMuted),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: context.textMuted,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Padding(
+              padding: const EdgeInsets.only(left: 22),
+              child: SelectableText(
+                value,
+                style: TextStyle(
+                  color: context.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -232,18 +288,16 @@ class TransactionDetailDialog extends StatelessWidget {
           Icon(icon, size: 16, color: context.textMuted),
           const SizedBox(width: 10),
           SizedBox(
-            width: 120,
+            width: 140,
             child: Text(
               label,
               style: TextStyle(color: context.textMuted, fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),
           Expanded(
-            child: Text(
+            child: SelectableText(
               value,
               style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-              maxLines: maxLines,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

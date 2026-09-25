@@ -62,7 +62,7 @@ A complete, modern, and easy-to-use **Enterprise Resource Planning (ERP)** softw
 - **Framework:** Flutter (Dart)
 - **Database:** SQLite / Drift (Native & Web WASM support)
 - **State Management:** Riverpod
-- **Supported Targets:** Windows Desktop, Web (Firebase Hosting)
+- **Supported Targets:** Windows Desktop, Web
 
 ---
 

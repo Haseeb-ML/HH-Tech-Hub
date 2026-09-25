@@ -8,7 +8,6 @@ import 'package:software_house_erp/core/widgets/export_button.dart';
 
 // Import providers
 import 'package:software_house_erp/features/hr/employees/presentation/providers/employees_provider.dart';
-import 'package:software_house_erp/features/hr/employees/presentation/providers/departments_provider.dart';
 import 'package:software_house_erp/features/projects/projects/presentation/providers/projects_provider.dart';
 import 'package:software_house_erp/features/inventory/assets/presentation/providers/assets_provider.dart';
 import 'package:software_house_erp/features/inventory/inventory/presentation/providers/inventory_provider.dart';
@@ -81,15 +80,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
                 // ── Main Content Area ─────────────────────
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Page Header
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                  child: LayoutBuilder(
+                    builder: (context, screenConstraints) {
+                      final isMobile = screenConstraints.maxWidth < 600;
+                      final pagePadding = isMobile ? 16.0 : 24.0;
+
+                      return SingleChildScrollView(
+                        padding: EdgeInsets.all(pagePadding),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Page Header
                             Wrap(
                               alignment: WrapAlignment.spaceBetween,
                               crossAxisAlignment: WrapCrossAlignment.center,
@@ -99,46 +100,42 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                Text(
-                                  tr('Business Reports & Analytics'),
-                                  style: theme.textTheme.displaySmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: context.textPrimary,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  tr('Real-time data aggregation and visual intelligence for HH Tech Operations.'),
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: context.textSecondary,
-                                  ),
-                                ),
+                                    Text(
+                                      tr('Business Reports & Analytics'),
+                                      style: (isMobile ? theme.textTheme.headlineSmall : theme.textTheme.displaySmall)?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: context.textPrimary,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      tr('Real-time data aggregation and visual intelligence for HH Tech Operations.'),
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: context.textSecondary,
+                                      ),
+                                    ),
                                   ],
+                                ),
+                                ExportButton(
+                                  title: exportTitle,
+                                  fileName: exportFileName,
+                                  headers: exportHeaders,
+                                  rows: exportRows,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ExportButton(
-                                title: exportTitle,
-                                fileName: exportFileName,
-                                headers: exportHeaders,
-                                rows: exportRows,
-                              ),
-                            ),
+                            const SizedBox(height: 24),
+
+                            // Switch Tab Body
+                            if (_activeTab == 0)
+                              _buildProjectsTab(projectsState)
+                            else
+                              _buildResourcesTab(employeesState, assetsState, inventoryState),
                           ],
                         ),
-                        const SizedBox(height: 24),
-
-                        // Switch Tab Body
-                        if (_activeTab == 0)
-                          _buildProjectsTab(projectsState)
-                        else
-                          _buildResourcesTab(employeesState, assetsState, inventoryState),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -157,60 +154,63 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       decoration: BoxDecoration(
         color: context.cardBg,
         border: Border(
           bottom: BorderSide(color: context.border, width: 1),
         ),
       ),
-      child: Row(
-        children: List.generate(tabs.length, (idx) {
-          final tab = tabs[idx];
-          final isActive = _activeTab == idx;
-          return Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: GestureDetector(
-              onTap: () => setState(() => _activeTab = idx),
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? context.primaryColor.withValues(alpha: 0.1)
-                      : Colors.transparent,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                  border: Border(
-                    bottom: BorderSide(
-                      color: isActive ? context.primaryColor : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      tab['icon'] as IconData,
-                      size: 16,
-                      color: isActive ? context.primaryColor : context.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      tab['label'] as String,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: isActive ? context.primaryColor : context.textSecondary,
-                        fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                        fontSize: 13,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(tabs.length, (idx) {
+            final tab = tabs[idx];
+            final isActive = _activeTab == idx;
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: GestureDetector(
+                onTap: () => setState(() => _activeTab = idx),
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? context.primaryColor.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isActive ? context.primaryColor : Colors.transparent,
+                        width: 2,
                       ),
                     ),
-                  ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        tab['icon'] as IconData,
+                        size: 16,
+                        color: isActive ? context.primaryColor : context.textSecondary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        tab['label'] as String,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isActive ? context.primaryColor : context.textSecondary,
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }
@@ -230,8 +230,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     // Total budget allocation
     final totalBudget = projects.fold<double>(0, (sum, p) => sum + p.budget);
 
-    // Group budgets by status
+    // Group budgets and counts by status
     final statusBudgets = <String, double>{
+      'In Progress': 0,
+      'Completed': 0,
+      'Planning': 0,
+      'On Hold': 0,
+    };
+    final statusCounts = <String, int>{
       'In Progress': 0,
       'Completed': 0,
       'Planning': 0,
@@ -239,79 +245,79 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     };
     for (var p in projects) {
       statusBudgets[p.status] = (statusBudgets[p.status] ?? 0.0) + p.budget;
+      statusCounts[p.status] = (statusCounts[p.status] ?? 0) + 1;
     }
 
+    final hasBudgets = totalBudget > 0;
     final barChartData = statusBudgets.entries.map((entry) {
+      final count = statusCounts[entry.key] ?? 0;
       return _BarData(
         label: entry.key,
-        primaryValue: entry.value,
-        secondaryValue: 0.0, // only single bar chart needed
+        primaryValue: hasBudgets ? entry.value : count.toDouble(),
+        secondaryValue: count.toDouble(),
+        count: count,
       );
     }).toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Operations metrics
-        Row(
-          children: [
-            Expanded(
-              child: StatCard(
-                title: tr('Active Projects'),
-                value: '$inProgress',
-                icon: Icons.computer_outlined,
-                iconColor: context.info,
-                iconBgColor: context.infoLight,
-                trendText: tr('Currently developing'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'Completed',
-                tooltipMessage: 'Detailed statistics and information regarding Completed.',
-                value: '$completed',
-                icon: Icons.check_circle_outline,
-                iconColor: context.success,
-                iconBgColor: context.successLight,
-                trendText: tr('Finished deployments'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: 'Total Portfolio Budget',
-                tooltipMessage: 'Detailed statistics and information regarding Total Portfolio Budget.',
-                value: 'Rs. ${(totalBudget / 1000).toStringAsFixed(0)}k',
-                icon: Icons.monetization_on_outlined,
-                iconColor: context.primaryColor,
-                iconBgColor: context.infoLight,
-                trendText: tr('Accumulated project budgets'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: tr('Queue / Planning'),
-                tooltipMessage: "Detailed statistics and information regarding ${tr('Queue / Planning')}.",
-                value: '${planning + onHold}',
-                icon: Icons.hourglass_empty,
-                iconColor: context.warning,
-                iconBgColor: context.warningLight,
-                trendText: tr('Planning or On Hold'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        final crossAxisCount = isMobile ? 2 : 4;
 
-        Row(
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left: Budget Allocation by Status Chart
-            Expanded(
-              flex: 5,
-              child: GlassCard(
+            // Operations metrics - responsive grid
+            GridView.count(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: isMobile ? 10 : 16,
+              mainAxisSpacing: isMobile ? 10 : 16,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: isMobile ? 1.25 : 2.2,
+              children: [
+                StatCard(
+                  title: tr('Active Projects'),
+                  value: '$inProgress',
+                  icon: Icons.computer_outlined,
+                  iconColor: context.info,
+                  iconBgColor: context.infoLight,
+                  trendText: tr('Currently developing'),
+                ),
+                StatCard(
+                  title: 'Completed',
+                  tooltipMessage: 'Detailed statistics and information regarding Completed.',
+                  value: '$completed',
+                  icon: Icons.check_circle_outline,
+                  iconColor: context.success,
+                  iconBgColor: context.successLight,
+                  trendText: tr('Finished deployments'),
+                ),
+                StatCard(
+                  title: 'Total Portfolio Budget',
+                  tooltipMessage: 'Detailed statistics and information regarding Total Portfolio Budget.',
+                  value: 'Rs. ${(totalBudget / 1000).toStringAsFixed(0)}k',
+                  icon: Icons.monetization_on_outlined,
+                  iconColor: context.primaryColor,
+                  iconBgColor: context.infoLight,
+                  trendText: tr('Accumulated project budgets'),
+                ),
+                StatCard(
+                  title: tr('Queue / Planning'),
+                  tooltipMessage: "Detailed statistics and information regarding ${tr('Queue / Planning')}.",
+                  value: '${planning + onHold}',
+                  icon: Icons.hourglass_empty,
+                  iconColor: context.warning,
+                  iconBgColor: context.warningLight,
+                  trendText: tr('Planning or On Hold'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Chart + Health section - stack on mobile
+            if (isMobile) ...[
+              GlassCard(
                 title: 'Budget Allocation by Project Status',
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -325,20 +331,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 24),
-
-            // Right: Project Completion Efficiency
-            Expanded(
-              flex: 3,
-              child: GlassCard(
+              const SizedBox(height: 16),
+              GlassCard(
                 title: 'Project Delivery Health',
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
                       const SizedBox(height: 10),
-                      // Circular percentage indicator
                       _buildCircularIndicator(
                         value: totalProjects > 0 ? completed / totalProjects : 0.0,
                         title: 'Success Rate',
@@ -357,10 +357,62 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                 ),
               ),
-            ),
+            ] else ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: GlassCard(
+                      title: 'Budget Allocation by Project Status',
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        child: _CustomBarChart(
+                          data: barChartData,
+                          primaryColor: context.primaryColor,
+                          secondaryColor: Colors.transparent,
+                          primaryLegend: tr('Allocated Budget (Rs.)'),
+                          secondaryLegend: '',
+                          isSingleBar: true,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 3,
+                    child: GlassCard(
+                      title: 'Project Delivery Health',
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 10),
+                            _buildCircularIndicator(
+                              value: totalProjects > 0 ? completed / totalProjects : 0.0,
+                              title: 'Success Rate',
+                              subtitle: tr('Ratio of Completed projects'),
+                              color: context.success,
+                            ),
+                            const SizedBox(height: 24),
+                            const Divider(),
+                            const SizedBox(height: 16),
+                            _buildSummaryRow(tr('Total Projects'), '$totalProjects'),
+                            const SizedBox(height: 8),
+                            _buildSummaryRow('In Progress', '$inProgress', color: context.info),
+                            const SizedBox(height: 8),
+                            _buildSummaryRow('Completed', '$completed', color: context.success),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -370,7 +422,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final attendanceState = ref.watch(attendanceProvider);
     // 1. Calculations
     final employees = empState.employees;
-    final totalStaff = employees.length;
+    final activeEmployees = employees.where((e) => e.status == 'Active').toList();
+    final totalStaff = activeEmployees.length;
 
     int totalPresentDays = 0;
     int totalHalfDays = 0;
@@ -384,15 +437,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         ? ((totalPresentDays + (totalHalfDays * 0.5)) / totalWorkingDaysSum * 100).clamp(0.0, 100.0)
         : 0.0;
     
-    // Department Headcounts
-    final allSavedDepts = ref.watch(departmentsProvider);
-    final deptCount = <String, int>{
-      for (final d in allSavedDepts) d: 0,
-    };
-    for (var emp in employees) {
-      if (emp.status == 'Active' && emp.department.trim().isNotEmpty) {
-        deptCount[emp.department] = (deptCount[emp.department] ?? 0) + 1;
-      }
+    // Department Headcounts based on active employees
+    final deptCount = <String, int>{};
+    for (var emp in activeEmployees) {
+      final dept = emp.department.trim().isEmpty ? 'General' : emp.department.trim();
+      deptCount[dept] = (deptCount[dept] ?? 0) + 1;
     }
 
     // Asset Valuation
@@ -411,70 +460,66 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       );
     }).toList()..sort((a, b) => b.value.compareTo(a.value));
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Resource metrics
-        Row(
-          children: [
-            Expanded(
-              child: StatCard(
-                title: tr('Total Active Staff'),
-                tooltipMessage: "Detailed statistics and information regarding ${tr('Total Active Staff')}.",
-                value: '$totalStaff',
-                icon: Icons.people_outline,
-                iconColor: context.primaryColor,
-                iconBgColor: context.infoLight,
-                trendText: tr('Registered headcount'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: tr('Hardware & License Assets'),
-                tooltipMessage: "Detailed statistics and information regarding ${tr('Hardware & License Assets')}.",
-                value: 'Rs. ${(totalAssetsValue / 1000).toStringAsFixed(0)}k',
-                icon: Icons.computer_outlined,
-                iconColor: context.success,
-                iconBgColor: context.successLight,
-                trendText: tr('Equipment inventory cost'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: tr('Assets Deployed'),
-                tooltipMessage: "Detailed statistics and information regarding ${tr('Assets Deployed')}.",
-                value: '$assignedAssets / ${assetState.assets.length}',
-                icon: Icons.assignment_ind_outlined,
-                iconColor: context.info,
-                iconBgColor: context.infoLight,
-                trendText: tr('Active device allocations'),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: StatCard(
-                title: tr('Low Stock Alert Items'),
-                tooltipMessage: "Detailed statistics and information regarding ${tr('Low Stock Alert Items')}.",
-                value: '$lowStockItems',
-                icon: Icons.warning_amber_outlined,
-                iconColor: context.warning,
-                iconBgColor: context.warningLight,
-                trendText: tr('Inventory restocking needed'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+        final crossAxisCount = isMobile ? 2 : 4;
 
-        Row(
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Left: Department Headcount Share Breakdown
-            Expanded(
-              flex: 4,
-              child: GlassCard(
+            // Resource metrics - responsive grid
+            GridView.count(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: isMobile ? 10 : 16,
+              mainAxisSpacing: isMobile ? 10 : 16,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              childAspectRatio: isMobile ? 1.25 : 2.2,
+              children: [
+                StatCard(
+                  title: tr('Total Active Staff'),
+                  tooltipMessage: "Detailed statistics and information regarding ${tr('Total Active Staff')}.",
+                  value: '$totalStaff',
+                  icon: Icons.people_outline,
+                  iconColor: context.primaryColor,
+                  iconBgColor: context.infoLight,
+                  trendText: tr('Registered headcount'),
+                ),
+                StatCard(
+                  title: tr('Hardware & License Assets'),
+                  tooltipMessage: "Detailed statistics and information regarding ${tr('Hardware & License Assets')}.",
+                  value: 'Rs. ${(totalAssetsValue / 1000).toStringAsFixed(0)}k',
+                  icon: Icons.computer_outlined,
+                  iconColor: context.success,
+                  iconBgColor: context.successLight,
+                  trendText: tr('Equipment inventory cost'),
+                ),
+                StatCard(
+                  title: tr('Assets Deployed'),
+                  tooltipMessage: "Detailed statistics and information regarding ${tr('Assets Deployed')}.",
+                  value: '$assignedAssets / ${assetState.assets.length}',
+                  icon: Icons.assignment_ind_outlined,
+                  iconColor: context.info,
+                  iconBgColor: context.infoLight,
+                  trendText: tr('Active device allocations'),
+                ),
+                StatCard(
+                  title: tr('Low Stock Alert Items'),
+                  tooltipMessage: "Detailed statistics and information regarding ${tr('Low Stock Alert Items')}.",
+                  value: '$lowStockItems',
+                  icon: Icons.warning_amber_outlined,
+                  iconColor: context.warning,
+                  iconBgColor: context.warningLight,
+                  trendText: tr('Inventory restocking needed'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Department + Resource Health - stack on mobile
+            if (isMobile) ...[
+              GlassCard(
                 title: tr('Active Employees by Department'),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -484,49 +529,132 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 24),
-
-            // Right: Asset Condition & Stock Status Circular Indicator
-            Expanded(
-              flex: 4,
-              child: GlassCard(
+              const SizedBox(height: 16),
+              GlassCard(
                 title: tr('Office Resource Allocation Health'),
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildCircularIndicator(
-                        value: overallAttendanceRate / 100,
-                        title: tr('Staff Attendance'),
-                        subtitle: tr('Monthly Attendance Rate'),
-                        color: overallAttendanceRate >= 80 ? context.success : context.warning,
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildCircularIndicator(
+                              value: overallAttendanceRate / 100,
+                              title: tr('Staff Attendance'),
+                              subtitle: tr('Monthly Attendance Rate'),
+                              color: overallAttendanceRate >= 80 ? context.success : context.warning,
+                              width: 105,
+                            ),
+                            const SizedBox(width: 12),
+                            _buildCircularIndicator(
+                              value: assetState.assets.isNotEmpty
+                                  ? assetState.assets.where((a) => a.condition != 'Damaged' && a.condition != 'Fair').length / assetState.assets.length
+                                  : 0.0,
+                              title: tr('Asset Quality'),
+                              subtitle: tr('Good/New condition'),
+                              color: context.info,
+                              width: 105,
+                            ),
+                            const SizedBox(width: 12),
+                            _buildCircularIndicator(
+                              value: invState.items.isNotEmpty
+                                  ? (invState.items.length - lowStockItems) / invState.items.length
+                                  : 0.0,
+                              title: tr('Stock Health'),
+                              subtitle: tr('Healthy stock lines'),
+                              color: const Color(0xFF0D9488),
+                              width: 105,
+                            ),
+                          ],
+                        ),
                       ),
-                      _buildCircularIndicator(
-                        value: assetState.assets.isNotEmpty
-                            ? assetState.assets.where((a) => a.condition != 'Damaged' && a.condition != 'Fair').length / assetState.assets.length
-                            : 0.0,
-                        title: tr('Asset Quality'),
-                        subtitle: tr('Ratio in Good/New condition'),
-                        color: context.info,
-                      ),
-                      _buildCircularIndicator(
-                        value: invState.items.isNotEmpty
-                            ? (invState.items.length - lowStockItems) / invState.items.length
-                            : 0.0,
-                        title: tr('Stock Health'),
-                        subtitle: tr('Ratio of healthy inventory lines'),
-                        color: const Color(0xFF0D9488),
-                      ),
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 10),
+                      _buildSummaryRow(tr('Total Hardware Assets'), '${assetState.assets.length} devices (Rs. ${(totalAssetsValue / 1000).toStringAsFixed(0)}k)'),
+                      const SizedBox(height: 8),
+                      _buildSummaryRow(tr('Assets Deployed'), '$assignedAssets in active use', color: context.info),
+                      const SizedBox(height: 8),
+                      _buildSummaryRow(tr('Office Inventory Lines'), '${invState.items.length} items ($lowStockItems low stock)', color: lowStockItems > 0 ? context.warning : context.success),
                     ],
                   ),
                 ),
               ),
-            ),
+            ] else ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: GlassCard(
+                      title: tr('Active Employees by Department'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: _CustomBreakdownList(
+                          items: breakdownItems,
+                          isHeadcount: true,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 4,
+                    child: GlassCard(
+                      title: tr('Office Resource Allocation Health'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildCircularIndicator(
+                                  value: overallAttendanceRate / 100,
+                                  title: tr('Staff Attendance'),
+                                  subtitle: tr('Monthly Attendance Rate'),
+                                  color: overallAttendanceRate >= 80 ? context.success : context.warning,
+                                ),
+                                _buildCircularIndicator(
+                                  value: assetState.assets.isNotEmpty
+                                      ? assetState.assets.where((a) => a.condition != 'Damaged' && a.condition != 'Fair').length / assetState.assets.length
+                                      : 0.0,
+                                  title: tr('Asset Quality'),
+                                  subtitle: tr('Ratio in Good/New condition'),
+                                  color: context.info,
+                                ),
+                                _buildCircularIndicator(
+                                  value: invState.items.isNotEmpty
+                                      ? (invState.items.length - lowStockItems) / invState.items.length
+                                      : 0.0,
+                                  title: tr('Stock Health'),
+                                  subtitle: tr('Ratio of healthy inventory lines'),
+                                  color: const Color(0xFF0D9488),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 10),
+                            _buildSummaryRow(tr('Total Hardware Assets'), '${assetState.assets.length} devices (Rs. ${(totalAssetsValue / 1000).toStringAsFixed(0)}k)'),
+                            const SizedBox(height: 8),
+                            _buildSummaryRow(tr('Assets Deployed'), '$assignedAssets device allocations', color: context.info),
+                            const SizedBox(height: 8),
+                            _buildSummaryRow(tr('Office Inventory Lines'), '${invState.items.length} lines ($lowStockItems low stock)', color: lowStockItems > 0 ? context.warning : context.success),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -536,45 +664,54 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     required String title,
     required String subtitle,
     required Color color,
+    double width = 110,
   }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 100,
-              height: 100,
-              child: CircularProgressIndicator(
-                value: value,
-                strokeWidth: 10,
-                backgroundColor: context.isDarkMode ? const Color(0xFF1F2937) : const Color(0xFFE5E7EB),
-                color: color,
+    return SizedBox(
+      width: width,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 84,
+                height: 84,
+                child: CircularProgressIndicator(
+                  value: value,
+                  strokeWidth: 8,
+                  backgroundColor: context.isDarkMode ? const Color(0xFF1F2937) : const Color(0xFFE5E7EB),
+                  color: color,
+                ),
               ),
-            ),
-            Text(
-              '${(value * 100).toStringAsFixed(0)}%',
-              style: TextStyle(
-                color: context.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+              Text(
+                '${(value * 100).toStringAsFixed(0)}%',
+                style: TextStyle(
+                  color: context.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Text(
-          title,
-          style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: TextStyle(color: context.textMuted, fontSize: 10),
-          textAlign: TextAlign.center,
-        ),
-      ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            subtitle,
+            style: TextStyle(color: context.textMuted, fontSize: 10),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 
@@ -582,13 +719,25 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: context.textSecondary, fontSize: 12)),
-        Text(
-          val,
-          style: TextStyle(
-            color: color ?? context.textPrimary,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
+        Flexible(
+          flex: 2,
+          child: Text(
+            label,
+            style: TextStyle(color: context.textSecondary, fontSize: 12),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          flex: 3,
+          child: Text(
+            val,
+            style: TextStyle(
+              color: color ?? context.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.right,
           ),
         ),
       ],
@@ -601,11 +750,13 @@ class _BarData {
   final String label;
   final double primaryValue;
   final double secondaryValue;
+  final int? count;
 
   _BarData({
     required this.label,
     required this.primaryValue,
     required this.secondaryValue,
+    this.count,
   });
 }
 
@@ -647,6 +798,7 @@ class _CustomBarChart extends ConsumerWidget {
           runSpacing: 8,
           children: [
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(width: 12, height: 12, decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(2))),
                 const SizedBox(width: 6),
@@ -655,6 +807,7 @@ class _CustomBarChart extends ConsumerWidget {
             ),
             if (!isSingleBar) ...[
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(width: 12, height: 12, decoration: BoxDecoration(color: secondaryColor, borderRadius: BorderRadius.circular(2))),
                   const SizedBox(width: 6),
@@ -700,23 +853,37 @@ class _CustomBarChart extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: data.map((d) {
-                  final double primaryHeight = maxValue > 0 ? (d.primaryValue / maxValue) * (chartHeight - 40) : 0.0;
-                  final double secondaryHeight = maxValue > 0 ? (d.secondaryValue / maxValue) * (chartHeight - 40) : 0.0;
+                  final double primaryHeight = maxValue > 0 ? (d.primaryValue / maxValue) * (chartHeight - 48) : 0.0;
+                  final double secondaryHeight = maxValue > 0 ? (d.secondaryValue / maxValue) * (chartHeight - 48) : 0.0;
 
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      // Value Text above bar!
+                      Text(
+                        d.primaryValue > 0
+                            ? (d.primaryValue >= 1000
+                                ? 'Rs. ${(d.primaryValue / 1000).toStringAsFixed(0)}k'
+                                : 'Rs. ${d.primaryValue.toInt()}')
+                            : (d.count != null && d.count! > 0 ? '${d.count} proj' : '0'),
+                        style: TextStyle(
+                          color: context.textPrimary,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           // Primary Bar
                           Tooltip(
-                            message: '${d.label}: Rs. ${(d.primaryValue).toStringAsFixed(0)}',
+                            message: '${d.label}: Rs. ${(d.primaryValue).toStringAsFixed(0)}${d.count != null ? " (${d.count} projects)" : ""}',
                             child: Container(
-                              width: 14,
-                              height: primaryHeight > 12 ? primaryHeight : (d.primaryValue > 0 ? 12.0 : 4.0),
+                              width: 16,
+                              height: primaryHeight > 18 ? primaryHeight : (d.primaryValue > 0 || (d.count != null && d.count! > 0) ? 18.0 : 6.0),
                               decoration: BoxDecoration(
-                                color: primaryColor,
+                                color: (d.primaryValue > 0 || (d.count != null && d.count! > 0)) ? primaryColor : primaryColor.withValues(alpha: 0.25),
                                 borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                               ),
                             ),
@@ -725,10 +892,10 @@ class _CustomBarChart extends ConsumerWidget {
                             const SizedBox(width: 4),
                             // Secondary Bar
                             Tooltip(
-                              message: '${d.label}: Rs. ${(d.secondaryValue).toStringAsFixed(0)}',
+                              message: '${d.label}: ${(d.secondaryValue).toStringAsFixed(0)}',
                               child: Container(
-                                width: 14,
-                                height: secondaryHeight > 12 ? secondaryHeight : (d.secondaryValue > 0 ? 12.0 : 4.0),
+                                width: 16,
+                                height: secondaryHeight > 18 ? secondaryHeight : (d.secondaryValue > 0 ? 18.0 : 6.0),
                                 decoration: BoxDecoration(
                                   color: secondaryColor,
                                   borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),

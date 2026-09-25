@@ -56,12 +56,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
 
-    // Verify we are on the login page by checking the button existence
-    final bypassButton = find.text('Bypass Login');
-    expect(bypassButton, findsOneWidget);
-
-    // Tap the Bypass Login button to login as default 'System Admin'
-    await tester.tap(bypassButton);
+    final loginFields = find.byType(TextFormField);
+    expect(loginFields, findsNWidgets(2));
+    await tester.enterText(loginFields.at(0), 'admin');
+    await tester.enterText(loginFields.at(1), '123456');
+    await tester.tap(find.text('Sign In'));
 
     // Let the router redirect to dashboard and layout settle
     await tester.pump();

@@ -11,6 +11,10 @@ import 'package:software_house_erp/features/clients/clients/presentation/provide
 import 'package:software_house_erp/features/hr/employees/presentation/providers/employees_provider.dart';
 import 'package:software_house_erp/features/projects/projects/presentation/providers/projects_provider.dart';
 import 'package:software_house_erp/features/projects/tasks/presentation/providers/tasks_provider.dart';
+import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
+import 'package:software_house_erp/features/inventory/assets/presentation/providers/assets_provider.dart';
+import 'package:software_house_erp/features/inventory/inventory/presentation/providers/inventory_provider.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class SpotlightSearchItem {
   final String title;
@@ -89,29 +93,37 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
   Widget build(BuildContext context) {
     final tr = ref.watch(translationProvider);
     final isDark = context.isDarkMode;
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    final adminState = ref.watch(adminProvider);
+    final isSuperAdmin = adminState.currentUser?.isSuperAdmin == true ||
+        adminState.currentUser?.role.trim().toLowerCase() == 'super admin';
 
     // Static Navigation Pages
     final staticNavItems = [
       SpotlightSearchItem(title: tr('Dashboard'), subtitle: tr('Here is a quick overview of Software House performance today.'), icon: Icons.dashboard_outlined, path: '/dashboard', category: 'Navigation'),
       SpotlightSearchItem(title: tr('General Ledger'), subtitle: tr('View corporate ledgers and general accounting entries'), icon: Icons.menu_book, path: '/finance/ledger', category: 'Navigation'),
-      SpotlightSearchItem(title: tr('Bank Accounts'), subtitle: tr('Configure corporate bank accounts and view balances'), icon: Icons.account_balance_wallet_outlined, path: '/finance/accounts', category: 'Navigation'),
+      SpotlightSearchItem(title: tr('Bank Accounts'), subtitle: tr('Configure corporate bank accounts and view balances'), icon: Icons.account_balance_outlined, path: '/finance/accounts', category: 'Navigation'),
+      SpotlightSearchItem(title: tr('Personal Wallet'), subtitle: tr('Manage owner personal bank accounts, cash reserves, and transfers'), icon: Icons.account_balance_wallet_outlined, path: '/finance/wallet', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Income Records'), subtitle: tr('Add client payment logs and track accounts receivable'), icon: Icons.trending_up, path: '/finance/income', category: 'Navigation'),
-      SpotlightSearchItem(title: tr('Expense Records'), subtitle: tr('Record vendor bills, payroll payments, and utility bills'), icon: Icons.trending_down, path: '/finance/expenses', category: 'Navigation'),
-      SpotlightSearchItem(title: tr('Loans & Advances'), subtitle: tr('Track employee advance payments, loans, and installments'), icon: Icons.handshake_outlined, path: '/finance/loans', category: 'Navigation'),
-      SpotlightSearchItem(title: tr('Finance Reports'), subtitle: tr('View Profit & Loss, Cash Flow, and Balance Sheet summary'), icon: Icons.analytics_outlined, path: '/finance/reports', category: 'Navigation'),
+      SpotlightSearchItem(title: tr('Expense Records'), subtitle: tr('Record company bills, payroll payments, and utility bills'), icon: Icons.trending_down, path: '/finance/expenses', category: 'Navigation'),
+      SpotlightSearchItem(title: tr('Loans & Credits'), subtitle: tr('Track loans, repayments, and liabilities'), icon: Icons.handshake_outlined, path: '/finance/loans', category: 'Navigation'),
+      SpotlightSearchItem(title: tr('Finance Summary & Reports'), subtitle: tr('View Profit & Loss, Balance Sheet, and Income vs Expenses summary'), icon: Icons.analytics_outlined, path: '/finance/reports', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Client Directory'), subtitle: tr('Manage business clients and point of contacts'), icon: Icons.business_center_outlined, path: '/clients/list', category: 'Navigation'),
-      SpotlightSearchItem(title: tr('Vendors List'), subtitle: tr('Manage supply partners and asset contractors'), icon: Icons.people_outline, path: '/clients/vendors', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Project Directory'), subtitle: tr('Track ongoing software projects and client deliverables'), icon: Icons.assignment_outlined, path: '/projects/list', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Task Board'), subtitle: tr('Create and assign software development backlogs'), icon: Icons.task_alt, path: '/projects/tasks', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Timesheets Log'), subtitle: tr('Log working hours and developer tasks timeline'), icon: Icons.access_time_outlined, path: '/projects/timesheets', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Employee Directory'), subtitle: tr('Manage company personnel and staff hierarchy'), icon: Icons.people_outline, path: '/hr/employees', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Attendance Log'), subtitle: tr('Daily check-in and check-out tracking'), icon: Icons.calendar_month, path: '/hr/attendance', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Salaries & Payroll'), subtitle: tr('Process employee payroll and generate slip reports'), icon: Icons.payments_outlined, path: '/hr/salaries', category: 'Navigation'),
+      SpotlightSearchItem(title: tr('Salary Advances'), subtitle: tr('Track employee salary advance requests and approvals'), icon: Icons.price_change_outlined, path: '/hr/advances', category: 'Navigation'),
+      SpotlightSearchItem(title: tr('Employee History'), subtitle: tr('Full employment timeline, salary progression, and dossier'), icon: Icons.badge_outlined, path: '/hr/history', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Inventory & Supplies'), subtitle: tr('Track office supplies levels and stock thresholds'), icon: Icons.inventory_2_outlined, path: '/inventory/list', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Assets Tracker'), subtitle: tr('Track developer laptops, gear, and office hardware'), icon: Icons.computer_outlined, path: '/inventory/assets', category: 'Navigation'),
       SpotlightSearchItem(title: tr('System Settings'), subtitle: tr('Theme, visual configurations, and retention policy'), icon: Icons.settings_outlined, path: '/administration/settings', category: 'Navigation'),
       SpotlightSearchItem(title: tr('Backup & Restore'), subtitle: tr('Export Supabase DB schema/records and SQLite states'), icon: Icons.backup_outlined, path: '/administration/backup', category: 'Navigation'),
-      SpotlightSearchItem(title: tr('Audit Trail Logs'), subtitle: tr('Review system activity trail and IP address headers'), icon: Icons.history_toggle_off_outlined, path: '/administration/audit_logs', category: 'Navigation'),
+      if (isSuperAdmin)
+        SpotlightSearchItem(title: tr('Audit Trail Logs'), subtitle: tr('Review system activity trail and IP address headers'), icon: Icons.history_toggle_off_outlined, path: '/administration/audit_logs', category: 'Navigation'),
     ];
 
     // Dynamic states
@@ -119,6 +131,9 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
     final clients = ref.watch(clientsProvider).clients;
     final projects = ref.watch(projectsProvider).projects;
     final tasks = ref.watch(tasksProvider).tasks;
+    final accounts = ref.watch(accountsProvider).accounts;
+    final assets = ref.watch(assetsProvider).assets;
+    final inventory = ref.watch(inventoryProvider).items;
 
     final employeeSearchItems = employees.map((e) => SpotlightSearchItem(
           title: e.name,
@@ -152,6 +167,30 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
           category: 'Tasks',
         ));
 
+    final accountSearchItems = accounts.map((a) => SpotlightSearchItem(
+          title: a.name,
+          subtitle: '${a.type} • ${a.isPersonal ? "Personal" : "Corporate"} • Balance: Rs. ${a.balance.toStringAsFixed(0)}',
+          icon: a.isPersonal ? Icons.account_balance_wallet_outlined : Icons.account_balance_outlined,
+          path: a.isPersonal ? '/finance/wallet/details/${a.id}' : '/finance/accounts/details/${a.id}',
+          category: 'Accounts',
+        ));
+
+    final assetSearchItems = assets.map((asset) => SpotlightSearchItem(
+          title: asset.name,
+          subtitle: '${asset.type} • S/N: ${asset.serialNumber} • ${asset.assignedToName != null && asset.assignedToName!.isNotEmpty ? "Assigned: ${asset.assignedToName}" : asset.status}',
+          icon: Icons.computer_outlined,
+          path: '/inventory/assets',
+          category: 'Assets',
+        ));
+
+    final inventorySearchItems = inventory.map((item) => SpotlightSearchItem(
+          title: item.name,
+          subtitle: 'Stock: ${item.quantity} ${item.unit} • ${item.category}',
+          icon: Icons.inventory_2_outlined,
+          path: '/inventory/list',
+          category: 'Inventory',
+        ));
+
     // Combine all indexable items
     final allItems = [
       ...staticNavItems,
@@ -159,6 +198,9 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
       ...clientSearchItems,
       ...projectSearchItems,
       ...taskSearchItems,
+      ...accountSearchItems,
+      ...assetSearchItems,
+      ...inventorySearchItems,
     ];
 
     // Fuzzy matching
@@ -183,7 +225,12 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         alignment: Alignment.topCenter,
-        insetPadding: const EdgeInsets.only(top: 100, left: 24, right: 24),
+        insetPadding: EdgeInsets.only(
+          top: isMobile ? 32 : 80,
+          left: isMobile ? 12 : 24,
+          right: isMobile ? 12 : 24,
+          bottom: isMobile ? 16 : 24,
+        ),
         child: Focus(
           onKeyEvent: (node, event) {
             if (event is KeyDownEvent) {
@@ -216,7 +263,8 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
             return KeyEventResult.ignored;
           },
           child: Container(
-            width: 650,
+            width: isMobile ? double.infinity : 650,
+            constraints: const BoxConstraints(maxWidth: 650),
             decoration: BoxDecoration(
               color: context.cardBg.withValues(alpha: isDark ? 0.85 : 0.98),
               borderRadius: BorderRadius.circular(16),
@@ -278,8 +326,7 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
                 Divider(color: context.border, height: 1),
 
                 // Results Container
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 300),
+                Flexible(
                   child: filteredItems.isEmpty
                       ? Container(
                           padding: const EdgeInsets.all(32),
@@ -298,8 +345,8 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
                         )
                       : ListView.builder(
                           controller: _scrollController,
+                          shrinkWrap: true,
                           itemCount: filteredItems.length,
-                          itemExtent: 64,
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           itemBuilder: (context, index) {
                             final item = filteredItems[index];
@@ -334,6 +381,21 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
                                 categoryIcon = Icons.task_alt;
                                 categoryColor = context.success;
                                 categoryBg = context.successLight;
+                                break;
+                              case 'Accounts':
+                                categoryIcon = Icons.account_balance;
+                                categoryColor = const Color(0xFF6366F1);
+                                categoryBg = isDark ? const Color(0xFF6366F1).withValues(alpha: 0.15) : const Color(0xFFEEF2FF);
+                                break;
+                              case 'Assets':
+                                categoryIcon = Icons.devices;
+                                categoryColor = const Color(0xFF0EA5E9);
+                                categoryBg = isDark ? const Color(0xFF0EA5E9).withValues(alpha: 0.15) : const Color(0xFFE0F2FE);
+                                break;
+                              case 'Inventory':
+                                categoryIcon = Icons.inventory_2;
+                                categoryColor = const Color(0xFFF97316);
+                                categoryBg = isDark ? const Color(0xFFF97316).withValues(alpha: 0.15) : const Color(0xFFFFEDD5);
                                 break;
                             }
 
@@ -413,31 +475,33 @@ class _SpotlightSearchDialogState extends ConsumerState<SpotlightSearchDialog> {
                           },
                         ),
                 ),
-                Divider(color: context.border, height: 1),
+                if (!isMobile) ...[
+                  Divider(color: context.border, height: 1),
 
-                // Bottom Navigation Instructions Tip
-                Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.keyboard_arrow_down, size: 14, color: context.textMuted),
-                      Icon(Icons.keyboard_arrow_up, size: 14, color: context.textMuted),
-                      const SizedBox(width: 4),
-                      Text(
-                        tr('Navigate with arrows'),
-                        style: TextStyle(fontSize: 11, color: context.textMuted),
-                      ),
-                      const SizedBox(width: 16),
-                      Icon(Icons.keyboard_return, size: 12, color: context.textMuted),
-                      const SizedBox(width: 4),
-                      Text(
-                        tr('Enter to select'),
-                        style: TextStyle(fontSize: 11, color: context.textMuted),
-                      ),
-                    ],
+                  // Bottom Navigation Instructions Tip
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.keyboard_arrow_down, size: 14, color: context.textMuted),
+                        Icon(Icons.keyboard_arrow_up, size: 14, color: context.textMuted),
+                        const SizedBox(width: 4),
+                        Text(
+                          tr('Navigate with arrows'),
+                          style: TextStyle(fontSize: 11, color: context.textMuted),
+                        ),
+                        const SizedBox(width: 16),
+                        Icon(Icons.keyboard_return, size: 12, color: context.textMuted),
+                        const SizedBox(width: 4),
+                        Text(
+                          tr('Enter to select'),
+                          style: TextStyle(fontSize: 11, color: context.textMuted),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

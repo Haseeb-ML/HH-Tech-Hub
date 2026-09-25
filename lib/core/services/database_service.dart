@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../auth/data/auth_local_repository.dart';
 import 'database/database_connection.dart';
 export 'database/database_connection.dart';
 
@@ -347,7 +348,7 @@ abstract class DatabaseService {
   PurchaseOrdersTable, ProductsTable, SalesInvoicesTable
 ])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(openConnection());
+  AppDatabase([QueryExecutor? e]) : super(e ?? openConnection());
   @override int get schemaVersion => 2; // Bump version!
   
   @override
@@ -387,7 +388,14 @@ class AppDatabase extends _$AppDatabase {
 class DriftDatabaseService implements DatabaseService {
   final AppDatabase db; // Made public to access AppDatabase directly from repositories
   DriftDatabaseService(this.db);
-  @override Future<void> initialize() async {}
+  @override
+  Future<void> initialize() async {
+    try {
+      await AuthLocalRepository(db).initializeSchemaAndSeedDefaults();
+    } catch (e) {
+      // Ignore or log error
+    }
+  }
   
   // Transactions
   @override

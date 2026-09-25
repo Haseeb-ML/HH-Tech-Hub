@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/core/widgets/app_logo.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,18 +15,17 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
 
-  // Selected role for offline bypass/demo mode
-  String _selectedDemoRole = 'System Admin';
+  String? _selectedRole = 'Super Admin';
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -38,39 +38,95 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _errorMessage = null;
     });
 
+    final adminState = ref.read(adminProvider);
+    final availableRoles = <String>['Super Admin'];
+    for (final r in adminState.userRoles) {
+      if (!r.isSuperAdmin && r.isActive && !availableRoles.contains(r.roleName)) {
+        availableRoles.add(r.roleName);
+      }
+    }
+    for (final u in adminState.users) {
+      if (!u.isSuperAdmin && u.role.isNotEmpty && u.isActive && !availableRoles.contains(u.role)) {
+        availableRoles.add(u.role);
+      }
+    }
+
+    final effectiveRole = (availableRoles.contains(_selectedRole) ? _selectedRole : availableRoles.firstOrNull) ?? _selectedRole;
+
     try {
       final success = await ref.read(adminProvider.notifier).login(
-        _emailController.text.trim(),
+        _usernameController.text.trim(),
         _passwordController.text.trim(),
+        selectedRole: effectiveRole,
       );
 
       if (success) {
         if (mounted) {
+          final adminState = ref.read(adminProvider);
+          final currentUser = adminState.currentUser;
+          if (currentUser != null && !currentUser.isSuperAdmin && !adminState.hasPermission(AppModule.dashboard, PermissionAction.view)) {
+            final modulePaths = [
+              (AppModule.hr, '/hr/employees'),
+              (AppModule.finance, '/finance/income'),
+              (AppModule.clients, '/clients'),
+              (AppModule.projects, '/projects'),
+              (AppModule.inventory, '/inventory'),
+              (AppModule.reports, '/reports'),
+              (AppModule.administration, '/administration/users'),
+            ];
+            for (final entry in modulePaths) {
+              if (adminState.hasPermission(entry.$1, PermissionAction.view)) {
+                context.go(entry.$2);
+                return;
+              }
+            }
+          }
           context.go('/dashboard');
         }
       } else {
         setState(() {
-          _errorMessage = 'Invalid username or password.';
+          _errorMessage = ref.read(adminProvider).authErrorMessage ?? 'Invalid username/email or password.';
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Authentication failed: $e';
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
         _isLoading = false;
       });
     }
   }
 
-  void _handleDemoBypass() {
-    ref.read(adminProvider.notifier).loginBypass(_selectedDemoRole);
-    context.go('/dashboard');
+  IconData _getRoleIcon(String? role) {
+    if (role == null) return Icons.person_outline;
+    final lower = role.toLowerCase();
+    if (lower.contains('super') || lower.contains('admin')) return Icons.admin_panel_settings_rounded;
+    if (lower.contains('hr') || lower.contains('people') || lower.contains('staff')) return Icons.badge_outlined;
+    if (lower.contains('finance') || lower.contains('account') || lower.contains('ledger')) return Icons.account_balance_wallet_outlined;
+    if (lower.contains('project') || lower.contains('manager')) return Icons.work_outline_rounded;
+    if (lower.contains('inventory') || lower.contains('stock') || lower.contains('asset')) return Icons.inventory_2_outlined;
+    if (lower.contains('sales') || lower.contains('client')) return Icons.receipt_long_outlined;
+    return Icons.person_outline;
   }
 
   @override
   Widget build(BuildContext context) {
-    final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final adminState = ref.watch(adminProvider);
+    final isMobile = MediaQuery.of(context).size.width < 500;
+
+    // Collect Super Admin and only active, actually existing / created roles
+    final availableRoles = <String>['Super Admin'];
+    for (final r in adminState.userRoles) {
+      if (!r.isSuperAdmin && r.isActive && !availableRoles.contains(r.roleName)) {
+        availableRoles.add(r.roleName);
+      }
+    }
+    for (final u in adminState.users) {
+      if (!u.isSuperAdmin && u.role.isNotEmpty && u.isActive && !availableRoles.contains(u.role)) {
+        availableRoles.add(u.role);
+      }
+    }
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -105,49 +161,64 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           // ── Login Card Layout ──
           Center(
             child: SingleChildScrollView(
-              child: Container(
-                width: 450,
-                padding: const EdgeInsets.all(40),
-                decoration: BoxDecoration(
-                  color: context.cardBg.withValues(alpha: context.isDarkMode ? 0.75 : 0.95),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: context.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: context.isDarkMode ? 0.4 : 0.08),
-                      blurRadius: 30,
-                      offset: const Offset(0, 15),
-                    ),
-                  ],
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header & Logo
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 16 : 24,
+                vertical: isMobile ? 24 : 32,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 450),
+                child: Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(isMobile ? 24 : 40),
+                  decoration: BoxDecoration(
+                    color: context.cardBg.withValues(alpha: context.isDarkMode ? 0.75 : 0.95),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: context.border),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: context.isDarkMode ? 0.4 : 0.08),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      ),
+                    ],
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                      // Header and logo
                       Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: context.isDarkMode ? Colors.white.withValues(alpha: 0.85) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
-                            border: context.isDarkMode ? Border.all(color: context.border) : null,
-                            boxShadow: context.isDarkMode
-                                ? [
-                                    BoxShadow(
-                                      color: context.primaryColor.withValues(alpha: 0.2),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Image.asset(
-                            'assets/logo.png',
-                            height: 48,
-                            fit: BoxFit.contain,
+                        child: SizedBox(
+                          width: isMobile ? 210 : 240,
+                          height: isMobile ? 82 : 76,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: context.isDarkMode
+                                  ? Colors.white.withValues(alpha: 0.92)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: context.border),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/logo.png',
+                              width: isMobile ? 178 : 204,
+                              height: isMobile ? 64 : 58,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => const AppLogo(
+                                height: 50,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -163,7 +234,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Enter credentials to log in or select a demo role bypass.',
+                        'Sign in to access your ERP workspace.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: context.textSecondary,
@@ -189,17 +260,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         const SizedBox(height: 20),
                       ],
 
-                      // Email Field
-                      _buildInputLabel(tr('Email Address')),
+                      // Role Selection Dropdown
+                      _buildInputLabel('Select Account Role'),
+                      DropdownButtonFormField<String>(
+                        value: availableRoles.contains(_selectedRole) ? _selectedRole : availableRoles.first,
+                        isExpanded: true,
+                        dropdownColor: context.cardBg,
+                        style: TextStyle(
+                          color: context.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        decoration: _buildInputDecoration(
+                          hintText: 'Select your role',
+                          prefixIcon: _getRoleIcon(_selectedRole),
+                        ),
+                        items: availableRoles.map((roleName) {
+                          return DropdownMenuItem<String>(
+                            value: roleName,
+                            child: Row(
+                              children: [
+                                Icon(_getRoleIcon(roleName), size: 16, color: context.primaryColor),
+                                const SizedBox(width: 10),
+                                Text(
+                                  roleName,
+                                  style: TextStyle(
+                                    color: context.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) setState(() => _selectedRole = val);
+                        },
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Username Field
+                      _buildInputLabel('Username / Email'),
                       TextFormField(
-                        controller: _emailController,
+                        controller: _usernameController,
                         style: TextStyle(color: context.textPrimary, fontSize: 13),
                         decoration: _buildInputDecoration(
-                          hintText: tr('e.g. admin@hhtech.com'),
-                          prefixIcon: Icons.email_outlined,
+                          hintText: 'Enter username or email address',
+                          prefixIcon: Icons.person_outline,
                         ),
                         validator: (val) => val == null || val.trim().isEmpty
-                            ? 'Please enter email address'
+                            ? 'Please enter username or email'
                             : null,
                       ),
                       const SizedBox(height: 20),
@@ -245,79 +355,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
                             : const Text(
-                                'Sign In with Supabase',
+                                'Sign In',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                               ),
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: context.border)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              'OR BYPASS OFFLINE DEMO',
-                              style: TextStyle(color: context.textMuted, fontSize: 9.5, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          Expanded(child: Divider(color: context.border)),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Demo bypass dropdown & button
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              height: 44,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              decoration: BoxDecoration(
-                                color: context.scaffoldBg,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: context.border),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _selectedDemoRole,
-                                  dropdownColor: context.cardBg,
-                                  style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
-                                  items: [
-                                    'System Admin',
-                                    'HR Manager',
-                                    'Finance Manager',
-                                    'Project Manager',
-                                  ].map((role) {
-                                    return DropdownMenuItem<String>(
-                                      value: role,
-                                      child: Text(role, style: TextStyle(color: context.textPrimary)),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setState(() => _selectedDemoRole = val);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ElevatedButton(
-                            onPressed: _handleDemoBypass,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: context.cardBg,
-                              foregroundColor: context.primaryColor,
-                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                side: BorderSide(color: context.border),
-                              ),
-                            ),
-                            child: const Text('Bypass Login', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
                       ),
                     ],
                   ),
@@ -325,10 +365,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildInputLabel(String text) {
     return Padding(

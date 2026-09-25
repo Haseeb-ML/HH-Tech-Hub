@@ -10,6 +10,8 @@ import 'package:software_house_erp/core/widgets/export_button.dart';
 import '../../../projects/presentation/providers/projects_provider.dart';
 import '../../../../hr/employees/presentation/providers/employees_provider.dart';
 import 'package:software_house_erp/core/widgets/explain_tooltip.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class TasksScreen extends ConsumerWidget {
   const TasksScreen({super.key});
@@ -22,6 +24,8 @@ class TasksScreen extends ConsumerWidget {
     final projects = ref.watch(projectsProvider).projects;
     final employees = ref.watch(employeesProvider).employees;
     final theme = Theme.of(context);
+    final adminState = ref.watch(adminProvider);
+    final canCreate = adminState.hasPermission(AppModule.tasks, PermissionAction.create);
 
     // Kanban columns
     final columns = ['To Do', 'In Progress', 'In Review', 'Done'];
@@ -35,15 +39,15 @@ class TasksScreen extends ConsumerWidget {
                 const ProjectsSubNav(activeRoute: '/projects/tasks'),
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.all(24.0),
+                    padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 12.0 : 24.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Title + Add Button Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 650;
+                            final titleWidget = Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -62,10 +66,13 @@ class TasksScreen extends ConsumerWidget {
                                   ),
                                 ),
                               ],
-                            ),
-                            Row(
-                              children: [
+                            );
 
+                            final actions = Wrap(
+                              spacing: 12,
+                              runSpacing: 10,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
                                 ExportButton(
                                   title: 'Project Tasks Board',
                                   fileName: 'project_tasks_export',
@@ -82,36 +89,56 @@ class TasksScreen extends ConsumerWidget {
                                     t.status,
                                   ]).toList(),
                                 ),
-                                const SizedBox(width: 12),
-                                ElevatedButton.icon(
-                                  onPressed: () async {
-                                    final result = await showDialog<ProjectTask>(
-                                      context: context,
-                                      builder: (context) => const _AddEditTaskDialog(),
-                                    );
-                                    if (result != null) {
-                                      ref.read(tasksProvider.notifier).addTask(result);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('${tr("Task")} "${result.title}" ${tr("added successfully.")}'),
-                                          behavior: SnackBarBehavior.floating,
-                                          backgroundColor: context.success,
-                                        ),
+                                if (canCreate)
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      final result = await showDialog<ProjectTask>(
+                                        context: context,
+                                        builder: (context) => const _AddEditTaskDialog(),
                                       );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.add, size: 18),
-                                  label: const Text('Add Task'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: context.primaryColor,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      if (result != null) {
+                                        ref.read(tasksProvider.notifier).addTask(result);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('${tr("Task")} "${result.title}" ${tr("added successfully.")}'),
+                                            behavior: SnackBarBehavior.floating,
+                                            backgroundColor: context.success,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const Text('Add Task'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: context.primaryColor,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    ),
                                   ),
-                                ),
                               ],
-                            ),
-                          ],
+                            );
+
+                            if (isMobile) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  titleWidget,
+                                  const SizedBox(height: 14),
+                                  actions,
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(child: titleWidget),
+                                const SizedBox(width: 16),
+                                actions,
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
 
@@ -119,104 +146,92 @@ class TasksScreen extends ConsumerWidget {
                         GlassCard(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                // Search
-                                Expanded(
-                                  flex: 2,
-                                  child: Container(
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: TextField(
-                                      onChanged: (val) => ref.read(tasksProvider.notifier).setSearchQuery(val),
-                                      style: TextStyle(color: context.textPrimary),
-                                      decoration: InputDecoration(
-                                        hintText: tr('Search tasks by title or details...'),
-                                        hintStyle: TextStyle(
-                                          fontSize: 13,
-                                          color: context.textMuted,
-                                        ),
-                                        prefixIcon: Icon(
-                                          Icons.search,
-                                          size: 18,
-                                          color: context.textMuted,
-                                        ),
-                                        border: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isNarrow = constraints.maxWidth < 750;
+
+                                final searchWidget = Container(
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: context.border, width: 1),
+                                  ),
+                                  child: TextField(
+                                    onChanged: (val) => ref.read(tasksProvider.notifier).setSearchQuery(val),
+                                    style: TextStyle(color: context.textPrimary),
+                                    decoration: InputDecoration(
+                                      hintText: tr('Search tasks by title or details...'),
+                                      hintStyle: TextStyle(
+                                        fontSize: 13,
+                                        color: context.textMuted,
                                       ),
+                                      prefixIcon: Icon(
+                                        Icons.search,
+                                        size: 18,
+                                        color: context.textMuted,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
+                                );
 
-                                // Project Filter
-                                Expanded(
-                                  child: Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        isExpanded: true,
-                                        value: state.projectIdFilter,
-                                        dropdownColor: context.cardBg,
-                                        style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                                        items: [
-                                          const DropdownMenuItem(value: 'All', child: Text('All Projects')),
-                                          ...projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            ref.read(tasksProvider.notifier).setProjectIdFilter(val);
-                                          }
-                                        },
-                                      ),
+                                final projectFilter = Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: context.border, width: 1),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: state.projectIdFilter,
+                                      dropdownColor: context.cardBg,
+                                      style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                      items: [
+                                        const DropdownMenuItem(value: 'All', child: Text('All Projects')),
+                                        ...projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          ref.read(tasksProvider.notifier).setProjectIdFilter(val);
+                                        }
+                                      },
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
+                                );
 
-                                // Assignee Filter
-                                Expanded(
-                                  child: Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        isExpanded: true,
-                                        value: state.assigneeFilter,
-                                        dropdownColor: context.cardBg,
-                                        style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                                        items: [
-                                          const DropdownMenuItem(value: 'All', child: Text('All Assignees')),
-                                          ...employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            ref.read(tasksProvider.notifier).setAssigneeFilter(val);
-                                          }
-                                        },
-                                      ),
+                                final assigneeFilter = Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: context.border, width: 1),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: state.assigneeFilter,
+                                      dropdownColor: context.cardBg,
+                                      style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                      items: [
+                                        const DropdownMenuItem(value: 'All', child: Text('All Assignees')),
+                                        ...employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          ref.read(tasksProvider.notifier).setAssigneeFilter(val);
+                                        }
+                                      },
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
+                                );
 
-                                // Priority Filter
-                                Container(
+                                final priorityFilter = Container(
                                   height: 40,
                                   padding: const EdgeInsets.symmetric(horizontal: 12),
                                   decoration: BoxDecoration(
@@ -242,8 +257,41 @@ class TasksScreen extends ConsumerWidget {
                                       },
                                     ),
                                   ),
-                                ),
-                              ],
+                                );
+
+                                if (isNarrow) {
+                                  return Column(
+                                    children: [
+                                      searchWidget,
+                                      const SizedBox(height: 12),
+                                      SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          children: [
+                                            SizedBox(width: 150, child: projectFilter),
+                                            const SizedBox(width: 10),
+                                            SizedBox(width: 150, child: assigneeFilter),
+                                            const SizedBox(width: 10),
+                                            priorityFilter,
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }
+
+                                return Row(
+                                  children: [
+                                    Expanded(flex: 2, child: searchWidget),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: projectFilter),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: assigneeFilter),
+                                    const SizedBox(width: 12),
+                                    priorityFilter,
+                                  ],
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -270,34 +318,9 @@ class TasksScreen extends ConsumerWidget {
                                         );
                                       }).toList(),
                                     )
-                                  : ListView(
-                                      children: columns.map((colStatus) {
-                                        final colTasks = state.filteredTasks.where((t) => t.status == colStatus).toList();
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                          child: ExpansionTile(
-                                            title: Text('${tr(colStatus)} (${colTasks.length})', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                                            backgroundColor: context.cardBg,
-                                            collapsedBackgroundColor: context.cardBg,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                              side: BorderSide(color: context.border),
-                                            ),
-                                            initiallyExpanded: colStatus == 'To Do',
-                                            children: [
-                                              Padding(
-                                                padding: const EdgeInsets.all(12),
-                                                child: Column(
-                                                  children: colTasks.map((t) => Padding(
-                                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                                    child: _TaskCard(task: t),
-                                                  )).toList(),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      }).toList(),
+                                  : _MobileKanbanView(
+                                      columns: columns,
+                                      tasks: state.filteredTasks,
                                     );
                             },
                           ),
@@ -312,6 +335,166 @@ class TasksScreen extends ConsumerWidget {
   }
 }
 
+class _MobileKanbanView extends ConsumerStatefulWidget {
+  final List<String> columns;
+  final List<ProjectTask> tasks;
+
+  const _MobileKanbanView({
+    required this.columns,
+    required this.tasks,
+  });
+
+  @override
+  ConsumerState<_MobileKanbanView> createState() => _MobileKanbanViewState();
+}
+
+class _MobileKanbanViewState extends ConsumerState<_MobileKanbanView> {
+  late String _selectedStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedStatus = widget.columns.isNotEmpty ? widget.columns.first : 'To Do';
+  }
+
+  Color _getStatusColor(BuildContext context, String status) {
+    if (status == 'In Progress') {
+      return context.warning;
+    } else if (status == 'In Review') {
+      return Colors.purple;
+    } else if (status == 'Done') {
+      return context.success;
+    }
+    return context.primaryColor;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tr = ref.watch(translationProvider);
+    final statusTasks = widget.tasks.where((t) => t.status == _selectedStatus).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Responsive Status Tab Bar
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: widget.columns.map((status) {
+              final isSelected = status == _selectedStatus;
+              final count = widget.tasks.where((t) => t.status == status).length;
+              final statusColor = _getStatusColor(context, status);
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0, bottom: 4.0),
+                child: InkWell(
+                  onTap: () => setState(() => _selectedStatus = status),
+                  borderRadius: BorderRadius.circular(20),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? statusColor.withOpacity(0.12) : context.cardBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? statusColor : context.border,
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          tr(status),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected ? statusColor : context.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? statusColor
+                                : (context.isDarkMode ? const Color(0xFF374151) : const Color(0xFFE5E7EB)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.white : context.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Task Cards List
+        Expanded(
+          child: statusTasks.isEmpty
+              ? Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: context.cardBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: context.border),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.assignment_turned_in_outlined,
+                        size: 44,
+                        color: context.textSecondary.withOpacity(0.4),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'No tasks in ${tr(_selectedStatus)}',
+                        style: TextStyle(
+                          color: context.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  itemCount: statusTasks.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0),
+                      child: _TaskCard(task: statusTasks[index]),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
 class _KanbanColumn extends ConsumerWidget {
   final String status;
   final List<ProjectTask> tasks;
@@ -322,6 +505,8 @@ class _KanbanColumn extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final adminState = ref.watch(adminProvider);
+    final canEdit = adminState.hasPermission(AppModule.tasks, PermissionAction.edit);
     
     // Status border color mapping
     Color headerBorderColor = context.primaryColor;
@@ -384,12 +569,14 @@ class _KanbanColumn extends ConsumerWidget {
           // Cards list
           Expanded(
             child: DragTarget<ProjectTask>(
-              onWillAcceptWithDetails: (details) => details.data.status != status,
-              onAcceptWithDetails: (details) {
-                ref.read(tasksProvider.notifier).updateTask(
-                  details.data.copyWith(status: status),
-                );
-              },
+              onWillAcceptWithDetails: canEdit ? (details) => details.data.status != status : (_) => false,
+              onAcceptWithDetails: canEdit
+                  ? (details) {
+                      ref.read(tasksProvider.notifier).updateTask(
+                        details.data.copyWith(status: status),
+                      );
+                    }
+                  : null,
               builder: (context, candidateData, rejectedData) {
                 return Container(
                   decoration: BoxDecoration(
@@ -406,6 +593,7 @@ class _KanbanColumn extends ConsumerWidget {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: LongPressDraggable<ProjectTask>(
+                          maxSimultaneousDrags: canEdit ? 1 : 0,
                           data: task,
                           delay: const Duration(milliseconds: 150),
                           feedback: Material(
@@ -465,6 +653,9 @@ class _TaskCard extends ConsumerWidget {
     }
 
     final isAutoExplain = ref.watch(autoExplainProvider);
+    final adminState = ref.watch(adminProvider);
+    final canEdit = adminState.hasPermission(AppModule.tasks, PermissionAction.edit);
+    final canDelete = adminState.hasPermission(AppModule.tasks, PermissionAction.delete);
 
     return Container(
         decoration: BoxDecoration(
@@ -499,73 +690,77 @@ class _TaskCard extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, size: 16, color: context.textSecondary),
-                color: context.cardBg,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 100),
-                onSelected: (val) async {
-                  if (val == 'delete') {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Delete Task'),
-                        content: Text('${tr("Are you sure you want to delete task")} "${task.title}"? ${tr("This action cannot be undone.")}'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm == true) {
-                      ref.read(tasksProvider.notifier).deleteTask(task.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${tr("Task")} "${task.title}" ${tr("deleted.")}'),
-                          behavior: SnackBarBehavior.floating,
-                          backgroundColor: context.error,
+              if (canEdit || canDelete)
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, size: 16, color: context.textSecondary),
+                  color: context.cardBg,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 100),
+                  onSelected: (val) async {
+                    if (val == 'delete' && canDelete) {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete Task'),
+                          content: Text('${tr("Are you sure you want to delete task")} "${task.title}"? ${tr("This action cannot be undone.")}'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text(tr('Delete'), style: TextStyle(color: context.error)),
+                            ),
+                          ],
                         ),
                       );
+                      if (confirm == true) {
+                        ref.read(tasksProvider.notifier).deleteTask(task.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${tr("Task")} "${task.title}" ${tr("deleted.")}'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: context.error,
+                          ),
+                        );
+                      }
+                    } else if (val == 'edit' && canEdit) {
+                      final result = await showDialog<ProjectTask>(
+                        context: context,
+                        builder: (context) => _AddEditTaskDialog(task: task),
+                      );
+                      if (result != null) {
+                        ref.read(tasksProvider.notifier).updateTask(result);
+                      }
+                    } else if (val.startsWith('move_') && canEdit) {
+                      final targetStatus = val.substring(5);
+                      ref.read(tasksProvider.notifier).updateTask(task.copyWith(status: targetStatus));
                     }
-                  } else if (val == 'edit') {
-                    final result = await showDialog<ProjectTask>(
-                      context: context,
-                      builder: (context) => _AddEditTaskDialog(task: task),
-                    );
-                    if (result != null) {
-                      ref.read(tasksProvider.notifier).updateTask(result);
-                    }
-                  } else if (val.startsWith('move_')) {
-                    final targetStatus = val.substring(5);
-                    ref.read(tasksProvider.notifier).updateTask(task.copyWith(status: targetStatus));
-                  }
-                },
-                itemBuilder: (context) {
-                  final otherStatuses = ['To Do', 'In Progress', 'In Review', 'Done']
-                      .where((s) => s != task.status)
-                      .toList();
-                  return [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Text('Edit Task', style: TextStyle(color: context.textPrimary, fontSize: 12)),
-                    ),
-                    ...otherStatuses.map((s) => PopupMenuItem(
-                      value: 'move_$s',
-                      child: Text('Move to "$s"', style: TextStyle(color: context.textSecondary, fontSize: 12)),
-                    )),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete Task', style: TextStyle(color: context.error, fontSize: 12)),
-                    ),
-                  ];
-                },
-              ),
+                  },
+                  itemBuilder: (context) {
+                    final otherStatuses = ['To Do', 'In Progress', 'In Review', 'Done']
+                        .where((s) => s != task.status)
+                        .toList();
+                    return [
+                      if (canEdit)
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Text('Edit Task', style: TextStyle(color: context.textPrimary, fontSize: 12)),
+                        ),
+                      if (canEdit)
+                        ...otherStatuses.map((s) => PopupMenuItem(
+                          value: 'move_$s',
+                          child: Text('Move to "$s"', style: TextStyle(color: context.textSecondary, fontSize: 12)),
+                        )),
+                      if (canDelete)
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete Task', style: TextStyle(color: context.error, fontSize: 12)),
+                        ),
+                    ];
+                  },
+                ),
             ],
           ),
           const SizedBox(height: 6),
@@ -715,25 +910,29 @@ class _AddEditTaskDialogState extends ConsumerState<_AddEditTaskDialog> {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 450,
-        padding: const EdgeInsets.all(24),
-        child: Consumer(
-          builder: (context, ref, child) {
-            final projects = ref.watch(projectsProvider).projects;
-            final employees = ref.watch(employeesProvider).employees.where((e) => e.status == 'Active').toList();
+      child: Consumer(
+        builder: (context, ref, child) {
+          final projects = ref.watch(projectsProvider).projects;
 
-            return Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+          return Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(isMobile ? 16 : 24),
+              child: Center(
+                child: Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
@@ -757,7 +956,7 @@ class _AddEditTaskDialogState extends ConsumerState<_AddEditTaskDialog> {
                     // Project Select
                     _buildLabel(tr('Project')),
                     DropdownButtonFormField<String>(
-                      value: _selectedProjectId,
+                      initialValue: _selectedProjectId,
                       dropdownColor: context.cardBg,
                       style: TextStyle(color: context.textPrimary, fontSize: 13),
                       decoration: _buildInputDecoration('Choose associated project'),
@@ -811,60 +1010,102 @@ class _AddEditTaskDialogState extends ConsumerState<_AddEditTaskDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Removed manual Assignee Dropdown, derived from Project automatically.
-                    const SizedBox(height: 16),
-
                     // Priority & Status Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel(tr('Priority')),
-                              DropdownButtonFormField<String>(
-                                value: _priority,
-                                dropdownColor: context.cardBg,
-                                style: TextStyle(color: context.textPrimary, fontSize: 13),
-                                decoration: _buildInputDecoration(''),
-                                items: [
-                                  DropdownMenuItem(value: 'Low', child: Text(tr('Low'))),
-                                  DropdownMenuItem(value: 'Medium', child: Text(tr('Medium'))),
-                                  DropdownMenuItem(value: 'High', child: Text(tr('High'))),
-                                ],
-                                onChanged: (val) {
-                                  if (val != null) setState(() => _priority = val);
-                                },
-                              ),
+                    if (isMobile) ...[
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel(tr('Priority')),
+                          DropdownButtonFormField<String>(
+                            initialValue: _priority,
+                            dropdownColor: context.cardBg,
+                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                            decoration: _buildInputDecoration(''),
+                            items: [
+                              DropdownMenuItem(value: 'Low', child: Text(tr('Low'))),
+                              DropdownMenuItem(value: 'Medium', child: Text(tr('Medium'))),
+                              DropdownMenuItem(value: 'High', child: Text(tr('High'))),
                             ],
+                            onChanged: (val) {
+                              if (val != null) setState(() => _priority = val);
+                            },
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel(tr('Status')),
-                              DropdownButtonFormField<String>(
-                                value: _status,
-                                dropdownColor: context.cardBg,
-                                style: TextStyle(color: context.textPrimary, fontSize: 13),
-                                decoration: _buildInputDecoration(''),
-                                items: [
-                                  DropdownMenuItem(value: 'To Do', child: Text(tr('To Do'))),
-                                  DropdownMenuItem(value: 'In Progress', child: Text(tr('In Progress'))),
-                                  DropdownMenuItem(value: 'In Review', child: Text(tr('In Review'))),
-                                  DropdownMenuItem(value: 'Done', child: Text(tr('Done'))),
-                                ],
-                                onChanged: (val) {
-                                  if (val != null) setState(() => _status = val);
-                                },
-                              ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel(tr('Status')),
+                          DropdownButtonFormField<String>(
+                            initialValue: _status,
+                            dropdownColor: context.cardBg,
+                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                            decoration: _buildInputDecoration(''),
+                            items: [
+                              DropdownMenuItem(value: 'To Do', child: Text(tr('To Do'))),
+                              DropdownMenuItem(value: 'In Progress', child: Text(tr('In Progress'))),
+                              DropdownMenuItem(value: 'In Review', child: Text(tr('In Review'))),
+                              DropdownMenuItem(value: 'Done', child: Text(tr('Done'))),
                             ],
+                            onChanged: (val) {
+                              if (val != null) setState(() => _status = val);
+                            },
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLabel(tr('Priority')),
+                                DropdownButtonFormField<String>(
+                                  initialValue: _priority,
+                                  dropdownColor: context.cardBg,
+                                  style: TextStyle(color: context.textPrimary, fontSize: 13),
+                                  decoration: _buildInputDecoration(''),
+                                  items: [
+                                    DropdownMenuItem(value: 'Low', child: Text(tr('Low'))),
+                                    DropdownMenuItem(value: 'Medium', child: Text(tr('Medium'))),
+                                    DropdownMenuItem(value: 'High', child: Text(tr('High'))),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) setState(() => _priority = val);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildLabel(tr('Status')),
+                                DropdownButtonFormField<String>(
+                                  initialValue: _status,
+                                  dropdownColor: context.cardBg,
+                                  style: TextStyle(color: context.textPrimary, fontSize: 13),
+                                  decoration: _buildInputDecoration(''),
+                                  items: [
+                                    DropdownMenuItem(value: 'To Do', child: Text(tr('To Do'))),
+                                    DropdownMenuItem(value: 'In Progress', child: Text(tr('In Progress'))),
+                                    DropdownMenuItem(value: 'In Review', child: Text(tr('In Review'))),
+                                    DropdownMenuItem(value: 'Done', child: Text(tr('Done'))),
+                                  ],
+                                  onChanged: (val) {
+                                    if (val != null) setState(() => _status = val);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 16),
 
                     // Due Date
@@ -911,6 +1152,25 @@ class _AddEditTaskDialogState extends ConsumerState<_AddEditTaskDialog> {
                         const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () {
+                            final adminState = ref.read(adminProvider);
+                            if (widget.task == null && !adminState.hasPermission(AppModule.tasks, PermissionAction.create)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Access Denied: You do not have permission to create tasks.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                            if (widget.task != null && !adminState.hasPermission(AppModule.tasks, PermissionAction.edit)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Access Denied: You do not have permission to edit tasks.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
                             if (_formKey.currentState!.validate() &&
                                 _selectedProjectId != null &&
                                 _selectedAssigneeId != null) {
@@ -942,9 +1202,10 @@ class _AddEditTaskDialogState extends ConsumerState<_AddEditTaskDialog> {
                   ],
                 ),
               ),
-            );
-          },
-        ),
+             ),
+            ),
+          );
+        },
       ),
     );
   }

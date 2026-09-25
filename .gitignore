@@ -47,5 +47,8 @@ app.*.map.json
 # Inno Setup output directory
 /installer/
 
-
 .firebase/
+
+# Temporary scratch and repair scripts
+scratch_*.dart
+fix_*.dart

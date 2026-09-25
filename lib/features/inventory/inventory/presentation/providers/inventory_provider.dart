@@ -5,6 +5,8 @@ import '../../domain/repositories/inventory_repository.dart';
 import '../../data/repositories/inventory_repository_impl.dart';
 import '../../../../finance/expenses/presentation/providers/expenses_provider.dart';
 import '../../../../finance/ledger/presentation/providers/ledger_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 
 class InventoryState {
@@ -83,20 +85,40 @@ class InventoryNotifier extends Notifier<InventoryState> {
   }
 
   Future<void> addInventoryItem(InventoryItem item) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.inventory, PermissionAction.create)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.addInventoryItem(item);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Added inventory item: ${item.name} (Category: ${item.category}, Qty: ${item.quantity})',
+      module: 'Inventory',
+    );
     final updated = await _repository.getInventoryItems();
     state = state.copyWith(items: updated, isLoading: false);
   }
 
   Future<void> updateInventoryItem(InventoryItem item) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.inventory, PermissionAction.edit)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.updateInventoryItem(item);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated inventory item: ${item.name} (Category: ${item.category}, Qty: ${item.quantity})',
+      module: 'Inventory',
+    );
     final updated = await _repository.getInventoryItems();
     state = state.copyWith(items: updated, isLoading: false);
   }
 
   Future<void> deleteInventoryItem(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.inventory, PermissionAction.delete)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
 
     // 1. Clean up associated purchase expenses and ledger entries
@@ -113,12 +135,21 @@ class InventoryNotifier extends Notifier<InventoryState> {
     // 2. Delete inventory item from database
     await _repository.deleteInventoryItem(id);
 
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted inventory item: $id',
+      module: 'Inventory',
+    );
+
     // 3. Reload inventory items
     final updated = await _repository.getInventoryItems();
     state = state.copyWith(items: updated, isLoading: false);
   }
 
   Future<void> deleteAllInventoryItems() async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.inventory, PermissionAction.delete)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     final all = await _repository.getInventoryItems();
     for (final item in all) {
@@ -133,6 +164,10 @@ class InventoryNotifier extends Notifier<InventoryState> {
       }
       await _repository.deleteInventoryItem(item.id);
     }
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted all inventory items (${all.length} items)',
+      module: 'Inventory',
+    );
     final updated = await _repository.getInventoryItems();
     state = state.copyWith(items: updated, isLoading: false);
   }

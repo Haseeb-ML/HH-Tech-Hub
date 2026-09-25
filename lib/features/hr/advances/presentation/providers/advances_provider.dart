@@ -1,5 +1,7 @@
 import 'package:software_house_erp/core/services/database_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import '../../domain/entities/advance_record.dart';
 import '../../domain/repositories/advances_repository.dart';
 import '../../data/repositories/advances_repository_impl.dart';
@@ -79,16 +81,34 @@ class AdvancesNotifier extends Notifier<AdvancesState> {
   }
 
   Future<void> addAdvance(AdvanceRecord record) async {
+    final canCreate = ref.read(adminProvider).hasPermission(AppModule.payroll, PermissionAction.create);
+    if (!canCreate) {
+      throw Exception('Access Denied: You do not have permission to request or create salary advances.');
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.addAdvance(record);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Requested salary advance of ${record.amount} for ${record.employeeName}',
+      module: 'Payroll',
+    );
     final updated = await _repository.getAdvances();
     state = state.copyWith(advances: updated, isLoading: false);
   }
 
   Future<void> approveAdvance(String id) async {
+    final canEdit = ref.read(adminProvider).hasPermission(AppModule.payroll, PermissionAction.edit);
+    if (!canEdit) {
+      throw Exception('Access Denied: You do not have permission to approve salary advances.');
+    }
+
     state = state.copyWith(isLoading: true);
     final adv = state.advances.firstWhere((a) => a.id == id);
     await _repository.updateAdvance(adv.copyWith(status: 'Approved'));
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Approved salary advance for ${adv.employeeName} (Amount: ${adv.amount})',
+      module: 'Payroll',
+    );
     final updated = await _repository.getAdvances();
     state = state.copyWith(advances: updated, isLoading: false);
   }
@@ -98,6 +118,11 @@ class AdvancesNotifier extends Notifier<AdvancesState> {
     required String accountId,
     required String accountName,
   }) async {
+    final canEdit = ref.read(adminProvider).hasPermission(AppModule.payroll, PermissionAction.edit);
+    if (!canEdit) {
+      throw Exception('Access Denied: You do not have permission to disburse salary advances.');
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.updateAdvance(record.copyWith(status: 'Approved'));
 
@@ -117,15 +142,31 @@ class AdvancesNotifier extends Notifier<AdvancesState> {
       description: 'Salary Advance disbursed to ${record.employeeName}',
     );
     await ref.read(ledgerProvider.notifier).addLedgerEntry(entry);
+    await ref.read(accountsProvider.notifier).syncBalancesFromDb();
+    await ref.read(accountsProvider.notifier).loadAccounts();
+
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Disbursed salary advance of ${record.amount} to ${record.employeeName} from $accountName',
+      module: 'Payroll',
+    );
 
     final updated = await _repository.getAdvances();
     state = state.copyWith(advances: updated, isLoading: false);
   }
 
   Future<void> rejectAdvance(String id) async {
+    final canEdit = ref.read(adminProvider).hasPermission(AppModule.payroll, PermissionAction.edit);
+    if (!canEdit) {
+      throw Exception('Access Denied: You do not have permission to reject salary advances.');
+    }
+
     state = state.copyWith(isLoading: true);
     final adv = state.advances.firstWhere((a) => a.id == id);
     await _repository.updateAdvance(adv.copyWith(status: 'Rejected'));
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Rejected salary advance for ${adv.employeeName}',
+      module: 'Payroll',
+    );
     final updated = await _repository.getAdvances();
     state = state.copyWith(advances: updated, isLoading: false);
   }
@@ -148,6 +189,11 @@ class AdvancesNotifier extends Notifier<AdvancesState> {
   }
 
   Future<void> updateAdvance(AdvanceRecord record) async {
+    final canEdit = ref.read(adminProvider).hasPermission(AppModule.payroll, PermissionAction.edit);
+    if (!canEdit) {
+      throw Exception('Access Denied: You do not have permission to update salary advances.');
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.updateAdvance(record);
     final updated = await _repository.getAdvances();
@@ -155,8 +201,17 @@ class AdvancesNotifier extends Notifier<AdvancesState> {
   }
 
   Future<void> deleteAdvance(String id) async {
+    final canDelete = ref.read(adminProvider).hasPermission(AppModule.payroll, PermissionAction.delete);
+    if (!canDelete) {
+      throw Exception('Access Denied: You do not have permission to delete salary advances.');
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.deleteAdvance(id);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted salary advance record $id',
+      module: 'Payroll',
+    );
     final updated = await _repository.getAdvances();
     state = state.copyWith(advances: updated, isLoading: false);
   }

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/client.dart';
 import '../../domain/repositories/clients_repository.dart';
 import '../../data/repositories/clients_repository_impl.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 
 class ClientsState {
@@ -83,21 +85,45 @@ class ClientsNotifier extends Notifier<ClientsState> {
   }
 
   Future<void> addClient(Client client) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.clients, PermissionAction.create)) {
+      throw Exception('Access Denied: You do not have permission to add clients.');
+    }
     await _repository.addClient(client);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Added client: ${client.name} (Industry: ${client.industry})',
+      module: 'Clients',
+    );
     final updatedClients = await _repository.getClients();
     state = state.copyWith(clients: updatedClients, isLoading: false);
   }
 
   Future<void> updateClient(Client client) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.clients, PermissionAction.edit)) {
+      throw Exception('Access Denied: You do not have permission to edit clients.');
+    }
     state = state.copyWith(isLoading: true);
     await _repository.updateClient(client);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated client: ${client.name} (Status: ${client.status})',
+      module: 'Clients',
+    );
     final updatedClients = await _repository.getClients();
     state = state.copyWith(clients: updatedClients, isLoading: false);
   }
 
   Future<void> deleteClient(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.clients, PermissionAction.delete)) {
+      throw Exception('Access Denied: You do not have permission to delete clients.');
+    }
     state = state.copyWith(isLoading: true);
     await _repository.deleteClient(id);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted client: $id',
+      module: 'Clients',
+    );
     final updatedClients = await _repository.getClients();
     state = state.copyWith(clients: updatedClients, isLoading: false);
   }

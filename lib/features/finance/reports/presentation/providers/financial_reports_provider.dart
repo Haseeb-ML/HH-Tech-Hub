@@ -511,7 +511,7 @@ final financialReportsProvider = Provider<FinancialReportState>((ref) {
   }
 
   // 1. Cash & Bank Accounts (excluding Personal accounts)
-  final companyAccounts = accountsState.accounts.where((a) => a.accountScope != 'Personal' && a.status == 'Active').toList();
+  final companyAccounts = accountsState.accounts.where((a) => a.isCompany && a.status == 'Active').toList();
   final cashInHand = companyAccounts
       .where((a) => a.type.toLowerCase().contains('cash'))
       .fold<double>(0.0, (sum, a) => sum + a.balance);

@@ -5,32 +5,30 @@ import '../../../../core/theme/app_colors.dart';
 import '../providers/navigation_provider.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
+import 'package:software_house_erp/core/theme/theme_provider.dart';
+import 'package:software_house_erp/core/services/cloud_sync_service.dart';
+
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/core/widgets/app_logo.dart';
 
 class CollapsibleSidebar extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
+  final bool isDrawer;
 
   const CollapsibleSidebar({
     super.key,
     required this.navigationShell,
+    this.isDrawer = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isCollapsed = ref.watch(sidebarCollapsedProvider);
+    final isCollapsed = isDrawer ? false : ref.watch(sidebarCollapsedProvider);
     final theme = Theme.of(context);
     final activeIndex = navigationShell.currentIndex;
     final tr = ref.watch(translationProvider);
 
     final adminState = ref.watch(adminProvider);
-    final userRole = adminState.currentUser?.role ?? 'System Admin';
-    final activeRolePermissions = adminState.roles.firstWhere(
-      (r) => r.roleName == userRole,
-      orElse: () => adminState.roles.firstWhere((r) => r.roleName == 'System Admin'),
-    ).permissions;
-
-    bool hasPermission(String permission) {
-      return activeRolePermissions[permission] ?? false;
-    }
 
     final allItems = [
       _SidebarItem(0, 'Dashboard', Icons.dashboard_outlined, false),
@@ -44,26 +42,74 @@ class CollapsibleSidebar extends ConsumerWidget {
       _SidebarItem(8, 'Administration', Icons.security_outlined, true),
     ];
 
+    final canViewFinance = adminState.hasPermission(AppModule.finance, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.ledger, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.accounts, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.income, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.expenses, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.loans, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.personalAccounts, PermissionAction.view);
+
+    final canViewHr = adminState.hasPermission(AppModule.hr, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.employees, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.attendance, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.payroll, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.advances, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.employeeHistory, PermissionAction.view);
+
+    final canViewInventory = adminState.hasPermission(AppModule.inventory, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.officeInventory, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.assets, PermissionAction.view);
+
+    final canViewProjects = adminState.hasPermission(AppModule.projects, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.projectsList, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.tasks, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.timesheets, PermissionAction.view);
+
+    final canViewReports = adminState.hasPermission(AppModule.reports, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.generalReports, PermissionAction.view);
+
+    final isSuper = adminState.currentUser != null &&
+        (adminState.currentUser!.isSuperAdmin ||
+            adminState.currentUser!.role.trim().toLowerCase() == 'super admin' ||
+            adminState.currentUser!.role.trim().toLowerCase() == 'system admin');
+
+    final canViewAdmin = isSuper ||
+        adminState.hasPermission(AppModule.administration, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.auditLogs, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.databaseBackup, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.systemSettings, PermissionAction.view);
+
     final items = allItems.where((item) {
       switch (item.index) {
+        case 0: // Dashboard
+          return adminState.hasPermission(AppModule.dashboard, PermissionAction.view);
         case 1: // Finance & Accounts
+          return canViewFinance;
         case 6: // Finance Reports
-          return hasPermission('Manage Finance');
+          return adminState.hasPermission(AppModule.financeReports, PermissionAction.view) ||
+              canViewReports || canViewFinance;
+        case 2: // Clients & Relations
+          return adminState.hasPermission(AppModule.clients, PermissionAction.view);
         case 3: // Projects & Operations
-          return hasPermission('Manage Projects');
+          return canViewProjects;
         case 4: // HR & Employees
-          return hasPermission('Manage HR');
+          return canViewHr;
+        case 5: // Inventory & Assets
+          return canViewInventory;
+        case 7: // Reports & Analytics
+          return canViewReports;
         case 8: // Administration
-          return hasPermission('Configure System');
+          return canViewAdmin;
         default:
-          return true; // Dashboard, Clients, Inventory, Reports visible to all
+          return true;
       }
     }).toList();
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
-      width: isCollapsed ? 76 : 260,
+      width: isDrawer ? 280 : (isCollapsed ? 76 : 260),
       decoration: BoxDecoration(
         color: context.sidebarBg,
         border: Border(
@@ -98,28 +144,44 @@ class CollapsibleSidebar extends ConsumerWidget {
                             'assets/logo.png',
                             width: 28,
                             fit: BoxFit.fitWidth,
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.hub, color: Color(0xFFFF6B00), size: 24),
                           ),
                         ),
                       ),
                     ),
                   )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: context.isDarkMode ? Colors.white.withValues(alpha: 0.85) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(8),
-                          border: context.isDarkMode ? Border.all(color: context.border) : null,
+                : ClipRect(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: context.isDarkMode
+                                ? Colors.white.withValues(alpha: 0.92)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: context.border),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const AppLogo(
+                            height: 32,
+                            fit: BoxFit.contain,
+                          ),
                         ),
-                        child: Image.asset(
-                          'assets/logo.png',
-                          height: 32,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ],
+                        if (isDrawer)
+                          IconButton(
+                            icon: Icon(Icons.close, color: context.textSecondary),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                      ],
+                    ),
                   ),
           ),
           
@@ -145,6 +207,117 @@ class CollapsibleSidebar extends ConsumerWidget {
               },
             ),
           ),
+          
+          // Universal Sync Button (Desktop & Mobile)
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: Consumer(
+              builder: (context, ref, _) {
+                final syncState = ref.watch(cloudSyncStateProvider);
+                final isSyncing = syncState.status == SyncStatus.syncing;
+                
+                final widget = InkWell(
+                  onTap: isSyncing
+                      ? null
+                      : () async {
+                          try {
+                            await ref.read(cloudSyncStateProvider.notifier).syncNow();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Sync completed successfully!'),
+                                  backgroundColor: context.success,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Sync failed: '),
+                                  backgroundColor: context.error,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: isSyncing ? context.primaryColor.withValues(alpha: 0.1) : Colors.transparent,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+                      children: [
+                        isSyncing 
+                          ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: context.primaryColor))
+                          : Icon(Icons.sync, size: 20, color: context.textSecondary),
+                        if (!isCollapsed) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              isSyncing ? tr('Syncing...') : tr('Sync Data'),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: isSyncing ? context.primaryColor : context.textSecondary,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+
+                if (isCollapsed) {
+                  return Tooltip(
+                    message: isSyncing ? tr('Syncing...') : tr('Sync Data'),
+                    child: widget,
+                  );
+                }
+                return widget;
+              },
+            ),
+          ),
+          
+          // Mobile Specific Actions (Theme)
+          if (isDrawer) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final isDark = ref.watch(themeModeProvider).value == ThemeMode.dark;
+                  return InkWell(
+                    onTap: () => ref.read(themeModeProvider.notifier).toggleTheme(),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                      child: Row(
+                        children: [
+                          Icon(isDark ? Icons.light_mode : Icons.dark_mode, size: 20, color: context.textSecondary),
+                          const SizedBox(width: 12),
+                          Text(
+                            isDark ? tr('Light Mode') : tr('Dark Mode'),
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: context.textSecondary,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
           
           // Collapse / Expand Toggle Button
           const Divider(),
@@ -239,7 +412,10 @@ class CollapsibleSidebar extends ConsumerWidget {
       return Tooltip(
         message: tr(item.title),
         child: InkWell(
-          onTap: () => navigationShell.goBranch(item.index),
+          onTap: () {
+            navigationShell.goBranch(item.index);
+            if (isDrawer) Navigator.of(context).pop();
+          },
           borderRadius: BorderRadius.circular(8),
           child: buttonContent,
         ),
@@ -247,7 +423,10 @@ class CollapsibleSidebar extends ConsumerWidget {
     }
  
     return InkWell(
-      onTap: () => navigationShell.goBranch(item.index),
+      onTap: () {
+        navigationShell.goBranch(item.index);
+        if (isDrawer) Navigator.of(context).pop();
+      },
       borderRadius: BorderRadius.circular(8),
       child: buttonContent,
     );

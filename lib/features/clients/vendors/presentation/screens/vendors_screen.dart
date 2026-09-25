@@ -13,9 +13,9 @@ class VendorsScreen extends ConsumerWidget {
     
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF1F2937) : const Color(0xFFF9FAFB),
-      body: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Center(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 600),
             padding: const EdgeInsets.all(32),

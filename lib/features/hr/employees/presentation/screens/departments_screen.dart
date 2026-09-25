@@ -58,35 +58,37 @@ class _DepartmentsScreenState extends ConsumerState<DepartmentsScreen> {
                 ),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tr('Enter the name of the new department to add to the company roster:'),
-                  style: TextStyle(color: context.textSecondary, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  style: TextStyle(color: context.textPrimary, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: 'e.g. Android Developer, Marketing, DevOps...',
-                    hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
-                    errorText: errorMessage,
-                    filled: true,
-                    fillColor: context.scaffoldBg,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr('Enter the name of the new department to add to the company roster:'),
+                    style: TextStyle(color: context.textSecondary, fontSize: 13),
                   ),
-                  onChanged: (_) {
-                    if (errorMessage != null) {
-                      setDialogState(() => errorMessage = null);
-                    }
-                  },
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    style: TextStyle(color: context.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. Android Developer, Marketing, DevOps...',
+                      hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
+                      errorText: errorMessage,
+                      filled: true,
+                      fillColor: context.scaffoldBg,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    onChanged: (_) {
+                      if (errorMessage != null) {
+                        setDialogState(() => errorMessage = null);
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(

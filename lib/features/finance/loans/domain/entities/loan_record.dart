@@ -58,6 +58,7 @@ class LoanRecord {
     return description
         .replaceAll(RegExp(r'\s*\[Account:.*?\]'), '')
         .replaceAll(RegExp(r'\s*\[PersonalAccount:.*?\]'), '')
+        .replaceAll(RegExp(r'\s*\[LoanScope:.*?\]'), '')
         .trim();
   }
 
@@ -87,6 +88,9 @@ class LoanRecord {
     if (match != null) {
       return match.group(1) ?? '';
     }
+    if (description.contains('[LoanScope:PersonalExternal]') && accountId.isNotEmpty) {
+      return accountId;
+    }
     return '';
   }
 
@@ -96,11 +100,27 @@ class LoanRecord {
     if (match != null) {
       return match.group(2) ?? '';
     }
+    if (description.contains('[LoanScope:PersonalExternal]') && accountName.isNotEmpty) {
+      return accountName;
+    }
     return '';
   }
 
-  /// True if this loan is linked with an Owner / Partner personal account
-  bool get isPersonalLoan => personalAccountId.isNotEmpty;
+  /// True if this loan is linked with an Owner / Partner personal account (Internal or External)
+  bool get isPersonalLoan => personalAccountId.isNotEmpty || description.contains('[LoanScope:PersonalExternal]');
+
+  /// True if this is an external loan taken or given by a Personal Account Owner directly with a third party
+  bool get isPersonalExternalLoan =>
+      description.contains('[LoanScope:PersonalExternal]') ||
+      (isPersonalLoan && !description.contains('[LoanScope:Internal]') && !description.contains('[Account:'));
+
+  /// True if this is an internal transfer loan between Company Account and Personal Account
+  bool get isInternalLoan =>
+      description.contains('[LoanScope:Internal]') ||
+      (isPersonalLoan && !isPersonalExternalLoan);
+
+  /// True if this is a company loan with an external third party
+  bool get isCompanyLoan => !isPersonalLoan && !isPersonalExternalLoan;
 
   LoanRecord copyWith({
     String? id,

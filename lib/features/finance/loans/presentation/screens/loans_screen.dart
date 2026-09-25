@@ -8,6 +8,8 @@ import 'package:software_house_erp/features/finance/shared/widgets/finance_sub_n
 import '../providers/loans_provider.dart';
 import '../../../accounts/presentation/providers/accounts_provider.dart';
 import '../../domain/entities/loan_record.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class LoansScreen extends ConsumerWidget {
   const LoansScreen({super.key});
@@ -16,6 +18,8 @@ class LoansScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
     final state = ref.watch(loansProvider);
+    final adminState = ref.watch(adminProvider);
+    final canCreateLoan = adminState.hasPermission(AppModule.loans, PermissionAction.create);
     final theme = Theme.of(context);
 
     // Calculate metrics
@@ -40,22 +44,22 @@ class LoansScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
-      body: state.isLoading && state.loans.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                const FinanceSubNav(activeRoute: '/finance/loans'),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+      body: Column(
+        children: [
+          const FinanceSubNav(activeRoute: '/finance/loans'),
+          Expanded(
+            child: (state.isLoading && state.loans.isEmpty)
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: EdgeInsets.all(width < 600 ? 12 : 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Title + Add Button Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isNarrow = constraints.maxWidth < 650;
+                            final titleCol = Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -74,8 +78,9 @@ class LoansScreen extends ConsumerWidget {
                                   ),
                                 ),
                               ],
-                            ),
-                            ElevatedButton.icon(
+                            );
+
+                            final addButton = ElevatedButton.icon(
                               onPressed: () async {
                                 final result = await showDialog<Map<String, dynamic>>(
                                   context: context,
@@ -85,7 +90,8 @@ class LoansScreen extends ConsumerWidget {
                                   final loan = result['loan'] as LoanRecord;
                                   final accId = result['accountId'] as String;
                                   final personalAccId = result['personalAccountId'] as String?;
-                                  ref.read(loansProvider.notifier).addLoan(loan, accId, personalAccountId: personalAccId);
+                                  final loanScope = result['loanScope'] as String?;
+                                  ref.read(loansProvider.notifier).addLoan(loan, accId, personalAccountId: personalAccId, loanScope: loanScope);
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -104,23 +110,48 @@ class LoansScreen extends ConsumerWidget {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               ),
-                            ),
-                          ],
+                            );
+
+                            if (isNarrow) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  titleCol,
+                                  if (canCreateLoan) ...[
+                                    const SizedBox(height: 14),
+                                    addButton,
+                                  ],
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(child: titleCol),
+                                if (canCreateLoan) ...[
+                                  const SizedBox(width: 16),
+                                  addButton,
+                                ],
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
 
                         // Metrics Cards
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final gridCrossCount = constraints.maxWidth >= 1200 ? 4 : (constraints.maxWidth >= 600 ? 2 : 1);
+                            final isMobile = constraints.maxWidth < 600;
+                            final gridCrossCount = isMobile ? 2 : (constraints.maxWidth >= 1200 ? 4 : 2);
                             return GridView(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: gridCrossCount,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: gridCrossCount == 4 ? 1.6 : 2.5,
+                                crossAxisSpacing: isMobile ? 10 : 16,
+                                mainAxisSpacing: isMobile ? 10 : 16,
+                                childAspectRatio: isMobile ? 0.85 : (gridCrossCount == 4 ? 1.6 : 1.7),
                               ),
                               children: [
                                 StatCard(
@@ -165,39 +196,34 @@ class LoansScreen extends ConsumerWidget {
                         GlassCard(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                // Search
-                                Expanded(
-                                  flex: 2,
-                                  child: Container(
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: TextField(
-                                      onChanged: (val) => ref.read(loansProvider.notifier).setSearchQuery(val),
-                                      style: TextStyle(color: context.textPrimary),
-                                      decoration: InputDecoration(
-                                        hintText: tr('Search loans by borrower/lender name or description...'),
-                                        hintStyle: TextStyle(fontSize: 13, color: context.textMuted),
-                                        prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
-                                        border: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                                      ),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isNarrow = constraints.maxWidth < 600;
+                                final searchBox = Container(
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: context.border, width: 1),
+                                  ),
+                                  child: TextField(
+                                    onChanged: (val) => ref.read(loansProvider.notifier).setSearchQuery(val),
+                                    style: TextStyle(color: context.textPrimary),
+                                    decoration: InputDecoration(
+                                      hintText: tr('Search loans by borrower/lender name or description...'),
+                                      hintStyle: TextStyle(fontSize: 13, color: context.textMuted),
+                                      prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
+                                      border: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
+                                );
 
-                                // Type Filter
-                                Container(
+                                final typeFilterBox = Container(
                                   height: 40,
-                                  padding: EdgeInsets.symmetric(horizontal: 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
                                   decoration: BoxDecoration(
-                                    color: context.isDarkMode ? Color(0xFF111827) : context.scaffoldBg,
+                                    color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
                                     borderRadius: BorderRadius.circular(8),
                                     border: Border.all(color: context.border, width: 1),
                                   ),
@@ -218,8 +244,67 @@ class LoansScreen extends ConsumerWidget {
                                       },
                                     ),
                                   ),
-                                ),
-                              ],
+                                );
+
+                                if (isNarrow) {
+                                  final hasActiveFilter = state.typeFilter != 'All';
+                                  return Row(
+                                    children: [
+                                      Expanded(child: searchBox),
+                                      const SizedBox(width: 8),
+                                      Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          InkWell(
+                                            onTap: () => _showLoanFilterBottomSheet(context, ref),
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Container(
+                                              height: 40,
+                                              width: 42,
+                                              decoration: BoxDecoration(
+                                                color: hasActiveFilter
+                                                    ? context.primaryColor.withValues(alpha: 0.15)
+                                                    : (context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: hasActiveFilter ? context.primaryColor : context.border,
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Icon(
+                                                Icons.filter_list,
+                                                size: 20,
+                                                color: hasActiveFilter ? context.primaryColor : context.textSecondary,
+                                              ),
+                                            ),
+                                          ),
+                                          if (hasActiveFilter)
+                                            Positioned(
+                                              right: -2,
+                                              top: -2,
+                                              child: Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: BoxDecoration(
+                                                  color: context.primaryColor,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  );
+                                }
+
+                                return Row(
+                                  children: [
+                                    Expanded(flex: 2, child: searchBox),
+                                    const SizedBox(width: 12),
+                                    typeFilterBox,
+                                  ],
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -235,7 +320,7 @@ class LoansScreen extends ConsumerWidget {
                                   crossAxisCount: crossAxisCount,
                                   crossAxisSpacing: 16,
                                   mainAxisSpacing: 16,
-                                  mainAxisExtent: 260,
+                                  mainAxisExtent: width < 600 ? 320 : 260,
                                 ),
                                 itemCount: state.filteredLoans.length,
                                 itemBuilder: (context, index) {
@@ -282,6 +367,160 @@ class LoansScreen extends ConsumerWidget {
       ),
     );
   }
+
+  void _showLoanFilterBottomSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final currentState = ref.watch(loansProvider);
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+                child: SingleChildScrollView(
+                  child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.filter_list, size: 20, color: context.primaryColor),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Filter Loans',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.textPrimary),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => Navigator.pop(sheetContext),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 20),
+                    Text(
+                      'Loan Type',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondary),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildTypeFilterChip(
+                          context: context,
+                          label: 'All Types',
+                          selected: currentState.typeFilter == 'All',
+                          onTap: () {
+                            ref.read(loansProvider.notifier).setTypeFilter('All');
+                            setState(() {});
+                          },
+                        ),
+                        _buildTypeFilterChip(
+                          context: context,
+                          label: 'Lent (Receivable)',
+                          selected: currentState.typeFilter == 'Lent',
+                          onTap: () {
+                            ref.read(loansProvider.notifier).setTypeFilter('Lent');
+                            setState(() {});
+                          },
+                        ),
+                        _buildTypeFilterChip(
+                          context: context,
+                          label: 'Borrowed (Payable)',
+                          selected: currentState.typeFilter == 'Borrowed',
+                          onTap: () {
+                            ref.read(loansProvider.notifier).setTypeFilter('Borrowed');
+                            setState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              ref.read(loansProvider.notifier).setTypeFilter('All');
+                              Navigator.pop(sheetContext);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: context.border),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('Reset Filter'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(sheetContext),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: context.primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('Apply'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildTypeFilterChip({
+    required BuildContext context,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? context.primaryColor.withValues(alpha: 0.15)
+              : (context.isDarkMode ? const Color(0xFF1F2937) : context.scaffoldBg),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? context.primaryColor : context.border,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+            color: selected ? context.primaryColor : context.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _LoanCard extends ConsumerWidget {
@@ -292,6 +531,8 @@ class _LoanCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
+    final adminState = ref.watch(adminProvider);
+    final canDeleteLoan = adminState.hasPermission(AppModule.loans, PermissionAction.delete);
     final theme = Theme.of(context);
     final isLent = loan.type == 'Lent';
     final repaidAmount = loan.amount - loan.remainingBalance;
@@ -320,7 +561,7 @@ class _LoanCard extends ConsumerWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 12 : 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -356,7 +597,7 @@ class _LoanCard extends ConsumerWidget {
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            if (loan.isPersonalLoan) ...[
+                            if (loan.isPersonalExternalLoan) ...[
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                 decoration: BoxDecoration(
@@ -370,7 +611,7 @@ class _LoanCard extends ConsumerWidget {
                                     const Icon(Icons.person, size: 10, color: Colors.purple),
                                     const SizedBox(width: 3),
                                     Text(
-                                      'Personal: ${loan.personalAccountName}',
+                                      'Personal (Ext): ${loan.personalAccountName.isNotEmpty ? loan.personalAccountName : loan.resolvedAccountName}',
                                       style: const TextStyle(
                                         color: Colors.purple,
                                         fontSize: 10,
@@ -380,8 +621,31 @@ class _LoanCard extends ConsumerWidget {
                                   ],
                                 ),
                               ),
-                            ],
-                            if (loan.resolvedAccountName.isNotEmpty) ...[
+                            ] else if (loan.isInternalLoan) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: Colors.indigo.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: Colors.indigo.withValues(alpha: 0.3), width: 0.5),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.swap_horiz, size: 10, color: Colors.indigo),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      'Internal: ${loan.personalAccountName} ⟷ ${loan.resolvedAccountName}',
+                                      style: const TextStyle(
+                                        color: Colors.indigo,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ] else if (loan.resolvedAccountName.isNotEmpty) ...[
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                 decoration: BoxDecoration(
@@ -437,7 +701,7 @@ class _LoanCard extends ConsumerWidget {
                           context: context,
                           builder: (context) => _LoanDetailsDialog(loan: loan),
                         );
-                      } else if (val == 'delete') {
+                      } else if (val == 'delete' && canDeleteLoan) {
                         final confirm = await showDialog<bool>(
                           context: context,
                           builder: (context) => AlertDialog(
@@ -479,10 +743,11 @@ class _LoanCard extends ConsumerWidget {
                         value: 'repayments',
                         child: Text('Repayments Log', style: TextStyle(color: context.textPrimary, fontSize: 13)),
                       ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Delete Loan', style: TextStyle(color: context.error, fontSize: 13)),
-                      ),
+                      if (canDeleteLoan)
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete Loan', style: TextStyle(color: context.error, fontSize: 13)),
+                        ),
                     ],
                   ),
                 ],
@@ -494,21 +759,27 @@ class _LoanCard extends ConsumerWidget {
                 children: [
                   Icon(Icons.event_outlined, size: 12, color: context.textMuted),
                   const SizedBox(width: 4),
-                  Text(
-                    'Start: ${loan.startDate.split('T').first}',
-                    style: TextStyle(color: context.textSecondary, fontSize: 11),
+                  Expanded(
+                    child: Text(
+                      'Start: ${loan.startDate.split('T').first}',
+                      style: TextStyle(color: context.textSecondary, fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   Container(width: 3, height: 3, decoration: BoxDecoration(color: context.textMuted, shape: BoxShape.circle)),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   Icon(Icons.alarm_outlined, size: 12, color: loan.endDate.isNotEmpty ? context.primaryColor : context.textMuted),
                   const SizedBox(width: 4),
-                  Text(
-                    loan.endDate.isNotEmpty ? 'Due: ${loan.endDate}' : 'No Due Date',
-                    style: TextStyle(
-                      color: loan.endDate.isNotEmpty ? context.primaryColor : context.textMuted,
-                      fontSize: 11,
-                      fontWeight: loan.endDate.isNotEmpty ? FontWeight.w600 : FontWeight.normal,
+                  Expanded(
+                    child: Text(
+                      loan.endDate.isNotEmpty ? 'Due: ${loan.endDate}' : 'No Due Date',
+                      style: TextStyle(
+                        color: loan.endDate.isNotEmpty ? context.primaryColor : context.textMuted,
+                        fontSize: 11,
+                        fontWeight: loan.endDate.isNotEmpty ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -565,48 +836,57 @@ class _LoanCard extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Principal',
-                        style: TextStyle(color: context.textMuted, fontSize: 9, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Rs. ${loan.amount.toStringAsFixed(0)}',
-                        style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Repaid',
-                        style: TextStyle(color: context.textMuted, fontSize: 9, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Rs. ${repaidAmount.toStringAsFixed(0)}',
-                        style: TextStyle(color: context.success, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Remaining',
-                        style: TextStyle(color: context.textMuted, fontSize: 9, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Rs. ${loan.remainingBalance.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          color: loan.remainingBalance > 0 ? context.warning : context.success,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Principal',
+                          style: TextStyle(color: context.textMuted, fontSize: 9, fontWeight: FontWeight.bold),
                         ),
-                      ),
-                    ],
+                        Text(
+                          'Rs. ${loan.amount.toStringAsFixed(0)}',
+                          style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Repaid',
+                          style: TextStyle(color: context.textMuted, fontSize: 9, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Rs. ${repaidAmount.toStringAsFixed(0)}',
+                          style: TextStyle(color: context.success, fontSize: 12, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Remaining',
+                          style: TextStyle(color: context.textMuted, fontSize: 9, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'Rs. ${loan.remainingBalance.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            color: loan.remainingBalance > 0 ? context.warning : context.success,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -633,20 +913,31 @@ class _LoanCard extends ConsumerWidget {
 void _showRepaymentsBottomSheet(BuildContext context, WidgetRef ref, LoanRecord loan) {
   showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
     backgroundColor: context.cardBg,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (context) {
         final tr = ref.watch(translationProvider);
-        final accounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
+        final canEditLoan = ref.watch(adminProvider).hasPermission(AppModule.loans, PermissionAction.edit);
+        final allAccounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
+        final accounts = loan.isPersonalExternalLoan
+            ? allAccounts.where((a) => a.isPersonal).toList()
+            : (allAccounts.where((a) => a.isCompany).toList().isNotEmpty
+                ? allAccounts.where((a) => a.isCompany).toList()
+                : allAccounts);
         final TextEditingController amountCtrl = TextEditingController();
-        String? selectedAccId = accounts.isNotEmpty ? accounts.first.id : null;
+        String? selectedAccId = accounts.where((a) => a.id == loan.resolvedAccountId || a.id == loan.personalAccountId).firstOrNull?.id ??
+            (accounts.isNotEmpty ? accounts.first.id : null);
         DateTime repDate = DateTime.now();
 
         return StatefulBuilder(
           builder: (context, setState) {
             return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: Container(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+                padding: const EdgeInsets.all(24),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -663,7 +954,7 @@ void _showRepaymentsBottomSheet(BuildContext context, WidgetRef ref, LoanRecord 
                     ],
                   ),
                   const Divider(),
-                  if (loan.isPersonalLoan) ...[
+                  if (loan.isPersonalExternalLoan) ...[
                     Container(
                       margin: const EdgeInsets.symmetric(vertical: 8),
                       padding: const EdgeInsets.all(10),
@@ -674,7 +965,31 @@ void _showRepaymentsBottomSheet(BuildContext context, WidgetRef ref, LoanRecord 
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.swap_horiz, color: Colors.purple, size: 20),
+                          const Icon(Icons.person, color: Colors.purple, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              loan.type == 'Borrowed'
+                                  ? 'Installment repayment will be deducted from ${loan.personalAccountName.isNotEmpty ? loan.personalAccountName : loan.resolvedAccountName}\'s Personal Account and paid to ${loan.borrowerName}.'
+                                  : 'Installment repayment will be received from ${loan.borrowerName} and deposited into ${loan.personalAccountName.isNotEmpty ? loan.personalAccountName : loan.resolvedAccountName}\'s Personal Account.',
+                              style: TextStyle(color: context.textPrimary, fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (loan.isInternalLoan) ...[
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.indigo.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.indigo.withValues(alpha: 0.25)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.swap_horiz, color: Colors.indigo, size: 20),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -716,52 +1031,48 @@ void _showRepaymentsBottomSheet(BuildContext context, WidgetRef ref, LoanRecord 
                   ),
                   const Divider(),
                   const SizedBox(height: 10),
-
-                  if (loan.remainingBalance > 0) ...[
+                  if (canEditLoan && loan.remainingBalance > 0) ...[
                     // Add Repayment Form
                     Text('Record New Installment Repayment', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: context.textPrimary)),
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: amountCtrl,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: InputDecoration(
-                              hintText: 'Installment Amount',
-                              hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              filled: true,
-                              fillColor: context.scaffoldBg,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
-                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
-                            ),
+                    Builder(
+                      builder: (context) {
+                        final isMob = MediaQuery.of(context).size.width < 600;
+                        final amountField = TextFormField(
+                          controller: amountCtrl,
+                          keyboardType: TextInputType.number,
+                          style: TextStyle(color: context.textPrimary),
+                          decoration: InputDecoration(
+                            hintText: 'Installment Amount',
+                            hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            filled: true,
+                            fillColor: context.scaffoldBg,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            initialValue: selectedAccId,
-                            dropdownColor: context.cardBg,
-                            style: TextStyle(color: context.textPrimary, fontSize: 13),
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              filled: true,
-                              fillColor: context.scaffoldBg,
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
-                            ),
-                            items: accounts.map((a) {
-                              return DropdownMenuItem(value: a.id, child: Text(a.name));
-                            }).toList(),
-                            onChanged: (val) {
-                              setState(() => selectedAccId = val);
-                            },
+                        );
+
+                        final accountDropdown = DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: selectedAccId,
+                          dropdownColor: context.cardBg,
+                          style: TextStyle(color: context.textPrimary, fontSize: 13),
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            filled: true,
+                            fillColor: context.scaffoldBg,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
+                          items: accounts.map((a) {
+                            return DropdownMenuItem(value: a.id, child: Text(a.name));
+                          }).toList(),
+                          onChanged: (val) {
+                            setState(() => selectedAccId = val);
+                          },
+                        );
+
+                        final recordButton = ElevatedButton(
                           onPressed: () {
                             final val = double.tryParse(amountCtrl.text);
                             if (val == null || val <= 0 || selectedAccId == null) {
@@ -772,7 +1083,7 @@ void _showRepaymentsBottomSheet(BuildContext context, WidgetRef ref, LoanRecord 
                             }
                             if (val > loan.remainingBalance) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Amount exceeds remaining loan balance'), behavior: SnackBarBehavior.floating),
+                                const SnackBar(content: Text('Amount exceeds remaining loan balance'), behavior: SnackBarBehavior.floating),
                               );
                               return;
                             }
@@ -803,11 +1114,35 @@ void _showRepaymentsBottomSheet(BuildContext context, WidgetRef ref, LoanRecord 
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
                           child: Text(tr('Record')),
-                        ),
-                      ],
+                        );
+
+                        if (isMob) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              amountField,
+                              const SizedBox(height: 8),
+                              accountDropdown,
+                              const SizedBox(height: 10),
+                              recordButton,
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: amountField),
+                            const SizedBox(width: 12),
+                            Expanded(child: accountDropdown),
+                            const SizedBox(width: 12),
+                            recordButton,
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ],
+              ),
               ),
             );
           },
@@ -829,7 +1164,7 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
   late final TextEditingController _amountController;
   late final TextEditingController _descController;
 
-  bool _isPersonalLoan = false; // Toggle between External Party vs Personal Account
+  String _loanScope = 'CompanyExternal'; // 'CompanyExternal', 'PersonalExternal', 'Internal'
   String _type = 'Borrowed'; // Default: 'Borrowed' or 'Lent'
   String? _selectedCompanyAccountId;
   String? _selectedPersonalAccountId;
@@ -856,18 +1191,20 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
   Widget build(BuildContext context) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 40, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 520,
-        padding: const EdgeInsets.all(24),
+        width: isMobile ? double.infinity : 540,
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Consumer(
           builder: (context, ref, child) {
             final allAccounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
-            final companyAccounts = allAccounts.where((a) => a.accountScope != 'Personal').toList();
-            final personalAccounts = allAccounts.where((a) => a.accountScope == 'Personal').toList();
+            final companyAccounts = allAccounts.where((a) => a.isCompany).toList();
+            final personalAccounts = allAccounts.where((a) => a.isPersonal).toList();
 
             // Fallback if no separate company accounts exist
             final availableCompanyAccounts = companyAccounts.isNotEmpty ? companyAccounts : allAccounts;
@@ -877,7 +1214,7 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
             }
             if (_selectedPersonalAccountId == null && personalAccounts.isNotEmpty) {
               _selectedPersonalAccountId = personalAccounts.first.id;
-              if (_isPersonalLoan) {
+              if (_loanScope == 'Internal') {
                 final p = personalAccounts.first;
                 _nameController.text = p.ownerName.isNotEmpty ? '${p.ownerName} (Personal)' : '${p.name} (Personal)';
               }
@@ -914,8 +1251,8 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                     const Divider(),
                     const SizedBox(height: 14),
 
-                    // Counterparty Mode Selector: External vs Personal Account
-                    _buildLabel('Loan Counterparty'),
+                    // Counterparty Mode Selector: 3 Scopes
+                    _buildLabel('Loan Category & Scope'),
                     Container(
                       decoration: BoxDecoration(
                         color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
@@ -923,91 +1260,108 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                         border: Border.all(color: context.border),
                       ),
                       padding: const EdgeInsets.all(4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _isPersonalLoan = false;
-                                  _nameController.clear();
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: !_isPersonalLoan ? context.primaryColor : Colors.transparent,
+                      child: LayoutBuilder(
+                        builder: (context, box) {
+                          final isCompact = box.maxWidth < 460;
+                          final scopes = [
+                            (
+                              'CompanyExternal',
+                              'Company Loan',
+                              '🏢 External',
+                              Icons.business_outlined,
+                              context.primaryColor,
+                            ),
+                            (
+                              'PersonalExternal',
+                              'Personal Loan',
+                              '👤 External',
+                              Icons.person_outline,
+                              Colors.purple,
+                            ),
+                            (
+                              'Internal',
+                              'Internal Transfer',
+                              '🔄 Comp ⟷ Pers',
+                              Icons.swap_horiz,
+                              Colors.indigo,
+                            ),
+                          ];
+
+                          return Row(
+                            children: scopes.map((item) {
+                              final isSelected = _loanScope == item.$1;
+                              return Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _loanScope = item.$1;
+                                      if (_loanScope == 'Internal') {
+                                        if (selectedPersonalAccount != null) {
+                                          _nameController.text = selectedPersonalAccount.ownerName.isNotEmpty
+                                              ? '${selectedPersonalAccount.ownerName} (Personal)'
+                                              : '${selectedPersonalAccount.name} (Personal)';
+                                        }
+                                      } else {
+                                        _nameController.clear();
+                                      }
+                                    });
+                                  },
                                   borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Center(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.business_outlined,
-                                        size: 15,
-                                        color: !_isPersonalLoan ? Colors.white : context.textSecondary,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? item.$5 : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                item.$4,
+                                                size: 13,
+                                                color: isSelected ? Colors.white : context.textSecondary,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Flexible(
+                                                child: Text(
+                                                  item.$2,
+                                                  style: TextStyle(
+                                                    color: isSelected ? Colors.white : context.textSecondary,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: isCompact ? 10 : 11,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                  maxLines: 1,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (!isCompact) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              item.$3,
+                                              style: TextStyle(
+                                                color: isSelected ? Colors.white.withValues(alpha: 0.85) : context.textMuted,
+                                                fontSize: 9.5,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                              maxLines: 1,
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'External Party',
-                                        style: TextStyle(
-                                          color: !_isPersonalLoan ? Colors.white : context.textSecondary,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _isPersonalLoan = true;
-                                  if (selectedPersonalAccount != null) {
-                                    _nameController.text = selectedPersonalAccount.ownerName.isNotEmpty
-                                        ? '${selectedPersonalAccount.ownerName} (Personal)'
-                                        : '${selectedPersonalAccount.name} (Personal)';
-                                  }
-                                });
-                              },
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: _isPersonalLoan ? Colors.purple : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Center(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.person_outline,
-                                        size: 15,
-                                        color: _isPersonalLoan ? Colors.white : context.textSecondary,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Personal Account (Owner)',
-                                        style: TextStyle(
-                                          color: _isPersonalLoan ? Colors.white : context.textSecondary,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                              );
+                            }).toList(),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1024,17 +1378,21 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                         DropdownMenuItem(
                           value: 'Borrowed',
                           child: Text(
-                            _isPersonalLoan
-                                ? 'Company Borrows from Personal Account (Company Liability)'
-                                : 'Borrowed (We received credit/liability from third party)',
+                            _loanScope == 'PersonalExternal'
+                                ? 'Borrowed (Personal Owner received loan from external party)'
+                                : (_loanScope == 'Internal'
+                                    ? 'Company Borrows from Personal Account (Company Liability)'
+                                    : 'Borrowed (Company received credit/liability from third party)'),
                           ),
                         ),
                         DropdownMenuItem(
                           value: 'Lent',
                           child: Text(
-                            _isPersonalLoan
-                                ? 'Company Lends to Personal Account (Owner Liability/Advance)'
-                                : 'Lent (We gave cash advances to employee/third party)',
+                            _loanScope == 'PersonalExternal'
+                                ? 'Lent (Personal Owner lent personal funds to external party)'
+                                : (_loanScope == 'Internal'
+                                    ? 'Company Lends to Personal Account (Owner Liability/Advance)'
+                                    : 'Lent (Company gave cash advances to employee/third party)'),
                           ),
                         ),
                       ],
@@ -1046,8 +1404,8 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                     ),
                     const SizedBox(height: 16),
 
-                    // If Personal Loan: Show Personal Account Dropdown
-                    if (_isPersonalLoan) ...[
+                    // If Personal External or Internal Loan: Show Personal Account Dropdown
+                    if (_loanScope != 'CompanyExternal') ...[
                       if (personalAccounts.isEmpty) ...[
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -1098,11 +1456,13 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                             if (val != null) {
                               setState(() {
                                 _selectedPersonalAccountId = val;
-                                final p = personalAccounts.where((a) => a.id == val).firstOrNull;
-                                if (p != null) {
-                                  _nameController.text = p.ownerName.isNotEmpty
-                                      ? '${p.ownerName} (Personal)'
-                                      : '${p.name} (Personal)';
+                                if (_loanScope == 'Internal') {
+                                  final p = personalAccounts.where((a) => a.id == val).firstOrNull;
+                                  if (p != null) {
+                                    _nameController.text = p.ownerName.isNotEmpty
+                                        ? '${p.ownerName} (Personal)'
+                                        : '${p.name} (Personal)';
+                                  }
                                 }
                               });
                             }
@@ -1113,101 +1473,181 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                     ],
 
                     // Name of Borrower / Lender (editable)
-                    _buildLabel(_isPersonalLoan
-                        ? 'Loan Record Title / Name'
-                        : (_type == 'Lent' ? 'Borrower Name / Employee' : 'Lender Name / Bank')),
+                    _buildLabel(_loanScope == 'Internal'
+                        ? 'Internal Loan Record Title'
+                        : (_loanScope == 'PersonalExternal'
+                            ? (_type == 'Lent' ? 'External Borrower Name / Friend / 3rd Party' : 'External Lender Name / Bank / Friend')
+                            : (_type == 'Lent' ? 'Borrower Name / Employee / 3rd Party' : 'Lender Name / Bank / Vendor'))),
                     TextFormField(
                       controller: _nameController,
                       style: TextStyle(color: context.textPrimary),
-                      decoration: _buildInputDecoration('e.g. Syed Bilal or HBL Bank'),
+                      decoration: _buildInputDecoration(
+                        _loanScope == 'Internal'
+                            ? 'e.g. Owner Advance or Working Capital'
+                            : (_loanScope == 'PersonalExternal'
+                                ? 'e.g. Ali Khan (Friend) or Meezan Personal Loan'
+                                : 'e.g. Syed Bilal or HBL Bank'),
+                      ),
                       validator: (val) => val == null || val.trim().isEmpty ? 'Please enter name' : null,
                     ),
                     const SizedBox(height: 16),
 
                     // Amount & Company Account
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Principal Amount (Rs.)'),
-                              TextFormField(
-                                controller: _amountController,
-                                keyboardType: TextInputType.number,
-                                style: TextStyle(color: context.textPrimary),
-                                decoration: _buildInputDecoration('e.g. 50000'),
-                                onChanged: (_) => setState(() {}),
-                                validator: (val) {
-                                  if (val == null || val.trim().isEmpty) return 'Enter amount';
-                                  final numVal = double.tryParse(val);
-                                  if (numVal == null || numVal <= 0) return 'Invalid amount';
+                    Builder(
+                      builder: (context) {
+                        final amountCol = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Principal Amount (Rs.)'),
+                            TextFormField(
+                              controller: _amountController,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(color: context.textPrimary),
+                              decoration: _buildInputDecoration('e.g. 50000'),
+                              onChanged: (_) => setState(() {}),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) return 'Enter amount';
+                                final numVal = double.tryParse(val);
+                                if (numVal == null || numVal <= 0) return 'Invalid amount';
 
-                                  if (_isPersonalLoan) {
-                                    if (_type == 'Borrowed') {
-                                      // Personal account provides funds -> check personal balance
-                                      if (selectedPersonalAccount != null && numVal > selectedPersonalAccount.balance) {
-                                        return 'Exceeds balance (Rs. ${selectedPersonalAccount.balance.toStringAsFixed(0)})';
-                                      }
-                                    } else {
-                                      // Company provides funds -> check company balance
-                                      if (selectedCompanyAccount != null && numVal > selectedCompanyAccount.balance) {
-                                        return 'Exceeds balance (Rs. ${selectedCompanyAccount.balance.toStringAsFixed(0)})';
-                                      }
+                                if (_loanScope == 'PersonalExternal') {
+                                  if (_type == 'Lent') {
+                                    if (selectedPersonalAccount != null && numVal > selectedPersonalAccount.balance) {
+                                      return 'Exceeds balance (Rs. ${selectedPersonalAccount.balance.toStringAsFixed(0)})';
                                     }
                                   }
-                                  return null;
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
+                                } else if (_loanScope == 'Internal') {
+                                  if (_type == 'Borrowed') {
+                                    if (selectedPersonalAccount != null && numVal > selectedPersonalAccount.balance) {
+                                      return 'Exceeds personal balance (Rs. ${selectedPersonalAccount.balance.toStringAsFixed(0)})';
+                                    }
+                                  } else {
+                                    if (selectedCompanyAccount != null && numVal > selectedCompanyAccount.balance) {
+                                      return 'Exceeds company balance (Rs. ${selectedCompanyAccount.balance.toStringAsFixed(0)})';
+                                    }
+                                  }
+                                } else {
+                                  if (_type == 'Lent') {
+                                    if (selectedCompanyAccount != null && numVal > selectedCompanyAccount.balance) {
+                                      return 'Exceeds balance (Rs. ${selectedCompanyAccount.balance.toStringAsFixed(0)})';
+                                    }
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        );
+
+                        // If Personal External: Company account is not involved
+                        if (_loanScope == 'PersonalExternal') {
+                          return amountCol;
+                        }
+
+                        final accountCol = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Company Bank/Cash Account'),
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: _selectedCompanyAccountId,
+                              dropdownColor: context.cardBg,
+                              style: TextStyle(color: context.textPrimary, fontSize: 13),
+                              decoration: _buildInputDecoration('Select Account'),
+                              items: availableCompanyAccounts.map((a) {
+                                return DropdownMenuItem(
+                                  value: a.id,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(child: Text(a.name, overflow: TextOverflow.ellipsis)),
+                                      Text(
+                                        'Rs. ${a.balance.toStringAsFixed(0)}',
+                                        style: TextStyle(color: context.textMuted, fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                setState(() => _selectedCompanyAccountId = val);
+                              },
+                            ),
+                          ],
+                        );
+
+                        if (isMobile) {
+                          return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildLabel('Company Bank/Cash Account'),
-                              DropdownButtonFormField<String>(
-                                isExpanded: true,
-                                initialValue: _selectedCompanyAccountId,
-                                dropdownColor: context.cardBg,
-                                style: TextStyle(color: context.textPrimary, fontSize: 13),
-                                decoration: _buildInputDecoration('Select Account'),
-                                items: availableCompanyAccounts.map((a) {
-                                  return DropdownMenuItem(
-                                    value: a.id,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(child: Text(a.name, overflow: TextOverflow.ellipsis)),
-                                        Text(
-                                          'Rs. ${a.balance.toStringAsFixed(0)}',
-                                          style: TextStyle(color: context.textMuted, fontSize: 10),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  setState(() => _selectedCompanyAccountId = val);
-                                },
-                              ),
+                              amountCol,
+                              const SizedBox(height: 16),
+                              accountCol,
                             ],
-                          ),
-                        ),
-                      ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: amountCol),
+                            const SizedBox(width: 16),
+                            Expanded(child: accountCol),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
 
-                    // Visual Funds Transfer Summary Card (If Personal Loan)
-                    if (_isPersonalLoan && selectedPersonalAccount != null && selectedCompanyAccount != null) ...[
+                    // Visual Funds Transfer / Info Summary Card
+                    if (_loanScope == 'PersonalExternal' && selectedPersonalAccount != null) ...[
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                          color: Colors.purple.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: context.border),
+                          border: Border.all(color: Colors.purple.withValues(alpha: 0.25)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  _type == 'Borrowed' ? Icons.south_west : Icons.north_east,
+                                  size: 14,
+                                  color: Colors.purple,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _type == 'Borrowed'
+                                      ? 'Fund Flow: External Third Party ──▶ Personal Account'
+                                      : 'Fund Flow: Personal Account ──▶ External Third Party',
+                                  style: TextStyle(
+                                    color: context.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _type == 'Borrowed'
+                                  ? 'Rs. ${_amountController.text.isEmpty ? "0" : _amountController.text} personal loan will be credited directly into ${selectedPersonalAccount.ownerName.isNotEmpty ? selectedPersonalAccount.ownerName : selectedPersonalAccount.name}\'s personal account. Company accounts will NOT be affected.'
+                                  : 'Rs. ${_amountController.text.isEmpty ? "0" : _amountController.text} will be disbursed directly from ${selectedPersonalAccount.ownerName.isNotEmpty ? selectedPersonalAccount.ownerName : selectedPersonalAccount.name}\'s personal account to external borrower. Company accounts will NOT be affected.',
+                              style: TextStyle(color: context.textSecondary, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else if (_loanScope == 'Internal' && selectedPersonalAccount != null && selectedCompanyAccount != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.indigo.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.indigo.withValues(alpha: 0.25)),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1246,103 +1686,118 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                     ],
 
                     // Start Date & End Date
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Start Date'),
-                              OutlinedButton(
-                                onPressed: () async {
-                                  final picked = await showDatePicker(
-                                    context: context,
-                                    initialDate: _startDate,
-                                    firstDate: DateTime(2020),
-                                    lastDate: DateTime(2030),
-                                  );
-                                  if (picked != null) {
-                                    setState(() => _startDate = picked);
-                                  }
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(color: context.border),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      _startDate.toIso8601String().substring(0, 10),
-                                      style: TextStyle(color: context.textPrimary, fontSize: 13),
-                                    ),
-                                    Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
-                                  ],
-                                ),
+                    Builder(
+                      builder: (context) {
+                        final startDateCol = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Start Date'),
+                            OutlinedButton(
+                              onPressed: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: _startDate,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2030),
+                                );
+                                if (picked != null) {
+                                  setState(() => _startDate = picked);
+                                }
+                              },
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: context.border),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('End Date (Due) - Optional'),
-                              Row(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () async {
-                                        final picked = await showDatePicker(
-                                          context: context,
-                                          initialDate: _endDate ?? _startDate.add(const Duration(days: 180)),
-                                          firstDate: DateTime(2020),
-                                          lastDate: DateTime(2035),
-                                        );
-                                        if (picked != null) {
-                                          setState(() => _endDate = picked);
-                                        }
-                                      },
-                                      style: OutlinedButton.styleFrom(
-                                        side: BorderSide(color: context.border),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            _endDate != null ? _endDate!.toIso8601String().substring(0, 10) : 'No Due Date (Optional)',
-                                            style: TextStyle(
-                                              color: _endDate != null ? context.textPrimary : context.textMuted,
-                                              fontSize: 13,
-                                              fontWeight: _endDate != null ? FontWeight.w600 : FontWeight.normal,
-                                            ),
-                                          ),
-                                          Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
-                                        ],
-                                      ),
-                                    ),
+                                  Text(
+                                    _startDate.toIso8601String().substring(0, 10),
+                                    style: TextStyle(color: context.textPrimary, fontSize: 13),
                                   ),
-                                  if (_endDate != null) ...[
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      tooltip: 'Clear due date',
-                                      icon: const Icon(Icons.clear, size: 18),
-                                      color: context.error,
-                                      onPressed: () {
-                                        setState(() => _endDate = null);
-                                      },
-                                    ),
-                                  ],
+                                  Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
                                 ],
                               ),
+                            ),
+                          ],
+                        );
+
+                        final endDateCol = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('End Date (Due) - Optional'),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    onPressed: () async {
+                                      final picked = await showDatePicker(
+                                        context: context,
+                                        initialDate: _endDate ?? _startDate.add(const Duration(days: 180)),
+                                        firstDate: DateTime(2020),
+                                        lastDate: DateTime(2035),
+                                      );
+                                      if (picked != null) {
+                                        setState(() => _endDate = picked);
+                                      }
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(color: context.border),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          _endDate != null ? _endDate!.toIso8601String().substring(0, 10) : 'No Due Date (Optional)',
+                                          style: TextStyle(
+                                            color: _endDate != null ? context.textPrimary : context.textMuted,
+                                            fontSize: 13,
+                                            fontWeight: _endDate != null ? FontWeight.w600 : FontWeight.normal,
+                                          ),
+                                        ),
+                                        Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (_endDate != null) ...[
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    tooltip: 'Clear due date',
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    color: context.error,
+                                    onPressed: () {
+                                      setState(() => _endDate = null);
+                                    },
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        );
+
+                        if (isMobile) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              startDateCol,
+                              const SizedBox(height: 16),
+                              endDateCol,
                             ],
-                          ),
-                        ),
-                      ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: startDateCol),
+                            const SizedBox(width: 16),
+                            Expanded(child: endDateCol),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
 
@@ -1373,7 +1828,7 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                         const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () {
-                            if (_isPersonalLoan && personalAccounts.isEmpty) {
+                            if (_loanScope != 'CompanyExternal' && personalAccounts.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Please add a personal account first.')),
                               );
@@ -1381,7 +1836,6 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                             }
                             if (_formKey.currentState?.validate() == true) {
                               final amt = double.parse(_amountController.text);
-                              final acc = availableCompanyAccounts.where((a) => a.id == _selectedCompanyAccountId).firstOrNull;
                               final now = DateTime.now();
                               final startDateTime = DateTime(
                                 _startDate.year,
@@ -1392,6 +1846,17 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                                 now.second,
                                 now.millisecond,
                               );
+
+                              final isPersonalExt = _loanScope == 'PersonalExternal';
+                              final isInternal = _loanScope == 'Internal';
+
+                              final accId = isPersonalExt ? _selectedPersonalAccountId! : _selectedCompanyAccountId!;
+                              final accName = isPersonalExt
+                                  ? (selectedPersonalAccount != null
+                                      ? (selectedPersonalAccount.ownerName.isNotEmpty ? selectedPersonalAccount.ownerName : selectedPersonalAccount.name)
+                                      : 'Personal Account')
+                                  : (selectedCompanyAccount?.name ?? '');
+
                               final loan = LoanRecord(
                                 id: 'loan_${now.millisecondsSinceEpoch}',
                                 borrowerName: _nameController.text.trim(),
@@ -1402,24 +1867,31 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                                 endDate: _endDate != null ? _endDate!.toIso8601String().substring(0, 10) : '',
                                 status: 'Active',
                                 description: _descController.text.trim(),
-                                accountId: _selectedCompanyAccountId ?? '',
-                                accountName: acc?.name ?? '',
+                                accountId: accId,
+                                accountName: accName,
                                 repayments: [],
                               );
                               Navigator.of(context).pop({
                                 'loan': loan,
-                                'accountId': _selectedCompanyAccountId!,
-                                'personalAccountId': _isPersonalLoan ? _selectedPersonalAccountId : null,
+                                'accountId': accId,
+                                'personalAccountId': isPersonalExt ? _selectedPersonalAccountId : (isInternal ? _selectedPersonalAccountId : null),
+                                'loanScope': _loanScope,
                               });
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: _isPersonalLoan ? Colors.purple : context.primaryColor,
+                            backgroundColor: _loanScope == 'PersonalExternal'
+                                ? Colors.purple
+                                : (_loanScope == 'Internal' ? Colors.indigo : context.primaryColor),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
-                          child: Text(_isPersonalLoan ? 'Register Personal Loan' : 'Register Loan'),
+                          child: Text(
+                            _loanScope == 'PersonalExternal'
+                                ? 'Register Personal Loan'
+                                : (_loanScope == 'Internal' ? 'Register Internal Loan' : 'Register Company Loan'),
+                          ),
                         ),
                       ],
                     ),
@@ -1478,18 +1950,23 @@ class _LoanDetailsDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final liveLoan = ref.watch(loansProvider).loans.where((l) => l.id == loan.id).firstOrNull ?? loan;
+    final adminState = ref.watch(adminProvider);
+    final canEditLoan = adminState.hasPermission(AppModule.loans, PermissionAction.edit);
+    final canDeleteLoan = adminState.hasPermission(AppModule.loans, PermissionAction.delete);
     final theme = Theme.of(context);
     final isLent = liveLoan.type == 'Lent';
     final repaidAmount = liveLoan.amount - liveLoan.remainingBalance;
     final progress = liveLoan.amount > 0 ? repaidAmount / liveLoan.amount : 0.0;
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 40, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 580,
+        width: isMobile ? double.infinity : 580,
         constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1579,39 +2056,73 @@ class _LoanDetailsDialog extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Financial Breakdown Cards
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildMetricTile(
-                            context,
-                            title: 'Principal',
-                            value: 'Rs. ${liveLoan.amount.toStringAsFixed(0)}',
-                            color: context.primaryColor,
-                            bgColor: context.primaryColor.withValues(alpha: 0.08),
+                    if (isMobile) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMetricTile(
+                              context,
+                              title: 'Principal',
+                              value: 'Rs. ${liveLoan.amount.toStringAsFixed(0)}',
+                              color: context.primaryColor,
+                              bgColor: context.primaryColor.withValues(alpha: 0.08),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildMetricTile(
-                            context,
-                            title: 'Total Repaid',
-                            value: 'Rs. ${repaidAmount.toStringAsFixed(0)}',
-                            color: context.success,
-                            bgColor: context.successLight,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildMetricTile(
+                              context,
+                              title: 'Total Repaid',
+                              value: 'Rs. ${repaidAmount.toStringAsFixed(0)}',
+                              color: context.success,
+                              bgColor: context.successLight,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildMetricTile(
-                            context,
-                            title: 'Remaining',
-                            value: 'Rs. ${liveLoan.remainingBalance.toStringAsFixed(0)}',
-                            color: liveLoan.remainingBalance > 0 ? context.warning : context.success,
-                            bgColor: liveLoan.remainingBalance > 0 ? context.warningLight : context.successLight,
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _buildMetricTile(
+                        context,
+                        title: 'Remaining Balance',
+                        value: 'Rs. ${liveLoan.remainingBalance.toStringAsFixed(0)}',
+                        color: liveLoan.remainingBalance > 0 ? context.warning : context.success,
+                        bgColor: liveLoan.remainingBalance > 0 ? context.warningLight : context.successLight,
+                      ),
+                    ] else ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMetricTile(
+                              context,
+                              title: 'Principal',
+                              value: 'Rs. ${liveLoan.amount.toStringAsFixed(0)}',
+                              color: context.primaryColor,
+                              bgColor: context.primaryColor.withValues(alpha: 0.08),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildMetricTile(
+                              context,
+                              title: 'Total Repaid',
+                              value: 'Rs. ${repaidAmount.toStringAsFixed(0)}',
+                              color: context.success,
+                              bgColor: context.successLight,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildMetricTile(
+                              context,
+                              title: 'Remaining',
+                              value: 'Rs. ${liveLoan.remainingBalance.toStringAsFixed(0)}',
+                              color: liveLoan.remainingBalance > 0 ? context.warning : context.success,
+                              bgColor: liveLoan.remainingBalance > 0 ? context.warningLight : context.successLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 14),
 
                     // Repayment Progress Bar
@@ -1670,17 +2181,21 @@ class _LoanDetailsDialog extends ConsumerWidget {
                       ),
                       child: Column(
                         children: [
-                          _buildDetailRow(context, icon: Icons.account_balance_outlined, label: 'Company Account', value: liveLoan.resolvedAccountName.isNotEmpty ? liveLoan.resolvedAccountName : 'Not Specified'),
-                          if (liveLoan.isPersonalLoan) ...[
+                          if (liveLoan.isPersonalExternalLoan) ...[
+                            _buildDetailRow(context, icon: Icons.person_outline, label: 'Personal Account', value: '${liveLoan.personalAccountName.isNotEmpty ? liveLoan.personalAccountName : liveLoan.resolvedAccountName} (Personal Wallet)', isMobile: isMobile),
+                          ] else if (liveLoan.isInternalLoan) ...[
+                            _buildDetailRow(context, icon: Icons.account_balance_outlined, label: 'Company Account', value: liveLoan.resolvedAccountName.isNotEmpty ? liveLoan.resolvedAccountName : 'Company Account', isMobile: isMobile),
                             const Divider(height: 16),
-                            _buildDetailRow(context, icon: Icons.person_outline, label: 'Personal Account', value: '${liveLoan.personalAccountName} (Personal)'),
+                            _buildDetailRow(context, icon: Icons.person_outline, label: 'Personal Account', value: '${liveLoan.personalAccountName} (Personal)', isMobile: isMobile),
+                          ] else ...[
+                            _buildDetailRow(context, icon: Icons.account_balance_outlined, label: 'Company Account', value: liveLoan.resolvedAccountName.isNotEmpty ? liveLoan.resolvedAccountName : 'Not Specified', isMobile: isMobile),
                           ],
                           const Divider(height: 16),
-                          _buildDetailRow(context, icon: Icons.calendar_today_outlined, label: 'Start Date', value: liveLoan.startDate.split('T').first),
+                          _buildDetailRow(context, icon: Icons.calendar_today_outlined, label: 'Start Date', value: liveLoan.startDate.split('T').first, isMobile: isMobile),
                           const Divider(height: 16),
-                          _buildDetailRow(context, icon: Icons.alarm_outlined, label: 'Due Date', value: liveLoan.endDate.isNotEmpty ? liveLoan.endDate : 'No Due Date (Open-ended)'),
+                          _buildDetailRow(context, icon: Icons.alarm_outlined, label: 'Due Date', value: liveLoan.endDate.isNotEmpty ? liveLoan.endDate : 'No Due Date (Open-ended)', isMobile: isMobile),
                           const Divider(height: 16),
-                          _buildDetailRow(context, icon: Icons.notes_outlined, label: 'Terms / Notes', value: liveLoan.cleanDescription.isNotEmpty ? liveLoan.cleanDescription : 'No additional terms entered.'),
+                          _buildDetailRow(context, icon: Icons.notes_outlined, label: 'Terms / Notes', value: liveLoan.cleanDescription.isNotEmpty ? liveLoan.cleanDescription : 'No additional terms entered.', isMobile: isMobile),
                         ],
                       ),
                     ),
@@ -1690,11 +2205,14 @@ class _LoanDetailsDialog extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Repayment Installments (${liveLoan.repayments.length})',
-                          style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                        Expanded(
+                          child: Text(
+                            'Repayment Installments (${liveLoan.repayments.length})',
+                            style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        if (liveLoan.remainingBalance > 0)
+                        if (canEditLoan && liveLoan.remainingBalance > 0)
                           TextButton.icon(
                             onPressed: () {
                               _showRepaymentsBottomSheet(context, ref, liveLoan);
@@ -1761,48 +2279,13 @@ class _LoanDetailsDialog extends ConsumerWidget {
             const SizedBox(height: 12),
 
             // Footer Actions
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Delete Loan Record'),
-                        content: Text('Are you sure you want to delete loan for "${liveLoan.borrowerName}"? This will rollback balances and ledger records.'),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: context.error))),
-                        ],
-                      ),
-                    );
-                    if (confirm == true) {
-                      ref.read(loansProvider.notifier).deleteLoan(liveLoan.id);
-                      if (context.mounted) {
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: const Text('Loan record deleted and balances rolled back.'), backgroundColor: context.error),
-                        );
-                      }
-                    }
-                  },
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  label: const Text('Delete Loan'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: context.error,
-                    side: BorderSide(color: context.error.withValues(alpha: 0.4)),
-                  ),
-                ),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text('Close', style: TextStyle(color: context.textSecondary)),
-                    ),
-                    if (liveLoan.remainingBalance > 0) ...[
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
+            if (isMobile) ...[
+              Column(
+                children: [
+                  if (canEditLoan && liveLoan.remainingBalance > 0) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
                         onPressed: () {
                           _showRepaymentsBottomSheet(context, ref, liveLoan);
                         },
@@ -1811,13 +2294,118 @@ class _LoanDetailsDialog extends ConsumerWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: context.primaryColor,
                           foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 8),
                   ],
-                ),
-              ],
-            ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (canDeleteLoan)
+                        OutlinedButton.icon(
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Delete Loan Record'),
+                              content: Text('Are you sure you want to delete loan for "${liveLoan.borrowerName}"? This will rollback balances and ledger records.'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: context.error))),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            ref.read(loansProvider.notifier).deleteLoan(liveLoan.id);
+                            if (context.mounted) {
+                              Navigator.of(context).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: const Text('Loan record deleted and balances rolled back.'), backgroundColor: context.error),
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.delete_outline, size: 16),
+                        label: const Text('Delete Loan'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: context.error,
+                          side: BorderSide(color: context.error.withValues(alpha: 0.4)),
+                        ),
+                      )
+                      else
+                        const SizedBox.shrink(),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('Close', style: TextStyle(color: context.textSecondary)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (canDeleteLoan)
+                    OutlinedButton.icon(
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Delete Loan Record'),
+                          content: Text('Are you sure you want to delete loan for "${liveLoan.borrowerName}"? This will rollback balances and ledger records.'),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: context.error))),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        ref.read(loansProvider.notifier).deleteLoan(liveLoan.id);
+                        if (context.mounted) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: const Text('Loan record deleted and balances rolled back.'), backgroundColor: context.error),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Delete Loan'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: context.error,
+                      side: BorderSide(color: context.error.withValues(alpha: 0.4)),
+                    ),
+                  )
+                  else
+                    const SizedBox.shrink(),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('Close', style: TextStyle(color: context.textSecondary)),
+                      ),
+                      if (canEditLoan && liveLoan.remainingBalance > 0) ...[
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            _showRepaymentsBottomSheet(context, ref, liveLoan);
+                          },
+                          icon: const Icon(Icons.payment, size: 16),
+                          label: const Text('Record Repayment'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: context.primaryColor,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -1842,7 +2430,32 @@ class _LoanDetailsDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailRow(BuildContext context, {required IconData icon, required String label, required String value}) {
+  Widget _buildDetailRow(BuildContext context, {required IconData icon, required String label, required String value, bool isMobile = false}) {
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: context.primaryColor),
+                const SizedBox(width: 6),
+                Text(label, style: TextStyle(color: context.textMuted, fontSize: 11, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 20),
+              child: SelectableText(
+                value,
+                style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1853,7 +2466,7 @@ class _LoanDetailsDialog extends ConsumerWidget {
           child: Text(label, style: TextStyle(color: context.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
         ),
         Expanded(
-          child: Text(
+          child: SelectableText(
             value,
             style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
           ),

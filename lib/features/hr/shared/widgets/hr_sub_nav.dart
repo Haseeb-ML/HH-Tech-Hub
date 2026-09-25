@@ -44,20 +44,24 @@ class HrSubNav extends ConsumerWidget {
       ),
     ];
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      padding: EdgeInsets.fromLTRB(isMobile ? 12 : 24, 12, isMobile ? 12 : 24, 0),
       decoration: BoxDecoration(
         color: context.cardBg,
         border: Border(
           bottom: BorderSide(color: context.border, width: 1),
         ),
       ),
-      child: Row(
-        children: tabs.map((tab) {
-          final isActive = activeRoute == tab.route;
-          return Padding(
-            padding: const EdgeInsets.only(right: 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: tabs.map((tab) {
+            final isActive = activeRoute == tab.route;
+            return Padding(
+              padding: const EdgeInsets.only(right: 4),
             child: GestureDetector(
               onTap: () {
                 debugPrint('HrSubNav: Tapped tab ${tab.label} with route ${tab.route}');
@@ -111,6 +115,7 @@ class HrSubNav extends ConsumerWidget {
             ),
           );
         }).toList(),
+        ),
       ),
     );
   }

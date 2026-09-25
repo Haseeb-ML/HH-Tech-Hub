@@ -11,7 +11,12 @@ import 'package:software_house_erp/core/widgets/export_button.dart';
 import '../../../accounts/presentation/providers/accounts_provider.dart';
 import '../../../../clients/clients/presentation/providers/clients_provider.dart';
 import '../../../../projects/projects/presentation/providers/projects_provider.dart';
+import '../../../expenses/presentation/providers/expenses_provider.dart';
+import '../../../loans/presentation/providers/loans_provider.dart';
+import '../../../ledger/presentation/providers/ledger_provider.dart';
 import '../../domain/entities/income_record.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class IncomeScreen extends ConsumerStatefulWidget {
   const IncomeScreen({super.key});
@@ -64,6 +69,265 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
     );
   }
 
+  void _showIncomeFilterBottomSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final state = ref.watch(incomeProvider);
+            final clientsState = ref.watch(clientsProvider);
+            final accountsState = ref.watch(accountsProvider);
+
+            return Container(
+              decoration: BoxDecoration(
+                color: context.cardBg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: context.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Filter Income Records',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: context.textPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 20),
+                    Text(
+                      'Client',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondary),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      height: 42,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: context.border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: state.clientFilter,
+                          isExpanded: true,
+                          dropdownColor: context.cardBg,
+                          style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                          items: [
+                            const DropdownMenuItem(value: 'All', child: Text('All Clients')),
+                            ...clientsState.clients.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              ref.read(incomeProvider.notifier).setClientFilter(val);
+                              setState(() => _currentPage = 0);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Deposit Account',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondary),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      height: 42,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: context.border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: state.accountIdFilter,
+                          isExpanded: true,
+                          dropdownColor: context.cardBg,
+                          style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                          items: [
+                            const DropdownMenuItem(value: 'All', child: Text('All Deposit Accounts')),
+                            ...accountsState.accounts.map((acc) {
+                              final scopeLabel = acc.accountScope.isNotEmpty ? ' (${acc.accountScope})' : '';
+                              return DropdownMenuItem<String>(
+                                value: acc.id,
+                                child: Text('${acc.name}$scopeLabel'),
+                              );
+                            }),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              ref.read(incomeProvider.notifier).setAccountIdFilter(val);
+                              setState(() => _currentPage = 0);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Payment Status',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondary),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      height: 42,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: context.border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: state.statusFilter,
+                          isExpanded: true,
+                          dropdownColor: context.cardBg,
+                          style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                          items: const [
+                            DropdownMenuItem(value: 'All', child: Text('All Statuses')),
+                            DropdownMenuItem(value: 'Received', child: Text('Received')),
+                            DropdownMenuItem(value: 'Pending', child: Text('Pending')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              ref.read(incomeProvider.notifier).setStatusFilter(val);
+                              setState(() => _currentPage = 0);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Date Range',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondary),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: state.fromDateFilter != null ? (DateTime.tryParse(state.fromDateFilter!) ?? DateTime.now()) : DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                final dateStr = picked.toIso8601String().substring(0, 10);
+                                ref.read(incomeProvider.notifier).setDateRange(dateStr, state.toDateFilter);
+                                setState(() => _currentPage = 0);
+                              }
+                            },
+                            icon: Icon(Icons.calendar_today_outlined, size: 14, color: state.fromDateFilter != null ? context.primaryColor : context.textMuted),
+                            label: Text(
+                              state.fromDateFilter != null ? 'From: ${state.fromDateFilter}' : 'From Date',
+                              style: TextStyle(fontSize: 11.5, color: state.fromDateFilter != null ? context.primaryColor : context.textSecondary),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: state.toDateFilter != null ? (DateTime.tryParse(state.toDateFilter!) ?? DateTime.now()) : DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                final dateStr = picked.toIso8601String().substring(0, 10);
+                                ref.read(incomeProvider.notifier).setDateRange(state.fromDateFilter, dateStr);
+                                setState(() => _currentPage = 0);
+                              }
+                            },
+                            icon: Icon(Icons.calendar_today_outlined, size: 14, color: state.toDateFilter != null ? context.primaryColor : context.textMuted),
+                            label: Text(
+                              state.toDateFilter != null ? 'To: ${state.toDateFilter}' : 'To Date',
+                              style: TextStyle(fontSize: 11.5, color: state.toDateFilter != null ? context.primaryColor : context.textSecondary),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              ref.read(incomeProvider.notifier).clearFilters();
+                              setState(() => _currentPage = 0);
+                              Navigator.pop(context);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: context.error),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text('Reset Filters', style: TextStyle(color: context.error)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: context.primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('Apply'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tr = ref.watch(translationProvider);
@@ -92,24 +356,26 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
         .take(_itemsPerPage)
         .toList();
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Scaffold(
       backgroundColor: context.scaffoldBg,
-      body: state.isLoading && state.incomes.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                const FinanceSubNav(activeRoute: '/finance/income'),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+      body: Column(
+        children: [
+          const FinanceSubNav(activeRoute: '/finance/income'),
+          Expanded(
+            child: (state.isLoading && state.incomes.isEmpty)
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: EdgeInsets.all(isMobile ? 12 : 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Title + Action Buttons Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
+                        // Title + Action Buttons Row (responsive)
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 600;
+                            final titleCol = Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -128,60 +394,84 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                   ),
                                 ),
                               ],
-                            ),
-                            Row(
-                              children: [
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    showDialog<void>(
-                                      context: context,
-                                      builder: (context) => const _RecordIncomeDialog(),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.add, size: 18),
-                                  label: const Text('Record Income', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: context.primaryColor,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    elevation: 0,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                ExportButton(
-                                  title: 'Income Registry',
-                                  fileName: 'income_registry_export',
-                                  headers: ['Receipt ID', tr('Date'), 'Client Name', 'Amount', 'Account ID', 'Invoice Number', tr('Description'), tr('Status')],
-                                  rows: state.filteredIncomes.map((i) => [
-                                    i.id,
-                                    i.date,
-                                    i.clientName,
-                                    'Rs. ${i.amount.toStringAsFixed(2)}',
-                                    i.accountId,
-                                    i.invoiceNumber,
-                                    i.description,
-                                    i.status,
-                                  ]).toList(),
-                                ),
-                              ],
-                            ),
-                          ],
+                            );
+                            final adminState = ref.watch(adminProvider);
+                            final canCreateIncome = adminState.hasPermission(AppModule.income, PermissionAction.create);
+                            final canExportIncome = adminState.hasPermission(AppModule.income, PermissionAction.export);
+
+                            final actionsRow = SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  if (canCreateIncome)
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        showDialog<void>(
+                                          context: context,
+                                          builder: (context) => const _RecordIncomeDialog(),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.add, size: 18),
+                                      label: const Text('Record Income', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: context.primaryColor,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        elevation: 0,
+                                      ),
+                                    ),
+                                  if (canCreateIncome && canExportIncome) const SizedBox(width: 12),
+                                  if (canExportIncome)
+                                    ExportButton(
+                                      title: 'Income Registry',
+                                      fileName: 'income_registry_export',
+                                      headers: ['Receipt ID', tr('Date'), 'Client Name', 'Amount', 'Account ID', 'Invoice Number', tr('Description'), tr('Status')],
+                                      rows: state.filteredIncomes.map((i) => [
+                                        i.id,
+                                        i.date,
+                                        i.clientName,
+                                        'Rs. ${i.amount.toStringAsFixed(2)}',
+                                        i.accountId,
+                                        i.invoiceNumber,
+                                        i.description,
+                                        i.status,
+                                      ]).toList(),
+                                    ),
+                                ],
+                              ),
+                            );
+                            if (isMobile) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  titleCol,
+                                  const SizedBox(height: 12),
+                                  actionsRow,
+                                ],
+                              );
+                            }
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [titleCol, actionsRow],
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
 
                         // Metrics Cards
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final gridCrossCount = constraints.maxWidth >= 1200 ? 4 : (constraints.maxWidth >= 600 ? 2 : 1);
+                            final isMobile = constraints.maxWidth < 600;
+                            final gridCrossCount = isMobile ? 2 : (constraints.maxWidth >= 1200 ? 4 : 2);
                             return GridView(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: gridCrossCount,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: gridCrossCount == 4 ? 1.6 : 2.5,
+                                crossAxisSpacing: isMobile ? 10 : 16,
+                                mainAxisSpacing: isMobile ? 10 : 16,
+                                childAspectRatio: isMobile ? 0.85 : (gridCrossCount >= 4 ? 1.6 : 1.7),
                               ),
                               children: [
                                 StatCard(
@@ -226,226 +516,312 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                         GlassCard(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  // Search Field
-                                  Container(
-                                    width: 240,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: TextField(
-                                      controller: _searchController,
-                                      onChanged: (val) {
-                                        ref.read(incomeProvider.notifier).setSearchQuery(val);
-                                        setState(() => _currentPage = 0);
-                                      },
-                                      style: TextStyle(color: context.textPrimary, fontSize: 13),
-                                      decoration: InputDecoration(
-                                        hintText: 'Search client, invoice...',
-                                        hintStyle: TextStyle(fontSize: 12, color: context.textMuted),
-                                        prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
-                                        suffixIcon: state.searchQuery.isNotEmpty
-                                            ? IconButton(
-                                                icon: const Icon(Icons.clear, size: 16),
-                                                color: context.textMuted,
-                                                onPressed: () {
-                                                  _searchController.clear();
-                                                  ref.read(incomeProvider.notifier).setSearchQuery('');
+                            child: isMobile
+                                ? Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: context.border, width: 1),
+                                          ),
+                                          child: TextField(
+                                            controller: _searchController,
+                                            onChanged: (val) {
+                                              ref.read(incomeProvider.notifier).setSearchQuery(val);
+                                              setState(() => _currentPage = 0);
+                                            },
+                                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                                            decoration: InputDecoration(
+                                              hintText: 'Search client, invoice...',
+                                              hintStyle: TextStyle(fontSize: 12, color: context.textMuted),
+                                              prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
+                                              suffixIcon: state.searchQuery.isNotEmpty
+                                                  ? IconButton(
+                                                      icon: const Icon(Icons.clear, size: 16),
+                                                      color: context.textMuted,
+                                                      onPressed: () {
+                                                        _searchController.clear();
+                                                        ref.read(incomeProvider.notifier).setSearchQuery('');
+                                                        setState(() => _currentPage = 0);
+                                                      },
+                                                    )
+                                                  : null,
+                                              border: InputBorder.none,
+                                              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Stack(
+                                        children: [
+                                          InkWell(
+                                            onTap: () => _showIncomeFilterBottomSheet(context),
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: Container(
+                                              height: 40,
+                                              width: 40,
+                                              decoration: BoxDecoration(
+                                                color: (state.clientFilter != 'All' || state.accountIdFilter != 'All' || state.statusFilter != 'All' || state.fromDateFilter != null || state.toDateFilter != null)
+                                                    ? context.primaryColor.withValues(alpha: 0.15)
+                                                    : (context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: (state.clientFilter != 'All' || state.accountIdFilter != 'All' || state.statusFilter != 'All' || state.fromDateFilter != null || state.toDateFilter != null)
+                                                      ? context.primaryColor
+                                                      : context.border,
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Icon(
+                                                Icons.filter_list,
+                                                size: 20,
+                                                color: (state.clientFilter != 'All' || state.accountIdFilter != 'All' || state.statusFilter != 'All' || state.fromDateFilter != null || state.toDateFilter != null)
+                                                    ? context.primaryColor
+                                                    : context.textSecondary,
+                                              ),
+                                            ),
+                                          ),
+                                          if (state.clientFilter != 'All' || state.accountIdFilter != 'All' || state.statusFilter != 'All' || state.fromDateFilter != null || state.toDateFilter != null)
+                                            Positioned(
+                                              right: 6,
+                                              top: 6,
+                                              child: Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: BoxDecoration(
+                                                  color: context.primaryColor,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  )
+                                : SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: [
+                                        // Search Field
+                                        Container(
+                                          width: 240,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: context.border, width: 1),
+                                          ),
+                                          child: TextField(
+                                            controller: _searchController,
+                                            onChanged: (val) {
+                                              ref.read(incomeProvider.notifier).setSearchQuery(val);
+                                              setState(() => _currentPage = 0);
+                                            },
+                                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                                            decoration: InputDecoration(
+                                              hintText: 'Search client, invoice...',
+                                              hintStyle: TextStyle(fontSize: 12, color: context.textMuted),
+                                              prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
+                                              suffixIcon: state.searchQuery.isNotEmpty
+                                                  ? IconButton(
+                                                      icon: const Icon(Icons.clear, size: 16),
+                                                      color: context.textMuted,
+                                                      onPressed: () {
+                                                        _searchController.clear();
+                                                        ref.read(incomeProvider.notifier).setSearchQuery('');
+                                                        setState(() => _currentPage = 0);
+                                                      },
+                                                    )
+                                                  : null,
+                                              border: InputBorder.none,
+                                              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+
+                                        // Client Filter Dropdown
+                                        Container(
+                                          height: 40,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                          decoration: BoxDecoration(
+                                            color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: context.border, width: 1),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              value: state.clientFilter,
+                                              dropdownColor: context.cardBg,
+                                              style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                                              items: [
+                                                const DropdownMenuItem(value: 'All', child: Text('Client: All')),
+                                                ...clientsState.clients.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
+                                              ],
+                                              onChanged: (val) {
+                                                if (val != null) {
+                                                  ref.read(incomeProvider.notifier).setClientFilter(val);
                                                   setState(() => _currentPage = 0);
-                                                },
-                                              )
-                                            : null,
-                                        border: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
 
-                                  // Client Filter Dropdown
-                                  Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: state.clientFilter,
-                                        dropdownColor: context.cardBg,
-                                        style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
-                                        items: [
-                                          const DropdownMenuItem(value: 'All', child: Text('Client: All')),
-                                          ...clientsState.clients.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            ref.read(incomeProvider.notifier).setClientFilter(val);
-                                            setState(() => _currentPage = 0);
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
+                                        // Deposit Account Filter Dropdown
+                                        Container(
+                                          height: 40,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                          decoration: BoxDecoration(
+                                            color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: context.border, width: 1),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              value: state.accountIdFilter,
+                                              dropdownColor: context.cardBg,
+                                              style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                                              items: [
+                                                const DropdownMenuItem(value: 'All', child: Text('Account: All')),
+                                                ...accountsState.accounts.map((acc) {
+                                                  final scopeLabel = acc.accountScope.isNotEmpty ? ' (${acc.accountScope})' : '';
+                                                  return DropdownMenuItem<String>(
+                                                    value: acc.id,
+                                                    child: Text('${acc.name}$scopeLabel'),
+                                                  );
+                                                }),
+                                              ],
+                                              onChanged: (val) {
+                                                if (val != null) {
+                                                  ref.read(incomeProvider.notifier).setAccountIdFilter(val);
+                                                  setState(() => _currentPage = 0);
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
 
-                                  // Deposit Account Filter Dropdown
-                                  Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: state.accountIdFilter,
-                                        dropdownColor: context.cardBg,
-                                        style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
-                                        items: [
-                                          const DropdownMenuItem(value: 'All', child: Text('Account: All')),
-                                          ...accountsState.accounts.map((acc) {
-                                            final scopeLabel = acc.accountScope.isNotEmpty ? ' (${acc.accountScope})' : '';
-                                            return DropdownMenuItem<String>(
-                                              value: acc.id,
-                                              child: Text('${acc.name}$scopeLabel'),
+                                        // Status Filter Dropdown
+                                        Container(
+                                          height: 40,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                          decoration: BoxDecoration(
+                                            color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: context.border, width: 1),
+                                          ),
+                                          child: DropdownButtonHideUnderline(
+                                            child: DropdownButton<String>(
+                                              value: state.statusFilter,
+                                              dropdownColor: context.cardBg,
+                                              style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                                              items: const [
+                                                DropdownMenuItem(value: 'All', child: Text('Status: All')),
+                                                DropdownMenuItem(value: 'Received', child: Text('Received')),
+                                                DropdownMenuItem(value: 'Pending', child: Text('Pending')),
+                                              ],
+                                              onChanged: (val) {
+                                                if (val != null) {
+                                                  ref.read(incomeProvider.notifier).setStatusFilter(val);
+                                                  setState(() => _currentPage = 0);
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+
+                                        // From Date Button
+                                        OutlinedButton.icon(
+                                          onPressed: () async {
+                                            final picked = await showDatePicker(
+                                              context: context,
+                                              initialDate: state.fromDateFilter != null ? (DateTime.tryParse(state.fromDateFilter!) ?? DateTime.now()) : DateTime.now(),
+                                              firstDate: DateTime(2020),
+                                              lastDate: DateTime(2030),
                                             );
-                                          }),
+                                            if (picked != null) {
+                                              final dateStr = picked.toIso8601String().substring(0, 10);
+                                              ref.read(incomeProvider.notifier).setDateRange(dateStr, state.toDateFilter);
+                                              setState(() => _currentPage = 0);
+                                            }
+                                          },
+                                          icon: Icon(Icons.calendar_today_outlined, size: 14, color: state.fromDateFilter != null ? context.primaryColor : context.textMuted),
+                                          label: Text(
+                                            state.fromDateFilter != null ? 'From: ${state.fromDateFilter}' : 'From Date',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: state.fromDateFilter != null ? context.primaryColor : context.textSecondary,
+                                              fontWeight: state.fromDateFilter != null ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            minimumSize: const Size(0, 40),
+                                            side: BorderSide(color: state.fromDateFilter != null ? context.primaryColor : context.border),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                            backgroundColor: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+
+                                        // To Date Button
+                                        OutlinedButton.icon(
+                                          onPressed: () async {
+                                            final picked = await showDatePicker(
+                                              context: context,
+                                              initialDate: state.toDateFilter != null ? (DateTime.tryParse(state.toDateFilter!) ?? DateTime.now()) : DateTime.now(),
+                                              firstDate: DateTime(2020),
+                                              lastDate: DateTime(2030),
+                                            );
+                                            if (picked != null) {
+                                              final dateStr = picked.toIso8601String().substring(0, 10);
+                                              ref.read(incomeProvider.notifier).setDateRange(state.fromDateFilter, dateStr);
+                                              setState(() => _currentPage = 0);
+                                            }
+                                          },
+                                          icon: Icon(Icons.calendar_today_outlined, size: 14, color: state.toDateFilter != null ? context.primaryColor : context.textMuted),
+                                          label: Text(
+                                            state.toDateFilter != null ? 'To: ${state.toDateFilter}' : 'To Date',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: state.toDateFilter != null ? context.primaryColor : context.textSecondary,
+                                              fontWeight: state.toDateFilter != null ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            minimumSize: const Size(0, 40),
+                                            side: BorderSide(color: state.toDateFilter != null ? context.primaryColor : context.border),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                            backgroundColor: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                          ),
+                                        ),
+
+                                        // Clear Filters Button
+                                        if (state.clientFilter != 'All' || state.accountIdFilter != 'All' || state.statusFilter != 'All' || state.searchQuery.isNotEmpty || state.fromDateFilter != null || state.toDateFilter != null) ...[
+                                          const SizedBox(width: 12),
+                                          TextButton.icon(
+                                            onPressed: () {
+                                              _searchController.clear();
+                                              ref.read(incomeProvider.notifier).clearFilters();
+                                              setState(() => _currentPage = 0);
+                                            },
+                                            icon: Icon(Icons.filter_alt_off_outlined, size: 16, color: context.error),
+                                            label: Text(
+                                              'Clear Filters',
+                                              style: TextStyle(color: context.error, fontSize: 12, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
                                         ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            ref.read(incomeProvider.notifier).setAccountIdFilter(val);
-                                            setState(() => _currentPage = 0);
-                                          }
-                                        },
-                                      ),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
-
-                                  // Status Filter Dropdown
-                                  Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: state.statusFilter,
-                                        dropdownColor: context.cardBg,
-                                        style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
-                                        items: const [
-                                          DropdownMenuItem(value: 'All', child: Text('Status: All')),
-                                          DropdownMenuItem(value: 'Received', child: Text('Received')),
-                                          DropdownMenuItem(value: 'Pending', child: Text('Pending')),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            ref.read(incomeProvider.notifier).setStatusFilter(val);
-                                            setState(() => _currentPage = 0);
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-
-                                  // From Date Button
-                                  OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final picked = await showDatePicker(
-                                        context: context,
-                                        initialDate: state.fromDateFilter != null ? (DateTime.tryParse(state.fromDateFilter!) ?? DateTime.now()) : DateTime.now(),
-                                        firstDate: DateTime(2020),
-                                        lastDate: DateTime(2030),
-                                      );
-                                      if (picked != null) {
-                                        final dateStr = picked.toIso8601String().substring(0, 10);
-                                        ref.read(incomeProvider.notifier).setDateRange(dateStr, state.toDateFilter);
-                                        setState(() => _currentPage = 0);
-                                      }
-                                    },
-                                    icon: Icon(Icons.calendar_today_outlined, size: 14, color: state.fromDateFilter != null ? context.primaryColor : context.textMuted),
-                                    label: Text(
-                                      state.fromDateFilter != null ? 'From: ${state.fromDateFilter}' : 'From Date',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: state.fromDateFilter != null ? context.primaryColor : context.textSecondary,
-                                        fontWeight: state.fromDateFilter != null ? FontWeight.bold : FontWeight.normal,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      minimumSize: const Size(0, 40),
-                                      side: BorderSide(color: state.fromDateFilter != null ? context.primaryColor : context.border),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                      backgroundColor: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-
-                                  // To Date Button
-                                  OutlinedButton.icon(
-                                    onPressed: () async {
-                                      final picked = await showDatePicker(
-                                        context: context,
-                                        initialDate: state.toDateFilter != null ? (DateTime.tryParse(state.toDateFilter!) ?? DateTime.now()) : DateTime.now(),
-                                        firstDate: DateTime(2020),
-                                        lastDate: DateTime(2030),
-                                      );
-                                      if (picked != null) {
-                                        final dateStr = picked.toIso8601String().substring(0, 10);
-                                        ref.read(incomeProvider.notifier).setDateRange(state.fromDateFilter, dateStr);
-                                        setState(() => _currentPage = 0);
-                                      }
-                                    },
-                                    icon: Icon(Icons.calendar_today_outlined, size: 14, color: state.toDateFilter != null ? context.primaryColor : context.textMuted),
-                                    label: Text(
-                                      state.toDateFilter != null ? 'To: ${state.toDateFilter}' : 'To Date',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: state.toDateFilter != null ? context.primaryColor : context.textSecondary,
-                                        fontWeight: state.toDateFilter != null ? FontWeight.bold : FontWeight.normal,
-                                      ),
-                                    ),
-                                    style: OutlinedButton.styleFrom(
-                                      minimumSize: const Size(0, 40),
-                                      side: BorderSide(color: state.toDateFilter != null ? context.primaryColor : context.border),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                      backgroundColor: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                    ),
-                                  ),
-
-                                  // Clear Filters Button
-                                  if (state.clientFilter != 'All' || state.accountIdFilter != 'All' || state.statusFilter != 'All' || state.searchQuery.isNotEmpty || state.fromDateFilter != null || state.toDateFilter != null) ...[
-                                    const SizedBox(width: 12),
-                                    TextButton.icon(
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        ref.read(incomeProvider.notifier).clearFilters();
-                                        setState(() => _currentPage = 0);
-                                      },
-                                      icon: Icon(Icons.filter_alt_off_outlined, size: 16, color: context.error),
-                                      label: Text(
-                                        'Clear Filters',
-                                        style: TextStyle(color: context.error, fontSize: 12, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -469,7 +845,7 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                           controller: _horizontalScrollController,
                                           scrollDirection: Axis.horizontal,
                                           child: ConstrainedBox(
-                                            constraints: const BoxConstraints(minWidth: 1040),
+                                            constraints: const BoxConstraints(minWidth: 1060),
                                             child: DataTable(
                                               showCheckboxColumn: false,
                                               columnSpacing: 14,
@@ -486,7 +862,6 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                                 DataColumn(label: SizedBox(width: 130, child: Text('Deposit Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                 DataColumn(label: SizedBox(width: 95, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                 DataColumn(label: SizedBox(width: 110, child: Align(alignment: Alignment.centerRight, child: Text('Amount (PKR)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))))),
-                                                DataColumn(label: SizedBox(width: 110, child: Align(alignment: Alignment.centerRight, child: Text('Action', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))))),
                                               ],
                                               rows: paginatedIncomes.map((inc) {
                                                 final account = accountsState.accounts.where((a) => a.id == inc.accountId).firstOrNull;
@@ -697,84 +1072,6 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                                         ),
                                                       ),
                                                     ),
-
-                                                    // 8. Action Buttons
-                                                    DataCell(
-                                                      SizedBox(
-                                                        width: 110,
-                                                        child: Align(
-                                                          alignment: Alignment.centerRight,
-                                                          child: Row(
-                                                            mainAxisSize: MainAxisSize.min,
-                                                            mainAxisAlignment: MainAxisAlignment.end,
-                                                            children: [
-                                                              IconButton(
-                                                                icon: const Icon(Icons.visibility_outlined, size: 18),
-                                                                tooltip: 'View Details',
-                                                                color: context.primaryColor,
-                                                                padding: EdgeInsets.zero,
-                                                                constraints: const BoxConstraints(),
-                                                                onPressed: () {
-                                                                  _showIncomeDetails(context, inc, accountName, accountScope, projectName);
-                                                                },
-                                                              ),
-                                                              const SizedBox(width: 8),
-                                                              IconButton(
-                                                                icon: const Icon(Icons.edit_outlined, size: 18),
-                                                                tooltip: 'Edit Record',
-                                                                color: Colors.amber.shade700,
-                                                                padding: EdgeInsets.zero,
-                                                                constraints: const BoxConstraints(),
-                                                                onPressed: () {
-                                                                  showDialog<void>(
-                                                                    context: context,
-                                                                    builder: (context) => _RecordIncomeDialog(initialRecord: inc),
-                                                                  );
-                                                                },
-                                                              ),
-                                                              const SizedBox(width: 8),
-                                                              IconButton(
-                                                                icon: const Icon(Icons.delete_outline, size: 18),
-                                                                tooltip: 'Delete Record',
-                                                                color: context.error,
-                                                                padding: EdgeInsets.zero,
-                                                                constraints: const BoxConstraints(),
-                                                                onPressed: () async {
-                                                                  final confirm = await showDialog<bool>(
-                                                                    context: context,
-                                                                    builder: (context) => AlertDialog(
-                                                                      title: const Text('Delete Income Record'),
-                                                                      content: Text('${tr("Are you sure you want to delete this income log for")} "${inc.clientName}"? ${tr("This will rollback the deposit account balance and ledger entry.")}'),
-                                                                      actions: [
-                                                                        TextButton(
-                                                                          onPressed: () => Navigator.pop(context, false),
-                                                                          child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                                                                        ),
-                                                                        TextButton(
-                                                                          onPressed: () => Navigator.pop(context, true),
-                                                                          child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                                                                        ),
-                                                                      ],
-                                                                    ),
-                                                                  );
-                                                                  if (confirm == true) {
-                                                                    ref.read(incomeProvider.notifier).deleteIncome(inc.id);
-                                                                    if (!context.mounted) return;
-                                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                                      SnackBar(
-                                                                        content: const Text('Income record deleted & rolled back.'),
-                                                                        behavior: SnackBarBehavior.floating,
-                                                                        backgroundColor: context.error,
-                                                                      ),
-                                                                    );
-                                                                  }
-                                                                },
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
                                                   ],
                                                 );
                                               }).toList(),
@@ -789,35 +1086,67 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                           decoration: BoxDecoration(
                                             border: Border(top: BorderSide(color: context.border)),
                                           ),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                'Showing ${filteredIncomes.isEmpty ? 0 : validPage * _itemsPerPage + 1}–${(validPage * _itemsPerPage + paginatedIncomes.length).clamp(0, filteredIncomes.length)} of ${filteredIncomes.length} entries',
-                                                style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
-                                              ),
-                                              Row(
-                                                children: [
-                                                  IconButton(
-                                                    icon: const Icon(Icons.chevron_left, size: 20),
-                                                    onPressed: validPage > 0
-                                                        ? () => setState(() => _currentPage = validPage - 1)
-                                                        : null,
-                                                  ),
-                                                  Text(
-                                                    '${validPage + 1} / ${totalPages == 0 ? 1 : totalPages}',
-                                                    style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
-                                                  ),
-                                                  IconButton(
-                                                    icon: const Icon(Icons.chevron_right, size: 20),
-                                                    onPressed: validPage < totalPages - 1
-                                                        ? () => setState(() => _currentPage = validPage + 1)
-                                                        : null,
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
+                                          child: isMobile
+                                              ? Column(
+                                                  children: [
+                                                    Text(
+                                                      'Showing ${filteredIncomes.isEmpty ? 0 : validPage * _itemsPerPage + 1}–${(validPage * _itemsPerPage + paginatedIncomes.length).clamp(0, filteredIncomes.length)} of ${filteredIncomes.length} entries',
+                                                      style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+                                                      textAlign: TextAlign.center,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Row(
+                                                      mainAxisAlignment: MainAxisAlignment.center,
+                                                      children: [
+                                                        IconButton(
+                                                          icon: const Icon(Icons.chevron_left, size: 20),
+                                                          onPressed: validPage > 0
+                                                              ? () => setState(() => _currentPage = validPage - 1)
+                                                              : null,
+                                                        ),
+                                                        Text(
+                                                          '${validPage + 1} / ${totalPages == 0 ? 1 : totalPages}',
+                                                          style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                                                        ),
+                                                        IconButton(
+                                                          icon: const Icon(Icons.chevron_right, size: 20),
+                                                          onPressed: validPage < totalPages - 1
+                                                              ? () => setState(() => _currentPage = validPage + 1)
+                                                              : null,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                )
+                                              : Row(
+                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                  children: [
+                                                    Text(
+                                                      'Showing ${filteredIncomes.isEmpty ? 0 : validPage * _itemsPerPage + 1}–${(validPage * _itemsPerPage + paginatedIncomes.length).clamp(0, filteredIncomes.length)} of ${filteredIncomes.length} entries',
+                                                      style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
+                                                    ),
+                                                    Row(
+                                                      children: [
+                                                        IconButton(
+                                                          icon: const Icon(Icons.chevron_left, size: 20),
+                                                          onPressed: validPage > 0
+                                                              ? () => setState(() => _currentPage = validPage - 1)
+                                                              : null,
+                                                        ),
+                                                        Text(
+                                                          '${validPage + 1} / ${totalPages == 0 ? 1 : totalPages}',
+                                                          style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                                                        ),
+                                                        IconButton(
+                                                          icon: const Icon(Icons.chevron_right, size: 20),
+                                                          onPressed: validPage < totalPages - 1
+                                                              ? () => setState(() => _currentPage = validPage + 1)
+                                                              : null,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
                                         ),
                                     ],
                                   ),
@@ -879,7 +1208,7 @@ class _IncomeDetailsDialog extends ConsumerWidget {
     required this.formattedDateTime,
   });
 
-  Widget _buildDetailRow(BuildContext context, {required IconData icon, required String label, required String value, Widget? trailing}) {
+  Widget _buildDetailRow(BuildContext context, {required IconData icon, required String label, required String value, Widget? trailing, bool isMobile = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -887,20 +1216,41 @@ class _IncomeDetailsDialog extends ConsumerWidget {
         children: [
           Icon(icon, size: 16, color: context.primaryColor),
           const SizedBox(width: 10),
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
-            ),
-          ),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
-            ),
+            child: isMobile
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(color: context.textSecondary, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 2),
+                      SelectableText(
+                        value,
+                        style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      SizedBox(
+                        width: 130,
+                        child: Text(
+                          label,
+                          style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      Expanded(
+                        child: SelectableText(
+                          value,
+                          style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
-          ?trailing,
+          if (trailing != null) trailing,
         ],
       ),
     );
@@ -908,16 +1258,22 @@ class _IncomeDetailsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tr = ref.watch(translationProvider);
+    final adminState = ref.watch(adminProvider);
+    final canDelete = adminState.hasPermission(AppModule.income, PermissionAction.delete);
     final isReceived = income.status.toLowerCase() == 'received';
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 40, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 540),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+        constraints: BoxConstraints(
+          maxWidth: 540,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(isMobile ? 16 : 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1032,10 +1388,11 @@ class _IncomeDetailsDialog extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
-                    _buildDetailRow(context, icon: Icons.person_outline, label: 'Client Name', value: income.clientName.isNotEmpty ? income.clientName : 'Direct Income (No Client)'),
+                    _buildDetailRow(context, isMobile: isMobile, icon: Icons.person_outline, label: 'Client Name', value: income.clientName.isNotEmpty ? income.clientName : 'Direct Income (No Client)'),
                     const Divider(height: 1),
                     _buildDetailRow(
                       context,
+                      isMobile: isMobile,
                       icon: Icons.category_outlined,
                       label: 'Income Type',
                       value: income.installmentType != null
@@ -1045,6 +1402,7 @@ class _IncomeDetailsDialog extends ConsumerWidget {
                     const Divider(height: 1),
                     _buildDetailRow(
                       context,
+                      isMobile: isMobile,
                       icon: Icons.folder_open_outlined,
                       label: 'Project',
                       value: projectName.isNotEmpty ? projectName : 'Direct Payment (No Project)',
@@ -1052,6 +1410,7 @@ class _IncomeDetailsDialog extends ConsumerWidget {
                     const Divider(height: 1),
                     _buildDetailRow(
                       context,
+                      isMobile: isMobile,
                       icon: Icons.tag,
                       label: 'Invoice #',
                       value: income.invoiceNumber.isNotEmpty ? income.invoiceNumber : '—',
@@ -1059,6 +1418,7 @@ class _IncomeDetailsDialog extends ConsumerWidget {
                     const Divider(height: 1),
                     _buildDetailRow(
                       context,
+                      isMobile: isMobile,
                       icon: Icons.account_balance_outlined,
                       label: 'Deposit Account',
                       value: '$accountName ($accountScope)',
@@ -1066,6 +1426,7 @@ class _IncomeDetailsDialog extends ConsumerWidget {
                     const Divider(height: 1),
                     _buildDetailRow(
                       context,
+                      isMobile: isMobile,
                       icon: Icons.calendar_today_outlined,
                       label: 'Date & Time',
                       value: formattedDateTime,
@@ -1073,6 +1434,7 @@ class _IncomeDetailsDialog extends ConsumerWidget {
                     const Divider(height: 1),
                     _buildDetailRow(
                       context,
+                      isMobile: isMobile,
                       icon: Icons.notes_outlined,
                       label: 'Description / Notes',
                       value: income.description.isNotEmpty ? income.description : 'No notes entered.',
@@ -1082,77 +1444,69 @@ class _IncomeDetailsDialog extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // Actions
+              // Actions (Close & Delete with RBAC)
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextButton.icon(
-                    onPressed: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Delete Income Record'),
-                          content: Text('${tr("Are you sure you want to delete this income log for")} "${income.clientName}"? ${tr("This will rollback the deposit account balance and ledger entry.")}'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
-                        if (!context.mounted) return;
-                        Navigator.pop(context);
-                        ref.read(incomeProvider.notifier).deleteIncome(income.id);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Income record deleted & rolled back.'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: context.error,
-                          ),
-                        );
-                      }
-                    },
-                    icon: Icon(Icons.delete_outline, size: 16, color: context.error),
-                    label: Text('Delete Record', style: TextStyle(color: context.error, fontSize: 13, fontWeight: FontWeight.bold)),
-                  ),
-                  Row(
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          showDialog<void>(
+                  if (canDelete) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
                             context: context,
-                            builder: (ctx) => _RecordIncomeDialog(initialRecord: income),
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: context.cardBg,
+                              title: const Text('Delete Income Record'),
+                              content: Text('Are you sure you want to delete receipt "${income.id}" of Rs. ${income.amount}?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                ElevatedButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  style: ElevatedButton.styleFrom(backgroundColor: context.error, foregroundColor: Colors.white),
+                                  child: const Text('Delete'),
+                                ),
+                              ],
+                            ),
                           );
+                          if (confirm == true) {
+                            try {
+                              await ref.read(incomeProvider.notifier).deleteIncome(income.id);
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Income receipt "${income.id}" deleted.'), backgroundColor: context.success),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e'), backgroundColor: context.error),
+                                );
+                              }
+                            }
+                          }
                         },
-                        icon: const Icon(Icons.edit_outlined, size: 15),
-                        label: const Text('Edit Record', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        icon: Icon(Icons.delete_outline, size: 16, color: context.error),
+                        label: Text('Delete', style: TextStyle(color: context.error, fontWeight: FontWeight.bold)),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.amber.shade700,
-                          side: BorderSide(color: Colors.amber.shade700),
+                          side: BorderSide(color: context.error.withValues(alpha: 0.5)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: context.primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          elevation: 0,
-                        ),
-                        child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: context.primaryColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                    ],
+                      child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ),
                 ],
               ),
@@ -1185,7 +1539,6 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
   String? _selectedProjectId;
   String? _selectedProjectName;
   String _selectedInstallmentType = 'Advance';
-  String _status = 'Received';
   late DateTime _date;
   bool _isSubmitting = false;
 
@@ -1212,7 +1565,6 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
     _selectedProjectName = (rec?.projectName?.isNotEmpty == true) ? rec!.projectName : null;
     _selectedAccountId = rec?.accountId;
     _selectedInstallmentType = (rec?.installmentType != null) ? rec!.installmentType! : 'Advance';
-    _status = rec?.status ?? 'Received';
     _date = (rec != null ? DateTime.tryParse(rec.date) : null) ?? DateTime.now();
 
     _amountController.addListener(() {
@@ -1234,105 +1586,155 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
     required double newPay,
     required double remaining,
   }) {
-    final isFullyPaid = remaining <= 0 && (received + newPay) > 0;
-    final isOverpaid = remaining < 0;
+      final isMobile = MediaQuery.of(context).size.width < 600;
+      final isFullyPaid = remaining <= 0 && (received + newPay) > 0;
+      final isOverpaid = remaining < 0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isFullyPaid
-              ? context.success.withValues(alpha: 0.4)
-              : (context.isDarkMode ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
-          width: 1.5,
+      return Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isFullyPaid
+                ? context.success.withValues(alpha: 0.4)
+                : (context.isDarkMode ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+            width: 1.5,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.analytics_outlined, size: 17, color: context.primaryColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Project Payment Summary',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: context.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isOverpaid
+                        ? context.errorLight
+                        : (isFullyPaid ? context.successLight : context.warningLight),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    isOverpaid
+                        ? 'Overpaid'
+                        : (isFullyPaid ? 'Fully Paid' : 'Partially Paid'),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isOverpaid
+                          ? context.error
+                          : (isFullyPaid ? context.success : context.warning),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (isMobile)
+              Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildBreakdownItem(
+                          title: 'Project Total',
+                          amount: total,
+                          color: context.textPrimary,
+                          icon: Icons.business_center_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _buildBreakdownItem(
+                          title: 'Already Received',
+                          amount: received,
+                          color: context.info,
+                          icon: Icons.check_circle_outline,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildBreakdownItem(
+                          title: 'New Payment',
+                          amount: newPay,
+                          color: context.primaryColor,
+                          icon: Icons.add_card_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: _buildBreakdownItem(
+                          title: 'Remaining Payment',
+                          amount: remaining.clamp(0.0, double.infinity),
+                          color: remaining <= 0 ? context.success : Colors.orange,
+                          icon: remaining <= 0 ? Icons.task_alt : Icons.hourglass_top,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            else
               Row(
                 children: [
-                  Icon(Icons.analytics_outlined, size: 17, color: context.primaryColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Project Payment Summary',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: _buildBreakdownItem(
+                      title: 'Project Total',
+                      amount: total,
                       color: context.textPrimary,
+                      icon: Icons.business_center_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _buildBreakdownItem(
+                      title: 'Already Received',
+                      amount: received,
+                      color: context.info,
+                      icon: Icons.check_circle_outline,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _buildBreakdownItem(
+                      title: 'New Payment',
+                      amount: newPay,
+                      color: context.primaryColor,
+                      icon: Icons.add_card_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _buildBreakdownItem(
+                      title: 'Remaining Payment',
+                      amount: remaining.clamp(0.0, double.infinity),
+                      color: remaining <= 0 ? context.success : Colors.orange,
+                      icon: remaining <= 0 ? Icons.task_alt : Icons.hourglass_top,
                     ),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isOverpaid
-                      ? context.errorLight
-                      : (isFullyPaid ? context.successLight : context.warningLight),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  isOverpaid
-                      ? 'Overpaid'
-                      : (isFullyPaid ? 'Fully Paid' : 'Partially Paid'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: isOverpaid
-                        ? context.error
-                        : (isFullyPaid ? context.success : context.warning),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildBreakdownItem(
-                  title: 'Project Total',
-                  amount: total,
-                  color: context.textPrimary,
-                  icon: Icons.business_center_outlined,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _buildBreakdownItem(
-                  title: 'Already Received',
-                  amount: received,
-                  color: context.info,
-                  icon: Icons.check_circle_outline,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _buildBreakdownItem(
-                  title: 'New Payment',
-                  amount: newPay,
-                  color: context.primaryColor,
-                  icon: Icons.add_card_outlined,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _buildBreakdownItem(
-                  title: 'Remaining Payment',
-                  amount: remaining.clamp(0.0, double.infinity),
-                  color: remaining <= 0 ? context.success : Colors.orange,
-                  icon: remaining <= 0 ? Icons.task_alt : Icons.hourglass_top,
-                ),
-              ),
-            ],
-          ),
           if (isOverpaid) ...[
             const SizedBox(height: 8),
             Text(
@@ -1393,6 +1795,28 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
     );
   }
 
+  Widget _buildFormRow(BuildContext context, Widget child1, Widget child2) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          child1,
+          const SizedBox(height: 16),
+          child2,
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: child1),
+        const SizedBox(width: 14),
+        Expanded(child: child2),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tr = ref.watch(translationProvider);
@@ -1403,10 +1827,22 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
     final accounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
     final allProjects = ref.watch(projectsProvider).projects;
     final allIncomes = ref.watch(incomeProvider).incomes;
+    final allExpenses = ref.watch(expensesProvider).expenses;
+    final allLoans = ref.watch(loansProvider).loans;
+    final allLedgers = ref.watch(ledgerProvider).entries;
 
-    // Set default account if not selected
-    if (_selectedAccountId == null && accounts.isNotEmpty) {
-      _selectedAccountId = accounts.first.id;
+    // Prioritize Company accounts over Personal accounts for business income
+    final companyAccounts = accounts.where((a) => a.isCompany).toList();
+    final personalAccounts = accounts.where((a) => a.isPersonal).toList();
+    final orderedAccounts = [...companyAccounts, ...personalAccounts];
+
+    // Set default account: prioritize company accounts
+    if (_selectedAccountId == null) {
+      if (companyAccounts.isNotEmpty) {
+        _selectedAccountId = companyAccounts.first.id;
+      } else if (accounts.isNotEmpty) {
+        _selectedAccountId = accounts.first.id;
+      }
     }
 
     final isProjectIncome = _selectedIncomeType == 'Project Payment';
@@ -1445,7 +1881,7 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
       backgroundColor: context.cardBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 580, maxHeight: 850),
+        constraints: BoxConstraints(maxWidth: 580, maxHeight: MediaQuery.of(context).size.height * 0.85),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Form(
@@ -1459,35 +1895,43 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: AppColors.primaryLight,
-                            child: Icon(
-                              isEditing ? Icons.edit_note : Icons.add_card,
-                              size: 18,
-                              color: context.primaryColor,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: AppColors.primaryLight,
+                              child: Icon(
+                                isEditing ? Icons.edit_note : Icons.add_card,
+                                size: 18,
+                                color: context.primaryColor,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                isEditing ? 'Edit Income Record' : 'Record Business Income',
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: context.textPrimary,
-                                ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    isEditing ? 'Edit Income Record' : 'Record Business Income',
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: context.textPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    isEditing ? 'Modify receipt and recalculate balances' : 'Add revenue entry to accounts & ledgers',
+                                    style: TextStyle(color: context.textSecondary, fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
-                              Text(
-                                isEditing ? 'Modify receipt and recalculate balances' : 'Add revenue entry to accounts & ledgers',
-                                style: TextStyle(color: context.textSecondary, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(context).pop(),
@@ -1539,125 +1983,117 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
                   const SizedBox(height: 16),
 
                   // Client & Project Row
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Client Dropdown
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel(isProjectIncome ? 'Customer / Client *' : 'Customer / Client (Optional)'),
-                            DropdownButtonFormField<String?>(
-                              key: ValueKey('client_$_selectedClientId'),
-                              initialValue: _selectedClientId,
-                              dropdownColor: context.cardBg,
-                              isExpanded: true,
-                              style: TextStyle(color: context.textPrimary, fontSize: 13),
-                              decoration: _buildInputDecoration('Select Client'),
-                              validator: (val) {
-                                if (isProjectIncome && (val == null || val.isEmpty)) {
-                                  return 'Client is required for Project Income';
-                                }
-                                return null;
-                              },
-                              items: [
-                                if (!isProjectIncome)
-                                  const DropdownMenuItem<String?>(
-                                    value: null,
-                                    child: Text('— None (Direct Income) —', style: TextStyle(fontStyle: FontStyle.italic)),
-                                  ),
-                                ...clients.map((c) {
-                                  return DropdownMenuItem<String?>(
-                                    value: c.id,
-                                    child: Text(c.name, overflow: TextOverflow.ellipsis),
-                                  );
-                                }),
-                              ],
-                              onChanged: (val) {
-                                setState(() {
-                                  _selectedClientId = val;
-                                  if (val != null) {
-                                    final cl = clients.where((c) => c.id == val).firstOrNull;
-                                    _selectedClientName = cl?.name;
-                                  } else {
-                                    _selectedClientName = null;
-                                  }
-                                  _selectedProjectId = null;
-                                  _selectedProjectName = null;
-                                });
-                              },
-                            ),
+                  _buildFormRow(
+                    context,
+                    // Client Dropdown
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel(isProjectIncome ? 'Customer / Client *' : 'Customer / Client (Optional)'),
+                        DropdownButtonFormField<String?>(
+                          key: ValueKey('client_$_selectedClientId'),
+                          initialValue: _selectedClientId,
+                          dropdownColor: context.cardBg,
+                          isExpanded: true,
+                          style: TextStyle(color: context.textPrimary, fontSize: 13),
+                          decoration: _buildInputDecoration('Select Client'),
+                          validator: (val) {
+                            if (isProjectIncome && (val == null || val.isEmpty)) {
+                              return 'Client is required for Project Income';
+                            }
+                            return null;
+                          },
+                          items: [
+                            if (!isProjectIncome)
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('— None (Direct Income) —', style: TextStyle(fontStyle: FontStyle.italic)),
+                              ),
+                            ...clients.map((c) {
+                              return DropdownMenuItem<String?>(
+                                value: c.id,
+                                child: Text(c.name, overflow: TextOverflow.ellipsis),
+                              );
+                            }),
                           ],
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedClientId = val;
+                              if (val != null) {
+                                final cl = clients.where((c) => c.id == val).firstOrNull;
+                                _selectedClientName = cl?.name;
+                              } else {
+                                _selectedClientName = null;
+                              }
+                              _selectedProjectId = null;
+                              _selectedProjectName = null;
+                            });
+                          },
                         ),
-                      ),
-                      const SizedBox(width: 14),
-
-                      // Project Dropdown
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel(isProjectIncome ? 'Project *' : 'Project (Optional)'),
-                            DropdownButtonFormField<String?>(
-                              key: ValueKey('project_${_selectedClientId}_$_selectedProjectId'),
-                              initialValue: _selectedProjectId,
-                              dropdownColor: context.cardBg,
-                              isExpanded: true,
-                              style: TextStyle(color: context.textPrimary, fontSize: 13),
-                              decoration: _buildInputDecoration('Select Project'),
-                              validator: (val) {
-                                if (isProjectIncome && (val == null || val.isEmpty)) {
-                                  return 'Please select a project';
-                                }
-                                return null;
-                              },
-                              items: [
-                                const DropdownMenuItem<String?>(
-                                  value: null,
-                                  child: Text('— No Project —', style: TextStyle(fontStyle: FontStyle.italic)),
-                                ),
-                                ...availableProjects.map((p) {
-                                  return DropdownMenuItem<String?>(
-                                    value: p.id,
-                                    child: Text('${p.name} (Rs. ${NumberFormat('#,##0').format(p.budget)})', overflow: TextOverflow.ellipsis),
-                                  );
-                                }),
-                              ],
-                              onChanged: (val) {
-                                setState(() {
-                                  _selectedProjectId = val;
-                                  if (val != null) {
-                                    final pr = allProjects.where((p) => p.id == val).firstOrNull;
-                                    _selectedProjectName = pr?.name;
-                                    if (_selectedClientId == null && pr != null) {
-                                      _selectedClientId = pr.clientId;
-                                      _selectedClientName = pr.clientName;
-                                    }
-                                    // Auto-pick installment type if new entry
-                                    if (!isEditing && pr != null) {
-                                      final prIncs = allIncomes.where((i) => i.projectId == pr.id).toList();
-                                      final recvd = prIncs.isNotEmpty
-                                          ? prIncs.fold(0.0, (s, i) => s + i.amount)
-                                          : (pr.advancedPayment + pr.partialPayments + pr.finalPayment);
-                                      if (recvd == 0) {
-                                        _selectedInstallmentType = 'Advance';
-                                      } else if (recvd + newPayment >= pr.budget) {
-                                        _selectedInstallmentType = 'Final';
-                                      } else {
-                                        _selectedInstallmentType = 'Partial';
-                                      }
-                                    }
-                                  } else {
-                                    _selectedProjectName = null;
-                                  }
-                                });
-                              },
+                      ],
+                    ),
+                    // Project Dropdown
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel(isProjectIncome ? 'Project *' : 'Project (Optional)'),
+                        DropdownButtonFormField<String?>(
+                          key: ValueKey('project_${_selectedClientId}_$_selectedProjectId'),
+                          initialValue: _selectedProjectId,
+                          dropdownColor: context.cardBg,
+                          isExpanded: true,
+                          style: TextStyle(color: context.textPrimary, fontSize: 13),
+                          decoration: _buildInputDecoration('Select Project'),
+                          validator: (val) {
+                            if (isProjectIncome && (val == null || val.isEmpty)) {
+                              return 'Please select a project';
+                            }
+                            return null;
+                          },
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('— No Project —', style: TextStyle(fontStyle: FontStyle.italic)),
                             ),
+                            ...availableProjects.map((p) {
+                              return DropdownMenuItem<String?>(
+                                value: p.id,
+                                child: Text('${p.name} (Rs. ${NumberFormat('#,##0').format(p.budget)})', overflow: TextOverflow.ellipsis),
+                              );
+                            }),
                           ],
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedProjectId = val;
+                              if (val != null) {
+                                final pr = allProjects.where((p) => p.id == val).firstOrNull;
+                                _selectedProjectName = pr?.name;
+                                if (_selectedClientId == null && pr != null) {
+                                  _selectedClientId = pr.clientId;
+                                  _selectedClientName = pr.clientName;
+                                }
+                                // Auto-pick installment type if new entry
+                                if (!isEditing && pr != null) {
+                                  final prIncs = allIncomes.where((i) => i.projectId == pr.id).toList();
+                                  final recvd = prIncs.isNotEmpty
+                                      ? prIncs.fold(0.0, (s, i) => s + i.amount)
+                                      : (pr.advancedPayment + pr.partialPayments + pr.finalPayment);
+                                  if (recvd == 0) {
+                                    _selectedInstallmentType = 'Advance';
+                                  } else if (recvd + newPayment >= pr.budget) {
+                                    _selectedInstallmentType = 'Final';
+                                  } else {
+                                    _selectedInstallmentType = 'Partial';
+                                  }
+                                }
+                              } else {
+                                _selectedProjectName = null;
+                              }
+                            });
+                          },
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -1694,119 +2130,117 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
                   ],
 
                   // Amount & Invoice Number Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel('Amount Received (PKR) *'),
-                            TextFormField(
-                              controller: _amountController,
-                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                              style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.bold),
-                              decoration: _buildInputDecoration('e.g. 20000'),
-                              validator: (val) {
-                                if (val == null || val.trim().isEmpty) return 'Enter payment amount';
-                                final num = double.tryParse(val.trim());
-                                if (num == null || num <= 0) return 'Invalid amount (> 0)';
-                                return null;
-                              },
-                            ),
-                          ],
+                  _buildFormRow(
+                    context,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel('Amount Received (PKR) *'),
+                        TextFormField(
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.bold),
+                          decoration: _buildInputDecoration('e.g. 20000'),
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) return 'Enter payment amount';
+                            final num = double.tryParse(val.trim());
+                            if (num == null || num <= 0) return 'Invalid amount (> 0)';
+                            return null;
+                          },
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel('Reference / Invoice No.'),
-                            TextFormField(
-                              controller: _invoiceController,
-                              style: TextStyle(color: context.textPrimary),
-                              decoration: _buildInputDecoration('e.g. INV-2026-004'),
-                            ),
-                          ],
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel('Reference / Invoice No.'),
+                        TextFormField(
+                          controller: _invoiceController,
+                          style: TextStyle(color: context.textPrimary),
+                          decoration: _buildInputDecoration('e.g. INV-2026-004'),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
 
                   // Deposit Account (REQUIRED) & Date Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel('Received In Account (REQUIRED) *'),
-                            DropdownButtonFormField<String>(
-                              key: ValueKey('account_$_selectedAccountId'),
-                              isExpanded: true,
-                              initialValue: _selectedAccountId,
-                              dropdownColor: context.cardBg,
-                              style: TextStyle(color: context.textPrimary, fontSize: 13),
-                              decoration: _buildInputDecoration('Select Account'),
-                              validator: (val) {
-                                if (val == null || val.isEmpty) return 'Deposit account is required';
-                                return null;
-                              },
-                              items: accounts.map((a) {
-                                return DropdownMenuItem(
-                                  value: a.id,
-                                  child: Text(
-                                    '${a.name} (${a.bankName.isNotEmpty ? a.bankName : a.type}) - Bal: Rs. ${NumberFormat('#,##0').format(a.balance)}',
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                setState(() => _selectedAccountId = val);
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel('Date Received *'),
-                            OutlinedButton(
-                              onPressed: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: _date,
-                                  firstDate: DateTime(2020),
-                                  lastDate: DateTime(2030),
-                                );
-                                if (picked != null) {
-                                  setState(() => _date = picked);
-                                }
-                              },
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: context.border),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  _buildFormRow(
+                    context,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel('Received In Account (REQUIRED) *'),
+                        DropdownButtonFormField<String>(
+                          key: ValueKey('account_$_selectedAccountId'),
+                          isExpanded: true,
+                          initialValue: _selectedAccountId,
+                          dropdownColor: context.cardBg,
+                          style: TextStyle(color: context.textPrimary, fontSize: 13),
+                          decoration: _buildInputDecoration('Select Account'),
+                          validator: (val) {
+                            if (val == null || val.isEmpty) return 'Deposit account is required';
+                            return null;
+                          },
+                          items: orderedAccounts.map((a) {
+                            final isCompany = a.isCompany;
+                            final scopeLabel = isCompany ? 'Company' : 'Personal';
+                            final subLabel = a.bankName.isNotEmpty ? a.bankName : a.type;
+                            final realBal = calculateAuthoritativeAccountBalance(
+                              account: a,
+                              incomes: allIncomes,
+                              expenses: allExpenses,
+                              loans: allLoans,
+                              ledgerEntries: allLedgers,
+                            );
+                            return DropdownMenuItem(
+                              value: a.id,
+                              child: Text(
+                                '${a.name} ($scopeLabel • $subLabel) • Bal: Rs. ${NumberFormat('#,##0').format(realBal)}',
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    DateFormat('dd MMM yyyy').format(_date),
-                                    style: TextStyle(color: context.textPrimary, fontSize: 13),
-                                  ),
-                                  Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
-                                ],
-                              ),
-                            ),
-                          ],
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setState(() => _selectedAccountId = val);
+                          },
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLabel('Date Received *'),
+                        OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _date,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2030),
+                            );
+                            if (picked != null) {
+                              setState(() => _date = picked);
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: context.border),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                DateFormat('dd MMM yyyy').format(_date),
+                                style: TextStyle(color: context.textPrimary, fontSize: 13),
+                              ),
+                              Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -1817,27 +2251,6 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
                     maxLines: 2,
                     style: TextStyle(color: context.textPrimary),
                     decoration: _buildInputDecoration('Enter notes, milestone description or details...'),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Status Dropdown
-                  _buildLabel('Receipt Status'),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('status_$_status'),
-                    isExpanded: true,
-                    initialValue: _status,
-                    dropdownColor: context.cardBg,
-                    style: TextStyle(color: context.textPrimary, fontSize: 13),
-                    decoration: _buildInputDecoration('Select Status'),
-                    items: const [
-                      DropdownMenuItem(value: 'Received', child: Text('Received (Deposit to Account)')),
-                      DropdownMenuItem(value: 'Pending', child: Text('Pending (Awaiting Deposit)')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _status = val);
-                      }
-                    },
                   ),
                   const SizedBox(height: 24),
 
@@ -1854,85 +2267,98 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
                         ),
                         child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
                       ),
-                      const SizedBox(width: 12),
-                      ElevatedButton(
-                        onPressed: _isSubmitting
-                            ? null
-                            : () async {
-                                if (_formKey.currentState?.validate() == true) {
-                                  setState(() => _isSubmitting = true);
-                                  try {
-                                    final recordId = widget.initialRecord?.id ?? 'inc_${DateTime.now().millisecondsSinceEpoch}';
-                                    final pPaymentType = isProjectIncome
-                                        ? _selectedInstallmentType
-                                        : _selectedIncomeType;
+                      Builder(
+                        builder: (context) {
+                          final canCreate = ref.watch(adminProvider).hasPermission(AppModule.income, PermissionAction.create);
+                          final canEdit = ref.watch(adminProvider).hasPermission(AppModule.income, PermissionAction.edit);
+                          final hasPerm = isEditing ? canEdit : canCreate;
+                          if (!hasPerm) return const SizedBox.shrink();
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(width: 12),
+                              ElevatedButton(
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : () async {
+                                        if (_formKey.currentState?.validate() == true) {
+                                          setState(() => _isSubmitting = true);
+                                          try {
+                                            final recordId = widget.initialRecord?.id ?? 'inc_${DateTime.now().millisecondsSinceEpoch}';
+                                            final pPaymentType = isProjectIncome
+                                                ? _selectedInstallmentType
+                                                : _selectedIncomeType;
 
-                                    final income = IncomeRecord(
-                                      id: recordId,
-                                      date: _date.toIso8601String().substring(0, 10),
-                                      clientId: _selectedClientId ?? '',
-                                      clientName: _selectedClientName ?? (_selectedClientId != null ? 'Client' : 'Direct Income'),
-                                      amount: double.parse(_amountController.text.trim()),
-                                      accountId: _selectedAccountId!,
-                                      invoiceNumber: _invoiceController.text.trim(),
-                                      description: _descController.text.trim().isNotEmpty
-                                          ? _descController.text.trim()
-                                          : (selectedProj != null ? '${selectedProj.name} Payment' : _selectedIncomeType),
-                                      status: _status,
-                                      projectId: _selectedProjectId,
-                                      projectName: _selectedProjectName,
-                                      projectPaymentType: pPaymentType,
-                                    );
+                                            final income = IncomeRecord(
+                                              id: recordId,
+                                              date: _date.toIso8601String().substring(0, 10),
+                                              clientId: _selectedClientId ?? '',
+                                              clientName: _selectedClientName ?? (_selectedClientId != null ? 'Client' : 'Direct Income'),
+                                              amount: double.parse(_amountController.text.trim()).abs(),
+                                              accountId: _selectedAccountId!,
+                                              invoiceNumber: _invoiceController.text.trim(),
+                                              description: _descController.text.trim().isNotEmpty
+                                                  ? _descController.text.trim()
+                                                  : (selectedProj != null ? '${selectedProj.name} Payment' : _selectedIncomeType),
+                                              status: 'Received',
+                                              projectId: _selectedProjectId,
+                                              projectName: _selectedProjectName,
+                                              projectPaymentType: pPaymentType,
+                                            );
 
-                                    if (widget.initialRecord == null) {
-                                      await ref.read(incomeProvider.notifier).addIncome(income);
-                                    } else {
-                                      await ref.read(incomeProvider.notifier).updateIncome(widget.initialRecord!, income);
-                                    }
+                                            if (widget.initialRecord == null) {
+                                              await ref.read(incomeProvider.notifier).addIncome(income);
+                                            } else {
+                                              await ref.read(incomeProvider.notifier).updateIncome(widget.initialRecord!, income);
+                                            }
 
-                                    if (context.mounted) {
-                                      Navigator.of(context).pop();
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(isEditing
-                                              ? 'Income record updated successfully.'
-                                              : 'Income payment of Rs. ${NumberFormat('#,##0').format(income.amount)} recorded successfully.'),
-                                          backgroundColor: context.success,
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      setState(() => _isSubmitting = false);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Error: $e'),
-                                          backgroundColor: context.error,
-                                          behavior: SnackBarBehavior.floating,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: context.primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          elevation: 0,
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : Text(
-                                isEditing ? 'Update Income' : tr('Record Inflow'),
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                            if (context.mounted) {
+                                              Navigator.of(context).pop();
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(isEditing
+                                                      ? 'Income record updated successfully.'
+                                                      : 'Income payment of Rs. ${NumberFormat('#,##0').format(income.amount)} recorded successfully.'),
+                                                  backgroundColor: context.success,
+                                                  behavior: SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              setState(() => _isSubmitting = false);
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Error: $e'),
+                                                  backgroundColor: context.error,
+                                                  behavior: SnackBarBehavior.floating,
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: context.primaryColor,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  elevation: 0,
+                                ),
+                                child: _isSubmitting
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : Text(
+                                        isEditing ? 'Update Income' : tr('Record Inflow'),
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
                               ),
+                            ],
+                          );
+                        },
                       ),
                     ],
                   ),

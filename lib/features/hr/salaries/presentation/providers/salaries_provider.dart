@@ -1,11 +1,13 @@
 import 'package:software_house_erp/core/services/database_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import '../../../../finance/expenses/domain/entities/expense_record.dart';
+import '../../../../finance/expenses/presentation/providers/expenses_provider.dart';
+import '../../../advances/presentation/providers/advances_provider.dart';
+import '../../data/repositories/salaries_repository_impl.dart';
 import '../../domain/entities/salary_record.dart';
 import '../../domain/repositories/salaries_repository.dart';
-import '../../data/repositories/salaries_repository_impl.dart';
-import '../../../advances/presentation/providers/advances_provider.dart';
-import '../../../../finance/expenses/presentation/providers/expenses_provider.dart';
-import '../../../../finance/expenses/domain/entities/expense_record.dart';
 
 
 class SalariesState {
@@ -77,6 +79,11 @@ class SalariesNotifier extends Notifier<SalariesState> {
   }
 
   Future<void> addSalary(SalaryRecord record) async {
+    final canCreate = ref.read(adminProvider).hasPermission(AppModule.payroll, PermissionAction.create);
+    if (!canCreate) {
+      throw Exception('Access Denied: You do not have permission to process or create payroll records.');
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.addSalary(record);
     
@@ -101,17 +108,35 @@ class SalariesNotifier extends Notifier<SalariesState> {
     }
 
     final updated = await _repository.getSalaries();
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Processed payroll for ${record.employeeName} (Net: ${record.netPaid}, Period: ${record.payPeriod})',
+      module: 'Payroll',
+    );
     state = state.copyWith(salaries: updated, isLoading: false);
   }
 
   Future<void> updateSalary(SalaryRecord record) async {
+    final canEdit = ref.read(adminProvider).hasPermission(AppModule.payroll, PermissionAction.edit);
+    if (!canEdit) {
+      throw Exception('Access Denied: You do not have permission to update payroll records.');
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.updateSalary(record);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated payroll record for ${record.employeeName}',
+      module: 'Payroll',
+    );
     final updated = await _repository.getSalaries();
     state = state.copyWith(salaries: updated, isLoading: false);
   }
 
   Future<void> deleteSalary(String id) async {
+    final canDelete = ref.read(adminProvider).hasPermission(AppModule.payroll, PermissionAction.delete);
+    if (!canDelete) {
+      throw Exception('Access Denied: You do not have permission to delete payroll records.');
+    }
+
     final list = List<SalaryRecord>.from(state.salaries);
     final record = list.where((s) => s.id == id).firstOrNull;
 
@@ -122,6 +147,10 @@ class SalariesNotifier extends Notifier<SalariesState> {
     }
 
     await _repository.deleteSalary(id);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted payroll record for ${record?.employeeName ?? id}',
+      module: 'Payroll',
+    );
     final updated = await _repository.getSalaries();
     state = state.copyWith(salaries: updated, isLoading: false);
   }

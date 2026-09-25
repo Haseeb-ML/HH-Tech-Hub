@@ -5,14 +5,59 @@ import 'package:go_router/go_router.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 
 /// A sub-navigation bar for the Finance & Accounts module.
-/// Place this at the top of every Ledger/Accounts/Income/Expenses/Loans screen body.
-class FinanceSubNav extends ConsumerWidget {
+/// Automatically scrolls to ensure the active tab is visible and centered on mobile.
+class FinanceSubNav extends ConsumerStatefulWidget {
   final String activeRoute; // e.g. '/finance/ledger'
 
   const FinanceSubNav({super.key, required this.activeRoute});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FinanceSubNav> createState() => _FinanceSubNavState();
+}
+
+class _FinanceSubNavState extends ConsumerState<FinanceSubNav> {
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _activeTabKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveTab();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant FinanceSubNav oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.activeRoute != widget.activeRoute) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToActiveTab();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToActiveTab() {
+    if (!mounted) return;
+    final tabContext = _activeTabKey.currentContext;
+    if (tabContext != null) {
+      Scrollable.ensureVisible(
+        tabContext,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
 
@@ -49,73 +94,80 @@ class FinanceSubNav extends ConsumerWidget {
       ),
     ];
 
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      padding: EdgeInsets.fromLTRB(isMobile ? 12 : 24, 12, isMobile ? 12 : 24, 0),
       decoration: BoxDecoration(
         color: context.cardBg,
         border: Border(
           bottom: BorderSide(color: context.border, width: 1),
         ),
       ),
-      child: Row(
-        children: tabs.map((tab) {
-          final isActive = activeRoute == tab.route;
-          return Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: GestureDetector(
-              onTap: () {
-                debugPrint('FinanceSubNav: Tapped tab ${tab.label} with route ${tab.route}');
-                context.go(tab.route);
-              },
-              behavior: HitTestBehavior.opaque,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? context.primaryColor.withValues(alpha: 0.1)
-                      : Colors.transparent,
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(8)),
-                  border: Border(
-                    bottom: BorderSide(
-                      color:
-                          isActive ? context.primaryColor : Colors.transparent,
-                      width: 2,
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: tabs.map((tab) {
+            final isActive = widget.activeRoute == tab.route || widget.activeRoute.startsWith(tab.route);
+            return Padding(
+              key: isActive ? _activeTabKey : null,
+              padding: const EdgeInsets.only(right: 4),
+              child: GestureDetector(
+                onTap: () {
+                  debugPrint('FinanceSubNav: Tapped tab ${tab.label} with route ${tab.route}');
+                  context.go(tab.route);
+                },
+                behavior: HitTestBehavior.opaque,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? context.primaryColor.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(8)),
+                    border: Border(
+                      bottom: BorderSide(
+                        color:
+                            isActive ? context.primaryColor : Colors.transparent,
+                        width: 2,
+                      ),
                     ),
                   ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      tab.icon,
-                      size: 16,
-                      color: isActive
-                          ? context.primaryColor
-                          : context.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      tab.label,
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        tab.icon,
+                        size: 16,
                         color: isActive
                             ? context.primaryColor
                             : context.textSecondary,
-                        fontWeight: isActive
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                        fontSize: 13,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        tab.label,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isActive
+                              ? context.primaryColor
+                              : context.textSecondary,
+                          fontWeight: isActive
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

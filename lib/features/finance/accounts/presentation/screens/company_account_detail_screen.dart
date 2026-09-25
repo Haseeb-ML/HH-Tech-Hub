@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +15,8 @@ import 'package:software_house_erp/features/finance/ledger/presentation/provider
 import 'package:software_house_erp/core/utils/export_helper.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/transaction_detail_dialog.dart';
 import '../widgets/company_account_transaction_dialog.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class CompanyAccountDetailScreen extends ConsumerStatefulWidget {
   final String accountId;
@@ -44,7 +47,7 @@ class _CompanyAccountDetailScreenState
     final ledgerState = ref.watch(ledgerProvider);
 
     final companyAccounts = accountsState.accounts
-        .where((a) => a.accountScope != 'Personal')
+        .where((a) => a.isCompany)
         .toList();
 
     final accountList =
@@ -82,6 +85,7 @@ class _CompanyAccountDetailScreenState
         (entry.category == 'Account Transfer' ||
          entry.category == 'Personal Deposit' ||
          entry.category == 'Company Deposit' ||
+         entry.category == 'Salary Advance' ||
          entry.category == 'Other Expense')).toList();
 
     final directInflow = directAccountEntries
@@ -119,8 +123,7 @@ class _CompanyAccountDetailScreenState
     final loansOutflowTotal = loansGivenOutflow + repaymentsPaidOutflow;
     final totalExpense = pureExpenseTotal + loansOutflowTotal;
 
-    final availableBalance =
-        account.openingBalance + totalInflow - totalExpense;
+    final availableBalance = account.openingBalance + totalInflow - totalExpense;
 
     final todayStr = DateTime.now().toIso8601String().split('T').first;
     final todayInflow = companyIncomes
@@ -252,6 +255,7 @@ class _CompanyAccountDetailScreenState
         .skip(validPage * _rowsPerPage)
         .take(_rowsPerPage)
         .toList();
+    final canCreateTransaction = ref.watch(adminProvider).hasPermission(AppModule.accounts, PermissionAction.create);
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -282,9 +286,10 @@ class _CompanyAccountDetailScreenState
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Add Transaction',
-            icon: const Icon(Icons.add_card_outlined),
+          if (canCreateTransaction)
+            IconButton(
+              tooltip: 'Add Transaction',
+              icon: const Icon(Icons.add_card_outlined),
             onPressed: () async {
               final transaction = await showCompanyAccountTransactionDialog(
                 context,
@@ -365,7 +370,7 @@ class _CompanyAccountDetailScreenState
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 12 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -516,7 +521,7 @@ class _CompanyAccountDetailScreenState
                       title: 'Total Inflow (All Time)',
                       value: 'Rs. ${totalInflow.toStringAsFixed(0)}',
                       subtext:
-                          'Income: Rs. ${pureIncomeTotal.toStringAsFixed(0)} • Loans: Rs. ${loansInflowTotal.toStringAsFixed(0)}',
+                          'Income: Rs. ${(pureIncomeTotal - directInflow).toStringAsFixed(0)} • Transfers: Rs. ${directInflow.toStringAsFixed(0)} • Loans: Rs. ${loansInflowTotal.toStringAsFixed(0)}',
                       accentColor: context.isDarkMode
                           ? const Color(0xFF4ADE80)
                           : const Color(0xFF16A34A),
@@ -527,7 +532,7 @@ class _CompanyAccountDetailScreenState
                       title: 'Total Outflow (All Time)',
                       value: 'Rs. ${totalExpense.toStringAsFixed(0)}',
                       subtext:
-                          'Expenses: Rs. ${pureExpenseTotal.toStringAsFixed(0)} • Loans: Rs. ${loansOutflowTotal.toStringAsFixed(0)}',
+                          'Expenses: Rs. ${(pureExpenseTotal - directOutflow).toStringAsFixed(0)} • Transfers: Rs. ${directOutflow.toStringAsFixed(0)} • Loans: Rs. ${loansOutflowTotal.toStringAsFixed(0)}',
                       accentColor: context.isDarkMode
                           ? const Color(0xFFF87171)
                           : const Color(0xFFDC2626),
@@ -718,22 +723,42 @@ class _CompanyAccountDetailScreenState
             const SizedBox(height: 32),
 
             // ── Ledger Header ───────────────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${account.name}\'s Activity Ledger',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: context.textPrimary,
+            if (MediaQuery.of(context).size.width < 600)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${account.name}\'s Activity Ledger',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: context.textPrimary,
+                      fontSize: 18,
+                    ),
                   ),
-                ),
-                Text(
-                  'Showing transactions for ${account.name} only',
-                  style: TextStyle(color: context.textSecondary, fontSize: 12),
-                ),
-              ],
-            ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Showing transactions for ${account.name} only',
+                    style: TextStyle(color: context.textSecondary, fontSize: 12),
+                  ),
+                ],
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${account.name}\'s Activity Ledger',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: context.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    'Showing transactions for ${account.name} only',
+                    style: TextStyle(color: context.textSecondary, fontSize: 12),
+                  ),
+                ],
+              ),
             const SizedBox(height: 16),
 
             // ── Filters Bar ────────────────────────────────────────
@@ -933,274 +958,289 @@ class _CompanyAccountDetailScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Table Header
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 16),
-                    decoration: BoxDecoration(
-                      color: context.isDarkMode
-                          ? const Color(0xFF1E293B)
-                          : Colors.grey.shade50,
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12)),
-                      border:
-                          Border(bottom: BorderSide(color: context.border)),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                            flex: 1,
-                            child: Text('Type',
-                                style: TextStyle(
-                                    color: context.textPrimary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold))),
-                        Expanded(
-                            flex: 3,
-                            child: Text('Description',
-                                style: TextStyle(
-                                    color: context.textPrimary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold))),
-                        Expanded(
-                            flex: 2,
-                            child: Row(children: [
-                              Text('Date',
-                                  style: TextStyle(
-                                      color: context.textPrimary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold)),
-                              const SizedBox(width: 4),
-                              Icon(Icons.arrow_downward,
-                                  size: 14, color: context.textPrimary),
-                            ])),
-                        Expanded(
-                            flex: 2,
-                            child: Text('Account',
-                                style: TextStyle(
-                                    color: context.textPrimary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold))),
-                        Expanded(
-                            flex: 2,
-                            child: Text('Category',
-                                style: TextStyle(
-                                    color: context.textPrimary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold))),
-                        Expanded(
-                            flex: 2,
-                            child: Text('Reference',
-                                style: TextStyle(
-                                    color: context.textPrimary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold))),
-                        Expanded(
-                          flex: 2,
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Text('Amount',
-                                style: TextStyle(
-                                    color: context.textPrimary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold)),
+                  LayoutBuilder(
+                    builder: (context, tableConstraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: max(850.0, tableConstraints.maxWidth),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Table Header
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 16),
+                                decoration: BoxDecoration(
+                                  color: context.isDarkMode
+                                      ? const Color(0xFF1E293B)
+                                      : Colors.grey.shade50,
+                                  borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(12)),
+                                  border:
+                                      Border(bottom: BorderSide(color: context.border)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                        flex: 1,
+                                        child: Text('Type',
+                                            style: TextStyle(
+                                                color: context.textPrimary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold))),
+                                    Expanded(
+                                        flex: 3,
+                                        child: Text('Description',
+                                            style: TextStyle(
+                                                color: context.textPrimary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold))),
+                                    Expanded(
+                                        flex: 2,
+                                        child: Row(children: [
+                                          Text('Date',
+                                              style: TextStyle(
+                                                  color: context.textPrimary,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold)),
+                                          const SizedBox(width: 4),
+                                          Icon(Icons.arrow_downward,
+                                              size: 14, color: context.textPrimary),
+                                        ])),
+                                    Expanded(
+                                        flex: 2,
+                                        child: Text('Account',
+                                            style: TextStyle(
+                                                color: context.textPrimary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold))),
+                                    Expanded(
+                                        flex: 2,
+                                        child: Text('Category',
+                                            style: TextStyle(
+                                                color: context.textPrimary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold))),
+                                    Expanded(
+                                        flex: 2,
+                                        child: Text('Reference',
+                                            style: TextStyle(
+                                                color: context.textPrimary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold))),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Align(
+                                        alignment: Alignment.centerRight,
+                                        child: Text('Amount',
+                                            style: TextStyle(
+                                                color: context.textPrimary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Table Body
+                              if (filtered.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.all(40),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.receipt_long_outlined,
+                                            size: 48, color: context.textMuted),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'No Transactions Logged',
+                                          style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                              color: context.textPrimary),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Audit logs will appear here once cash movements are registered.',
+                                          style: TextStyle(
+                                              fontSize: 13,
+                                              color: context.textSecondary),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              else
+                                ListView.separated(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  padding: EdgeInsets.zero,
+                                  itemCount: paginatedTransactions.length,
+                                  separatorBuilder: (_, index) => const Divider(height: 1),
+                                  itemBuilder: (context, index) {
+                                    final tx = paginatedTransactions[index];
+                                    final isIncome = tx.type == 'Income';
+                                    final color =
+                                        isIncome ? context.success : context.error;
+                                    final bgColor = isIncome
+                                        ? context.successLight
+                                        : context.errorLight;
+
+                                    return InkWell(
+                                      onTap: () {
+                                        TransactionDetailDialog.show(
+                                          context,
+                                          id: tx.id,
+                                          title: tx.description,
+                                          category: tx.category,
+                                          description: tx.description,
+                                          amount: tx.amount,
+                                          date: tx.date,
+                                          type: tx.type,
+                                          accountName: account.name,
+                                          accountScope: 'Company',
+                                          reference: tx.reference,
+                                        );
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 20, vertical: 14),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              flex: 1,
+                                              child: Align(
+                                                alignment: Alignment.centerLeft,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(6),
+                                                  decoration: BoxDecoration(
+                                                      color: bgColor,
+                                                      borderRadius:
+                                                          BorderRadius.circular(6)),
+                                                  child: Icon(
+                                                    isIncome
+                                                        ? Icons.arrow_downward
+                                                        : Icons.arrow_upward,
+                                                    size: 14,
+                                                    color: color,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 3,
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(
+                                                    tx.description,
+                                                    style: TextStyle(
+                                                      color: context.textPrimary,
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 13,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    tx.reference.isNotEmpty &&
+                                                            tx.reference != '-' &&
+                                                            tx.reference != tx.description
+                                                        ? '${tx.category} • ${tx.reference}'
+                                                        : tx.category,
+                                                    style: TextStyle(
+                                                      color: context.textMuted,
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w400,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: _buildDateAndTimeCell(
+                                                  context, tx.date, tx.id),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                account.name,
+                                                style: TextStyle(
+                                                    color: context.textSecondary,
+                                                    fontSize: 12),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: context.isDarkMode
+                                                      ? const Color(0xFF1E293B)
+                                                      : Colors.grey.shade100,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border:
+                                                      Border.all(color: context.border),
+                                                ),
+                                                child: Text(
+                                                  tx.category,
+                                                  style: TextStyle(
+                                                      color: context.textSecondary,
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w500),
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                tx.reference,
+                                                style: TextStyle(
+                                                    color: context.textSecondary,
+                                                    fontSize: 11),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: Align(
+                                                alignment: Alignment.centerRight,
+                                                child: Text(
+                                                  'Rs. ${tx.amount.toStringAsFixed(2)}',
+                                                  style: TextStyle(
+                                                      color: isIncome
+                                                          ? context.success
+                                                          : context.error,
+                                                      fontWeight: FontWeight.w800,
+                                                      fontSize: 13),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-
-                  // Table Body
-                  if (filtered.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(40),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.receipt_long_outlined,
-                                size: 48, color: context.textMuted),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No Transactions Logged',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: context.textPrimary),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Audit logs will appear here once cash movements are registered.',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color: context.textSecondary),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: EdgeInsets.zero,
-                      itemCount: paginatedTransactions.length,
-                      separatorBuilder: (_, index) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final tx = paginatedTransactions[index];
-                        final isIncome = tx.type == 'Income';
-                        final color =
-                            isIncome ? context.success : context.error;
-                        final bgColor = isIncome
-                            ? context.successLight
-                            : context.errorLight;
-
-                        return InkWell(
-                          onTap: () {
-                            TransactionDetailDialog.show(
-                              context,
-                              id: tx.id,
-                              title: tx.description,
-                              category: tx.category,
-                              description: tx.description,
-                              amount: tx.amount,
-                              date: tx.date,
-                              type: tx.type,
-                              accountName: account.name,
-                              accountScope: 'Company',
-                              reference: tx.reference,
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 14),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 1,
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                          color: bgColor,
-                                          borderRadius:
-                                              BorderRadius.circular(6)),
-                                      child: Icon(
-                                        isIncome
-                                            ? Icons.arrow_downward
-                                            : Icons.arrow_upward,
-                                        size: 14,
-                                        color: color,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 3,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        tx.description,
-                                        style: TextStyle(
-                                          color: context.textPrimary,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        tx.reference.isNotEmpty &&
-                                                tx.reference != '-' &&
-                                                tx.reference != tx.description
-                                            ? '${tx.category} • ${tx.reference}'
-                                            : tx.category,
-                                        style: TextStyle(
-                                          color: context.textMuted,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: _buildDateAndTimeCell(
-                                      context, tx.date, tx.id),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    account.name,
-                                    style: TextStyle(
-                                        color: context.textSecondary,
-                                        fontSize: 12),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode
-                                          ? const Color(0xFF1E293B)
-                                          : Colors.grey.shade100,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border:
-                                          Border.all(color: context.border),
-                                    ),
-                                    child: Text(
-                                      tx.category,
-                                      style: TextStyle(
-                                          color: context.textSecondary,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w500),
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    tx.reference,
-                                    style: TextStyle(
-                                        color: context.textSecondary,
-                                        fontSize: 11),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: Text(
-                                      'Rs. ${tx.amount.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                          color: isIncome
-                                              ? context.success
-                                              : context.error,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 13),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
 
                   // Pagination Controls
                   if (filtered.isNotEmpty && totalPages > 1)
@@ -1208,7 +1248,9 @@ class _CompanyAccountDetailScreenState
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 12),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                        mainAxisAlignment: MediaQuery.of(context).size.width < 600
+                            ? MainAxisAlignment.center
+                            : MainAxisAlignment.end,
                         children: [
                           Text(
                             'Page ${validPage + 1} of $totalPages',
@@ -1247,13 +1289,15 @@ class _CompanyAccountDetailScreenState
     if (account.openingBalanceDate.isNotEmpty) {
       return account.openingBalanceDate;
     }
-    final digits = account.id.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length >= 13) {
-      final timestamp = int.tryParse(digits.substring(digits.length - 13));
-      if (timestamp != null) {
-        return DateTime.fromMillisecondsSinceEpoch(timestamp).toIso8601String();
+    try {
+      final match = RegExp(r'\d{12,14}').firstMatch(account.id);
+      if (match != null) {
+        final timestamp = int.tryParse(match.group(0)!);
+        if (timestamp != null && timestamp > 0 && timestamp < 8640000000000000) {
+          return DateTime.fromMillisecondsSinceEpoch(timestamp).toIso8601String();
+        }
       }
-    }
+    } catch (_) {}
     return DateTime.now().toIso8601String();
   }
 
@@ -1281,24 +1325,24 @@ class _CompanyAccountDetailScreenState
     if (parsed == null) return null;
     if (value.contains('T') && (parsed.hour != 0 || parsed.minute != 0)) return parsed;
 
-    final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.length >= 13) {
-      final timestamp = int.tryParse(digits.substring(digits.length - 13));
-      final createdAt = timestamp == null
-          ? null
-          : DateTime.fromMillisecondsSinceEpoch(timestamp);
-      if (createdAt != null) {
-        return DateTime(
-          parsed.year,
-          parsed.month,
-          parsed.day,
-          createdAt.hour,
-          createdAt.minute,
-          createdAt.second,
-          createdAt.millisecond,
-        );
+    try {
+      final match = RegExp(r'\d{12,14}').firstMatch(id);
+      if (match != null) {
+        final timestamp = int.tryParse(match.group(0)!);
+        if (timestamp != null && timestamp > 0 && timestamp < 8640000000000000) {
+          final createdAt = DateTime.fromMillisecondsSinceEpoch(timestamp);
+          return DateTime(
+            parsed.year,
+            parsed.month,
+            parsed.day,
+            createdAt.hour,
+            createdAt.minute,
+            createdAt.second,
+            createdAt.millisecond,
+          );
+        }
       }
-    }
+    } catch (_) {}
     return parsed;
   }
 

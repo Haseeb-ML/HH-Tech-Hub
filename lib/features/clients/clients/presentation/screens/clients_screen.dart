@@ -11,6 +11,8 @@ import '../../domain/entities/client.dart';
 import '../../../../projects/projects/presentation/providers/projects_provider.dart';
 import '../../../../finance/income/presentation/providers/income_provider.dart';
 import '../../../../finance/accounts/presentation/providers/accounts_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class ClientsScreen extends ConsumerWidget {
   const ClientsScreen({super.key});
@@ -21,6 +23,9 @@ class ClientsScreen extends ConsumerWidget {
     final state = ref.watch(clientsProvider);
     final projects = ref.watch(projectsProvider).projects;
     final theme = Theme.of(context);
+    final adminState = ref.watch(adminProvider);
+    final canCreate = adminState.hasPermission(AppModule.clients, PermissionAction.create);
+    final canExport = adminState.hasPermission(AppModule.clients, PermissionAction.export);
 
     // Calculate metrics
     final totalClients = state.clients.length;
@@ -39,22 +44,22 @@ class ClientsScreen extends ConsumerWidget {
     });
 
     final width = MediaQuery.of(context).size.width;
-    int crossAxisCount = width >= 1400 ? 4 : (width >= 900 ? 3 : (width >= 600 ? 2 : 1));
+    int crossAxisCount = width >= 1400 ? 4 : (width >= 1000 ? 3 : (width >= 650 ? 2 : 1));
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
       body: state.isLoading && state.clients.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(width < 600 ? 12 : 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Title + Add Button Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 650;
+                      final titleCol = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -73,98 +78,124 @@ class ClientsScreen extends ConsumerWidget {
                             ),
                           ),
                         ],
-                      ),
-                            Row(
-                              children: [
-                                ExportButton(
-                                  title: 'Clients & Relations Report',
-                                  fileName: 'clients_report',
-                                  headers: [
-                                    'Client ID',
-                                    'Company Name',
-                                    'Contact Person',
-                                    tr('Email Address'),
-                                    'Phone Number',
-                                    tr('Status'),
-                                    'Industry',
-                                    tr('Active Projects'),
-                                    tr('Advanced Payment'),
-                                    tr('Full Payment'),
-                                  ],
-                                  rows: state.filteredClients.map((client) {
-                                    final cProjects = projects.where((p) => p.clientId == client.id).toList();
-                                    final clientIncomes = allIncomes.where((i) => i.clientId == client.id || (i.projectId != null && cProjects.any((p) => p.id == i.projectId))).toList();
-                                    final advanced = clientIncomes.isNotEmpty
-                                        ? clientIncomes.fold<double>(0.0, (s, i) => s + i.amount)
-                                        : (cProjects.isNotEmpty
-                                            ? cProjects.fold<double>(0.0, (s, p) => s + (p.advancedPayment + p.partialPayments + p.finalPayment))
-                                            : client.advancedPayment);
-                                    final full = cProjects.isNotEmpty
-                                        ? cProjects.fold<double>(0.0, (sum, p) => sum + p.budget)
-                                        : client.fullPayment;
-                                    final pCount = cProjects.isNotEmpty ? cProjects.length : client.totalProjects;
-                                    return [
-                                      client.id,
-                                      client.name,
-                                      client.contactPerson,
-                                      client.email,
-                                      client.phone,
-                                      client.status,
-                                      client.industry,
-                                      pCount.toString(),
-                                      'Rs. ${advanced.toStringAsFixed(0)}',
-                                      'Rs. ${full.toStringAsFixed(0)}',
-                                    ];
-                                  }).toList(),
-                                ),
-                                const SizedBox(width: 12),
-                                ElevatedButton.icon(
-                                  onPressed: () async {
-                                    final newClient = await showDialog<Client>(
-                                      context: context,
-                                      builder: (context) => const AddClientDialog(),
-                                    );
-                                    if (newClient != null) {
-                                      ref.read(clientsProvider.notifier).addClient(newClient);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('${tr("Client")} "${newClient.name}" ${tr("added successfully.")}'),
-                                          behavior: SnackBarBehavior.floating,
-                                          backgroundColor: context.success,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.add, size: 16),
-                                  label: const Text('Add Client'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: context.primaryColor,
-                                    foregroundColor: Colors.white,
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
+                      );
+
+                      final actionButtons = Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (canExport)
+                            ExportButton(
+                            title: 'Clients & Relations Report',
+                            fileName: 'clients_report',
+                            headers: [
+                              'Client ID',
+                              'Company Name',
+                              'Contact Person',
+                              tr('Email Address'),
+                              'Phone Number',
+                              tr('Status'),
+                              'Industry',
+                              tr('Active Projects'),
+                              tr('Advanced Payment'),
+                              tr('Full Payment'),
+                            ],
+                            rows: state.filteredClients.map((client) {
+                              final cProjects = projects.where((p) => p.clientId == client.id).toList();
+                              final clientIncomes = allIncomes.where((i) => i.clientId == client.id || (i.projectId != null && cProjects.any((p) => p.id == i.projectId))).toList();
+                              final advanced = clientIncomes.isNotEmpty
+                                  ? clientIncomes.fold<double>(0.0, (s, i) => s + i.amount)
+                                  : (cProjects.isNotEmpty
+                                      ? cProjects.fold<double>(0.0, (s, p) => s + (p.advancedPayment + p.partialPayments + p.finalPayment))
+                                      : client.advancedPayment);
+                              final full = cProjects.isNotEmpty
+                                  ? cProjects.fold<double>(0.0, (sum, p) => sum + p.budget)
+                                  : client.fullPayment;
+                              final pCount = cProjects.isNotEmpty ? cProjects.length : client.totalProjects;
+                              return [
+                                client.id,
+                                client.name,
+                                client.contactPerson,
+                                client.email,
+                                client.phone,
+                                client.status,
+                                client.industry,
+                                '$pCount',
+                                'Rs. ${advanced.toStringAsFixed(0)}',
+                                'Rs. ${full.toStringAsFixed(0)}',
+                              ];
+                            }).toList(),
+                          ),
+                          if (canCreate)
+                            ElevatedButton.icon(
+                            onPressed: () async {
+                              final newClient = await showDialog<Client>(
+                                context: context,
+                                builder: (context) => const AddClientDialog(),
+                              );
+                              if (newClient != null) {
+                                ref.read(clientsProvider.notifier).addClient(newClient);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('${tr("Client")} "${newClient.name}" ${tr("added successfully.")}'),
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: context.success,
                                   ),
-                                ),
-                              ],
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Add Client'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: context.primaryColor,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                             ),
-                    ],
+                          ),
+                        ],
+                      );
+
+                      if (isNarrow) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            titleCol,
+                            const SizedBox(height: 14),
+                            actionButtons,
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Flexible(child: titleCol),
+                          const SizedBox(width: 16),
+                          actionButtons,
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 
                   // Metrics Cards
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final gridCrossCount = constraints.maxWidth >= 1200 ? 4 : (constraints.maxWidth >= 600 ? 2 : 1);
+                      final isMobile = constraints.maxWidth < 600;
+                      final gridCrossCount = constraints.maxWidth >= 1200 ? 4 : 2;
                       return GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: gridCrossCount,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: gridCrossCount == 4 ? 1.6 : 2.5,
+                          crossAxisSpacing: isMobile ? 12 : 16,
+                          mainAxisSpacing: isMobile ? 12 : 16,
+                          childAspectRatio: gridCrossCount == 4 ? 1.6 : (isMobile ? 0.85 : 2.2),
                         ),
                         children: [
                           StatCard(
@@ -208,41 +239,33 @@ class ClientsScreen extends ConsumerWidget {
                   // Filters & Search Box Card
                   GlassCard(
                     padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        // Search
-                        Expanded(
-                          child: Container(
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: context.border, width: 1),
-                            ),
-                            child: TextField(
-                              onChanged: (val) => ref.read(clientsProvider.notifier).setSearchQuery(val),
-                              style: TextStyle(color: context.textPrimary),
-                              decoration: InputDecoration(
-                                hintText: tr('Search by client name, contact, industry or email...'),
-                                hintStyle: TextStyle(
-                                  fontSize: 13,
-                                  color: context.textMuted,
-                                ),
-                                prefixIcon: Icon(
-                                  Icons.search,
-                                  size: 18,
-                                  color: context.textMuted,
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isNarrow = constraints.maxWidth < 600;
+                        final searchWidget = Container(
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: context.border, width: 1),
+                          ),
+                          child: TextField(
+                            onChanged: (val) => ref.read(clientsProvider.notifier).setSearchQuery(val),
+                            style: TextStyle(color: context.textPrimary),
+                            decoration: InputDecoration(
+                              hintText: tr('Search by client name, contact, industry or email...'),
+                              hintStyle: TextStyle(
+                                fontSize: 13,
+                                color: context.textMuted,
                               ),
+                              prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        
-                        // Status Filter
-                        Container(
+                        );
+
+                        final statusWidget = Container(
                           height: 40,
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
@@ -254,11 +277,12 @@ class ClientsScreen extends ConsumerWidget {
                             child: DropdownButton<String>(
                               value: state.statusFilter,
                               dropdownColor: context.cardBg,
-                              style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                              items: ['All', tr('Active'), 'Lead', 'Inactive'].map((s) {
-                                return DropdownMenuItem<String>(
+                              icon: Icon(Icons.keyboard_arrow_down, color: context.textSecondary, size: 18),
+                              style: TextStyle(color: context.textPrimary, fontSize: 13),
+                              items: ['All', 'Active', 'Inactive', 'Lead'].map((s) {
+                                return DropdownMenuItem(
                                   value: s,
-                                  child: Text('${tr("Status")}: $s'),
+                                  child: Text(s == 'All' ? tr('All Statuses') : (s == 'Active' ? tr('Active') : (s == 'Inactive' ? tr('Inactive' ) : tr('Lead')))),
                                 );
                               }).toList(),
                               onChanged: (val) {
@@ -268,8 +292,27 @@ class ClientsScreen extends ConsumerWidget {
                               },
                             ),
                           ),
-                        ),
-                      ],
+                        );
+
+                        if (isNarrow) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              searchWidget,
+                              const SizedBox(height: 12),
+                              statusWidget,
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: searchWidget),
+                            const SizedBox(width: 16),
+                            statusWidget,
+                          ],
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -282,9 +325,9 @@ class ClientsScreen extends ConsumerWidget {
                           physics: const NeverScrollableScrollPhysics(),
                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: crossAxisCount,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: 1.15,
+                            crossAxisSpacing: width < 650 ? 12 : 16,
+                            mainAxisSpacing: width < 650 ? 12 : 16,
+                            childAspectRatio: width < 650 ? 1.6 : (width < 1100 ? 1.25 : 0.85),
                           ),
                           itemCount: state.filteredClients.length,
                           itemBuilder: (context, index) {
@@ -339,6 +382,10 @@ class ClientsScreen extends ConsumerWidget {
   Widget _buildClientCard(BuildContext context, WidgetRef ref, Client client) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final isMob = MediaQuery.of(context).size.width < 600;
+    final adminState = ref.watch(adminProvider);
+    final canEdit = adminState.hasPermission(AppModule.clients, PermissionAction.edit);
+    final canDelete = adminState.hasPermission(AppModule.clients, PermissionAction.delete);
     final projects = ref.watch(projectsProvider).projects;
     final cProjects = projects.where((p) => p.clientId == client.id).toList();
     final pCount = cProjects.isNotEmpty ? cProjects.length : client.totalProjects;
@@ -352,6 +399,7 @@ class ClientsScreen extends ConsumerWidget {
     final full = cProjects.isNotEmpty
         ? cProjects.fold<double>(0.0, (sum, p) => sum + p.budget)
         : client.fullPayment;
+    final remaining = (full - advanced).abs();
     
     // Status color mapping
     Color statusColor;
@@ -390,306 +438,315 @@ class ClientsScreen extends ConsumerWidget {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isMob ? 10 : 16),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Row 1: Initials & Status badge & Action Button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1: Initials & Status badge & Action Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: isMob ? 28 : 36,
+                        height: isMob ? 28 : 36,
+                        decoration: BoxDecoration(
+                          color: context.isDarkMode ? const Color(0xFF1F2937) : const Color(0xFFEFF6FF),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          initials,
+                          style: TextStyle(
+                            color: context.primaryColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: isMob ? 10 : 12,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: isMob ? 6 : 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              client.name,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: context.textPrimary,
+                                fontSize: isMob ? 13 : 15,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              client.industry,
+                              style: TextStyle(
+                                color: context.textSecondary,
+                                fontSize: isMob ? 10 : 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      padding: EdgeInsets.symmetric(horizontal: isMob ? 5 : 8, vertical: isMob ? 2 : 4),
                       decoration: BoxDecoration(
-                        color: context.isDarkMode ? const Color(0xFF1F2937) : const Color(0xFFEFF6FF),
-                        shape: BoxShape.circle,
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      alignment: Alignment.center,
                       child: Text(
-                        initials,
+                        client.status,
                         style: TextStyle(
-                          color: context.primaryColor,
+                          color: statusColor,
+                          fontSize: isMob ? 9 : 10,
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            client.name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: context.textPrimary,
-                              fontSize: 15,
+                    if (canEdit || canDelete) ...[
+                      const SizedBox(width: 2),
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, size: isMob ? 16 : 18, color: context.textSecondary),
+                        color: context.cardBg,
+                        padding: EdgeInsets.zero,
+                        onSelected: (val) async {
+                          if (val == 'delete' && canDelete) {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Delete Client'),
+                                content: Text('${tr("Are you sure you want to delete client")} "${client.name}"? ${tr("This action cannot be undone.")}'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: Text(tr('Delete'), style: TextStyle(color: context.error)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              ref.read(clientsProvider.notifier).deleteClient(client.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${tr("Client")} "${client.name}" ${tr("removed.")}'),
+                                  behavior: SnackBarBehavior.floating,
+                                  backgroundColor: context.error,
+                                ),
+                              );
+                            }
+                          } else if (val == 'toggle_status' && canEdit) {
+                            final nextStatus = client.status == 'Active' ? 'Inactive' : (client.status == 'Inactive' ? 'Lead' : tr('Active'));
+                            ref.read(clientsProvider.notifier).updateClient(client.copyWith(status: nextStatus));
+                          } else if (val == 'edit' && canEdit) {
+                            showDialog(
+                              context: context,
+                              builder: (context) => _EditClientDialog(client: client),
+                            );
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          if (canEdit)
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Text(tr('Edit Details'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            client.industry,
-                            style: TextStyle(
-                              color: context.textSecondary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
+                          if (canEdit)
+                            PopupMenuItem(
+                              value: 'toggle_status',
+                              child: Text('Change Status', style: TextStyle(color: context.textPrimary, fontSize: 13)),
                             ),
-                          ),
+                          if (canDelete)
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete Client', style: TextStyle(color: context.error, fontSize: 13)),
+                            ),
                         ],
                       ),
-                    ),
+                    ],
                   ],
                 ),
-              ),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusBg,
-                      borderRadius: BorderRadius.circular(20),
+              ],
+            ),
+            SizedBox(height: isMob ? 8 : 14),
+            
+            // Row 2: Contact Person Info
+            Row(
+              children: [
+                Icon(Icons.person_outline, size: isMob ? 12 : 14, color: context.textMuted),
+                SizedBox(width: isMob ? 5 : 8),
+                Expanded(
+                  child: Text(
+                    client.contactPerson,
+                    style: TextStyle(
+                      color: context.textSecondary,
+                      fontSize: isMob ? 11 : 13,
                     ),
-                    child: Text(
-                      client.status,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: isMob ? 3 : 6),
+
+            // Row 3: Contact Email
+            Row(
+              children: [
+                Icon(Icons.email_outlined, size: isMob ? 12 : 14, color: context.textMuted),
+                SizedBox(width: isMob ? 5 : 8),
+                Expanded(
+                  child: Text(
+                    client.email,
+                    style: TextStyle(
+                      color: context.textSecondary,
+                      fontSize: isMob ? 11 : 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: isMob ? 3 : 6),
+
+            // Row 4: Phone Info
+            Row(
+              children: [
+                Icon(Icons.phone_outlined, size: isMob ? 12 : 14, color: context.textMuted),
+                SizedBox(width: isMob ? 5 : 8),
+                Expanded(
+                  child: Text(
+                    client.phone,
+                    style: TextStyle(
+                      color: context.textSecondary,
+                      fontSize: isMob ? 11 : 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            
+            SizedBox(height: isMob ? 6 : 10),
+            const Divider(),
+            SizedBox(height: isMob ? 4 : 8),
+
+            // Row 5: Stats (Projects & Payments)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Projects',
                       style: TextStyle(
-                        color: statusColor,
+                        color: context.textMuted,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, size: 18, color: context.textSecondary),
-                    color: context.cardBg,
-                    onSelected: (val) async {
-                      if (val == 'delete') {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Delete Client'),
-                            content: Text('${tr("Are you sure you want to delete client")} "${client.name}"? ${tr("This action cannot be undone.")}'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true) {
-                          ref.read(clientsProvider.notifier).deleteClient(client.id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${tr("Client")} "${client.name}" ${tr("removed.")}'),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: context.error,
-                            ),
-                          );
-                        }
-                      } else if (val == 'toggle_status') {
-                        final nextStatus = client.status == 'Active' ? 'Inactive' : (client.status == 'Inactive' ? 'Lead' : tr('Active'));
-                        ref.read(clientsProvider.notifier).updateClient(client.copyWith(status: nextStatus));
-                      } else if (val == 'edit') {
-                        showDialog(
-                          context: context,
-                          builder: (context) => _EditClientDialog(client: client),
-                        );
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Text(tr('Edit Details'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$pCount Active',
+                      style: TextStyle(
+                        color: context.textPrimary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
-                      PopupMenuItem(
-                        value: 'toggle_status',
-                        child: Text('Change Status', style: TextStyle(color: context.textPrimary, fontSize: 13)),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      tr('Full Payment'),
+                      style: TextStyle(
+                        color: context.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
                       ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Delete Client', style: TextStyle(color: context.error, fontSize: 13)),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Rs. ${full.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        color: context.primaryColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          // Row 2: Contact Person Info
-          Row(
-            children: [
-              Icon(Icons.person_outline, size: 14, color: context.textMuted),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  client.contactPerson,
-                  style: TextStyle(
-                    color: context.textSecondary,
-                    fontSize: 13,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-
-          // Row 3: Contact Email
-          Row(
-            children: [
-              Icon(Icons.email_outlined, size: 14, color: context.textMuted),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  client.email,
-                  style: TextStyle(
-                    color: context.textSecondary,
-                    fontSize: 13,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      tr('Advanced Payment'),
+                      style: TextStyle(
+                        color: context.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Rs. ${advanced.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        color: context.primaryColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-
-          // Row 4: Phone Info
-          Row(
-            children: [
-              Icon(Icons.phone_outlined, size: 14, color: context.textMuted),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  client.phone,
-                  style: TextStyle(
-                    color: context.textSecondary,
-                    fontSize: 13,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      tr('Remaining'),
+                      style: TextStyle(
+                        color: context.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Rs. ${remaining.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        color: context.primaryColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-          
-          const Spacer(),
-          const Divider(),
-          const SizedBox(height: 8),
-
-          // Row 5: Stats (Projects & Payments)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Projects',
-                    style: TextStyle(
-                      color: context.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '$pCount Active',
-                    style: TextStyle(
-                      color: context.textPrimary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    tr('Full Payment'),
-                    style: TextStyle(
-                      color: context.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Rs. ${full.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      color: context.primaryColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    tr('Advanced Payment'),
-                    style: TextStyle(
-                      color: context.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Rs. ${advanced.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      color: context.primaryColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    tr('Remaining'),
-                    style: TextStyle(
-                      color: context.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Rs. ${(full - advanced).toStringAsFixed(0)}',
-                    style: TextStyle(
-                      color: context.primaryColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class AddClientDialog extends ConsumerStatefulWidget {
@@ -741,13 +798,16 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
   Widget build(BuildContext context) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 500,
-        padding: const EdgeInsets.all(24),
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 500),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -786,91 +846,142 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Contact Person (Optional)'),
-                          TextFormField(
-                            controller: _contactController,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('Enter full name'),
-                            validator: null,
-                          ),
-                        ],
+                if (isMobile) ...[
+                  _buildLabel('Contact Person (Optional)'),
+                  TextFormField(
+                    controller: _contactController,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('Enter full name'),
+                    validator: null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel('Industry', isRequired: true),
+                  TextFormField(
+                    controller: _industryController,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel(tr('Email Address')),
+                  TextFormField(
+                    controller: _emailController,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('email@company.com'),
+                    validator: (val) {
+                      if (val != null && val.trim().isNotEmpty && !val.contains('@')) {
+                        return 'Please enter valid email';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel('Phone Number', isRequired: true),
+                  TextFormField(
+                    controller: _phoneController,
+                    style: TextStyle(color: context.textPrimary),
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                      LengthLimitingTextInputFormatter(15),
+                    ],
+                    decoration: _buildInputDecoration('+923001234567'),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) return 'Please enter phone number';
+                      final regex = RegExp(r'^\+?[0-9]{10,15}$');
+                      if (!regex.hasMatch(val.trim())) {
+                        return 'Enter 10-15 digits (e.g. +923001234567)';
+                      }
+                      return null;
+                    },
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Contact Person (Optional)'),
+                            TextFormField(
+                              controller: _contactController,
+                              style: TextStyle(color: context.textPrimary),
+                              decoration: _buildInputDecoration('Enter full name'),
+                              validator: null,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Industry', isRequired: true),
-                          TextFormField(
-                            controller: _industryController,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
-                            validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
-                          ),
-                        ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Industry', isRequired: true),
+                            TextFormField(
+                              controller: _industryController,
+                              style: TextStyle(color: context.textPrimary),
+                              decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
+                              validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel(tr('Email Address')),
-                          TextFormField(
-                            controller: _emailController,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('email@company.com'),
-                            validator: (val) {
-                              if (val != null && val.trim().isNotEmpty && !val.contains('@')) {
-                                return 'Please enter valid email';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel(tr('Email Address')),
+                            TextFormField(
+                              controller: _emailController,
+                              style: TextStyle(color: context.textPrimary),
+                              decoration: _buildInputDecoration('email@company.com'),
+                              validator: (val) {
+                                if (val != null && val.trim().isNotEmpty && !val.contains('@')) {
+                                  return 'Please enter valid email';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Phone Number', isRequired: true),
-                          TextFormField(
-                            controller: _phoneController,
-                            style: TextStyle(color: context.textPrimary),
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                              LengthLimitingTextInputFormatter(15),
-                            ],
-                            decoration: _buildInputDecoration('+923001234567'),
-                            validator: (val) {
-                              if (val == null || val.trim().isEmpty) return 'Please enter phone number';
-                              final regex = RegExp(r'^\+?[0-9]{10,15}$');
-                              if (!regex.hasMatch(val.trim())) {
-                                return 'Enter 10-15 digits (e.g. +923001234567)';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Phone Number', isRequired: true),
+                            TextFormField(
+                              controller: _phoneController,
+                              style: TextStyle(color: context.textPrimary),
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                                LengthLimitingTextInputFormatter(15),
+                              ],
+                              decoration: _buildInputDecoration('+923001234567'),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) return 'Please enter phone number';
+                                final regex = RegExp(r'^\+?[0-9]{10,15}$');
+                                if (!regex.hasMatch(val.trim())) {
+                                  return 'Enter 10-15 digits (e.g. +923001234567)';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 16),
 
                 Column(
@@ -1062,13 +1173,16 @@ class _EditClientDialogState extends ConsumerState<_EditClientDialog> {
   Widget build(BuildContext context) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 500,
-        padding: const EdgeInsets.all(24),
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 500),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -1107,139 +1221,219 @@ class _EditClientDialogState extends ConsumerState<_EditClientDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Contact Person', isRequired: true),
-                          TextFormField(
-                            controller: _contactController,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('Enter full name'),
-                            validator: (val) => val == null || val.trim().isEmpty ? 'Please enter contact name' : null,
-                          ),
-                        ],
+                if (isMobile) ...[
+                  _buildLabel('Contact Person', isRequired: true),
+                  TextFormField(
+                    controller: _contactController,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('Enter full name'),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter contact name' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel('Industry', isRequired: true),
+                  TextFormField(
+                    controller: _industryController,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
+                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel(tr('Email Address')),
+                  TextFormField(
+                    controller: _emailController,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('email@company.com'),
+                    validator: (val) {
+                      if (val != null && val.trim().isNotEmpty && !val.contains('@')) {
+                        return 'Please enter valid email';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel('Phone Number', isRequired: true),
+                  TextFormField(
+                    controller: _phoneController,
+                    style: TextStyle(color: context.textPrimary),
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                      LengthLimitingTextInputFormatter(15),
+                    ],
+                    decoration: _buildInputDecoration('+923001234567'),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) return 'Please enter phone number';
+                      final regex = RegExp(r'^\+?[0-9]{10,15}$');
+                      if (!regex.hasMatch(val.trim())) {
+                        return 'Enter 10-15 digits (e.g. +923001234567)';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel(tr('Status')),
+                  DropdownButtonFormField<String>(
+                    initialValue: _status,
+                    dropdownColor: context.cardBg,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('Select status'),
+                    items: [tr('Active'), 'Lead', 'Inactive'].map((s) {
+                      return DropdownMenuItem<String>(
+                        value: s,
+                        child: Text(s),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() {
+                          _status = val;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel(tr('Total Projects')),
+                  TextFormField(
+                    controller: _projectsController,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('0'),
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Contact Person', isRequired: true),
+                            TextFormField(
+                              controller: _contactController,
+                              style: TextStyle(color: context.textPrimary),
+                              decoration: _buildInputDecoration('Enter full name'),
+                              validator: (val) => val == null || val.trim().isEmpty ? 'Please enter contact name' : null,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Industry', isRequired: true),
-                          TextFormField(
-                            controller: _industryController,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
-                            validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
-                          ),
-                        ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Industry', isRequired: true),
+                            TextFormField(
+                              controller: _industryController,
+                              style: TextStyle(color: context.textPrimary),
+                              decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
+                              validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel(tr('Email Address')),
-                          TextFormField(
-                            controller: _emailController,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('email@company.com'),
-                            validator: (val) {
-                              if (val != null && val.trim().isNotEmpty && !val.contains('@')) {
-                                return 'Please enter valid email';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel(tr('Email Address')),
+                            TextFormField(
+                              controller: _emailController,
+                              style: TextStyle(color: context.textPrimary),
+                              decoration: _buildInputDecoration('email@company.com'),
+                              validator: (val) {
+                                if (val != null && val.trim().isNotEmpty && !val.contains('@')) {
+                                  return 'Please enter valid email';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel('Phone Number', isRequired: true),
-                          TextFormField(
-                            controller: _phoneController,
-                            style: TextStyle(color: context.textPrimary),
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-                              LengthLimitingTextInputFormatter(15),
-                            ],
-                            decoration: _buildInputDecoration('+923001234567'),
-                            validator: (val) {
-                              if (val == null || val.trim().isEmpty) return 'Please enter phone number';
-                              final regex = RegExp(r'^\+?[0-9]{10,15}$');
-                              if (!regex.hasMatch(val.trim())) {
-                                return 'Enter 10-15 digits (e.g. +923001234567)';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel('Phone Number', isRequired: true),
+                            TextFormField(
+                              controller: _phoneController,
+                              style: TextStyle(color: context.textPrimary),
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
+                                LengthLimitingTextInputFormatter(15),
+                              ],
+                              decoration: _buildInputDecoration('+923001234567'),
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) return 'Please enter phone number';
+                                final regex = RegExp(r'^\+?[0-9]{10,15}$');
+                                if (!regex.hasMatch(val.trim())) {
+                                  return 'Enter 10-15 digits (e.g. +923001234567)';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel(tr('Status')),
-                          DropdownButtonFormField<String>(
-                            initialValue: _status,
-                            dropdownColor: context.cardBg,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('Select status'),
-                            items: [tr('Active'), 'Lead', 'Inactive'].map((s) {
-                              return DropdownMenuItem<String>(
-                                value: s,
-                                child: Text(s),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _status = val;
-                                });
-                              }
-                            },
-                          ),
-                        ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel(tr('Status')),
+                            DropdownButtonFormField<String>(
+                              initialValue: _status,
+                              dropdownColor: context.cardBg,
+                              style: TextStyle(color: context.textPrimary),
+                              decoration: _buildInputDecoration('Select status'),
+                              items: [tr('Active'), 'Lead', 'Inactive'].map((s) {
+                                return DropdownMenuItem<String>(
+                                  value: s,
+                                  child: Text(s),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _status = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel(tr('Total Projects')),
-                          TextFormField(
-                            controller: _projectsController,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(color: context.textPrimary),
-                            decoration: _buildInputDecoration('0'),
-                          ),
-                        ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildLabel(tr('Total Projects')),
+                            TextFormField(
+                              controller: _projectsController,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(color: context.textPrimary),
+                              decoration: _buildInputDecoration('0'),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
                 const Divider(),
                 const SizedBox(height: 16),
@@ -1357,6 +1551,7 @@ class _ViewClientDetailsDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 600;
     final projects = ref.watch(projectsProvider).projects;
     final cProjects = projects.where((p) => p.clientId == client.id).toList();
     final pCount = cProjects.isNotEmpty ? cProjects.length : client.totalProjects;
@@ -1371,6 +1566,7 @@ class _ViewClientDetailsDialog extends ConsumerWidget {
     final full = cProjects.isNotEmpty
         ? cProjects.fold<double>(0.0, (sum, p) => sum + p.budget)
         : client.fullPayment;
+    final remaining = (full - received).abs();
     
     Color statusColor;
     Color statusBg;
@@ -1387,10 +1583,12 @@ class _ViewClientDetailsDialog extends ConsumerWidget {
 
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 520,
-        padding: const EdgeInsets.all(24),
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 520),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1468,15 +1666,36 @@ class _ViewClientDetailsDialog extends ConsumerWidget {
               const SizedBox(height: 24),
               
               // Stats Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildStatItem(context, tr('Total Projects'), '$pCount Active'),
-                  _buildStatItem(context, tr('Full Payment'), 'Rs. ${full.toStringAsFixed(0)}'),
-                  _buildStatItem(context, tr('Received Payment'), 'Rs. ${received.toStringAsFixed(0)}'),
-                  _buildStatItem(context, tr('Remaining Payment'), 'Rs. ${(full - received).clamp(0.0, double.infinity).toStringAsFixed(0)}'),
-                ],
-              ),
+              if (isMobile)
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _buildStatItem(context, tr('Total Projects'), '$pCount Active')),
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildStatItem(context, tr('Remaining Payment'), 'Rs. ${remaining.toStringAsFixed(0)}')),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: _buildStatItem(context, tr('Full Payment'), 'Rs. ${full.toStringAsFixed(0)}')),
+                        const SizedBox(width: 8),
+                        Expanded(child: _buildStatItem(context, tr('Received Payment'), 'Rs. ${received.toStringAsFixed(0)}')),
+                      ],
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildStatItem(context, tr('Total Projects'), '$pCount Active'),
+                    _buildStatItem(context, tr('Full Payment'), 'Rs. ${full.toStringAsFixed(0)}'),
+                    _buildStatItem(context, tr('Received Payment'), 'Rs. ${received.toStringAsFixed(0)}'),
+                    _buildStatItem(context, tr('Remaining Payment'), 'Rs. ${remaining.toStringAsFixed(0)}'),
+                  ],
+                ),
               const SizedBox(height: 20),
               const Divider(),
               const SizedBox(height: 16),

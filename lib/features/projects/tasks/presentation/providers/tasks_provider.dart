@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/project_task.dart';
 import '../../domain/repositories/tasks_repository.dart';
 import '../../data/repositories/tasks_repository_impl.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 
 
@@ -102,22 +104,46 @@ class TasksNotifier extends Notifier<TasksState> {
   }
 
   Future<void> addTask(ProjectTask task) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.tasks, PermissionAction.create)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.addTask(task);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Added task: ${task.title} (Priority: ${task.priority}, Project: ${task.projectId})',
+      module: 'Projects',
+    );
     final updated = await _repository.getTasks();
     state = state.copyWith(tasks: updated, isLoading: false);
   }
 
   Future<void> updateTask(ProjectTask task) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.tasks, PermissionAction.edit)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.updateTask(task);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated task: ${task.title} (Status: ${task.status}, Priority: ${task.priority})',
+      module: 'Projects',
+    );
     final updated = await _repository.getTasks();
     state = state.copyWith(tasks: updated, isLoading: false);
   }
 
   Future<void> deleteTask(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.tasks, PermissionAction.delete)) {
+      return;
+    }
     state = state.copyWith(isLoading: true);
     await _repository.deleteTask(id);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted task: $id',
+      module: 'Projects',
+    );
     final updated = await _repository.getTasks();
     state = state.copyWith(tasks: updated, isLoading: false);
   }

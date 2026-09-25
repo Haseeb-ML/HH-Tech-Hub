@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'file_saver/file_saver.dart';
 import 'package:excel/excel.dart' as ex;
 import 'package:pdf/pdf.dart';
@@ -9,6 +9,7 @@ import '../../features/hr/salaries/domain/entities/salary_record.dart';
 import '../../features/hr/attendance/domain/entities/attendance_record.dart';
 import '../../features/finance/accounts/domain/entities/bank_account.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:open_filex/open_filex.dart';
 import 'package:intl/intl.dart';
 
 class ExportHelper {
@@ -266,6 +267,39 @@ class ExportHelper {
     return '';
   }
 
+  /// Generates a clear, professional HH TECH HUB logo watermark visible on every PDF page
+  static pw.Widget _buildPdfWatermark({
+    pw.MemoryImage? logoImage,
+    bool isLandscape = false,
+  }) {
+    return pw.FullPage(
+      ignoreMargins: true,
+      child: pw.Center(
+        child: pw.Transform.rotateBox(
+          angle: isLandscape ? -0.26 : -0.34,
+          child: pw.Opacity(
+            opacity: 0.12,
+            child: logoImage != null
+                ? pw.Image(
+                    logoImage,
+                    width: isLandscape ? 440 : 360,
+                    fit: pw.BoxFit.contain,
+                  )
+                : pw.Text(
+                    'HH TECH HUB',
+                    style: pw.TextStyle(
+                      fontSize: isLandscape ? 48 : 42,
+                      fontWeight: pw.FontWeight.bold,
+                      letterSpacing: 6,
+                      color: PdfColor.fromHex('#1E293B'),
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Save PDF document with automatic total calculation for numeric columns
   static Future<String> exportToPdf({
     required String title,
@@ -275,11 +309,19 @@ class ExportHelper {
   }) async {
     final pdf = pw.Document();
 
+    pw.MemoryImage? logoImage;
+    try {
+      final logoBytes = await rootBundle.load('assets/logo.png');
+      logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
+    } catch (_) {
+      logoImage = null;
+    }
+
     final primaryColor = PdfColor.fromHex('#4F46E5'); // Indigo 600
     final textColor = PdfColor.fromHex('#1E293B'); // Slate 800
     final headerBg = PdfColor.fromHex('#4338CA'); // Indigo 700
     final accentColor = PdfColor.fromHex('#6366F1'); // Indigo 500
-    final lightBg = PdfColor.fromHex('#F8FAFC'); // Slate 50
+    final lightBg = const PdfColor(0.97, 0.98, 0.99, 0.45); // Slate 50 translucent
     final greyBorder = PdfColor.fromHex('#CBD5E1'); // Slate 300
     final lightBorder = PdfColor.fromHex('#E2E8F0'); // Slate 200
 
@@ -299,8 +341,14 @@ class ExportHelper {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.letter.landscape,
-        margin: const pw.EdgeInsets.all(32),
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.letter.landscape,
+          margin: const pw.EdgeInsets.all(32),
+          buildBackground: (context) => _buildPdfWatermark(
+            logoImage: logoImage,
+            isLandscape: true,
+          ),
+        ),
         header: (context) => pw.Column(
           children: [
             pw.Row(
@@ -335,7 +383,7 @@ class ExportHelper {
                         ),
                         pw.SizedBox(height: 2),
                         pw.Text(
-                          'HH TECH HUB ERP SYSTEM • OFFICIAL REPORT',
+                          'ERP SYSTEM - OFFICIAL REPORT',
                           style: pw.TextStyle(
                             fontSize: 7,
                             fontWeight: pw.FontWeight.bold,
@@ -347,24 +395,24 @@ class ExportHelper {
                     ),
                   ],
                 ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Text(
-                      'HH TECH HUB',
-                      style: pw.TextStyle(
-                        fontWeight: pw.FontWeight.bold,
-                        fontSize: 12,
-                        color: headerBg,
+                    if (logoImage != null)
+                      pw.Container(
+                        width: 44,
+                        height: 44,
+                        child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                      )
+                    else
+                      pw.Text(
+                        'ERP SYSTEM',
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 14,
+                          color: headerBg,
+                        ),
                       ),
-                    ),
-                    pw.Text(
-                      'https://hhtechhub.com',
-                      style: const pw.TextStyle(
-                        fontSize: 7,
-                        color: PdfColors.grey500,
-                      ),
-                    ),
                   ],
                 ),
               ],
@@ -385,7 +433,7 @@ class ExportHelper {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'Confidential - Generated via HH Tech Hub ERP System',
+                    'Confidential - Generated via ERP System',
                     style: const pw.TextStyle(
                       fontSize: 7,
                       color: PdfColors.grey500,
@@ -428,7 +476,7 @@ class ExportHelper {
                     ),
                     pw.SizedBox(height: 1),
                     pw.Text(
-                      '${DateTime.now().toLocal().toString().substring(0, 19)}',
+                      DateTime.now().toLocal().toString().substring(0, 19),
                       style: pw.TextStyle(
                         fontSize: 8,
                         color: textColor,
@@ -487,7 +535,7 @@ class ExportHelper {
           pw.SizedBox(height: 16),
 
           // Clean professional table
-          pw.Table.fromTextArray(
+          pw.TableHelper.fromTextArray(
             headers: headers,
             data: pdfRows,
             headerStyle: pw.TextStyle(
@@ -506,7 +554,7 @@ class ExportHelper {
               horizontal: 8,
               vertical: 5,
             ),
-            rowDecoration: const pw.BoxDecoration(color: PdfColors.white),
+            rowDecoration: const pw.BoxDecoration(color: null),
             oddRowDecoration: pw.BoxDecoration(color: lightBg),
             border: pw.TableBorder(
               horizontalInside: pw.BorderSide(color: lightBorder, width: 0.5),
@@ -520,7 +568,7 @@ class ExportHelper {
     return await saveAndLaunchFile(await pdf.save(), '$fileName.pdf');
   }
 
-  /// Open file natively in Windows
+  /// Open file natively in Windows / handle safely on other platforms
   static Future<void> openFile(String filePath) async {
     if (!kIsWeb && Platform.isWindows) {
       await Process.run('cmd', [
@@ -529,6 +577,14 @@ class ExportHelper {
         '""',
         filePath,
       ], runInShell: true);
+    } else {
+      debugPrint('ExportHelper: Opening file at: $filePath');
+      try {
+        final result = await OpenFilex.open(filePath);
+        debugPrint('OpenFilex result: ${result.message}');
+      } catch (e) {
+        debugPrint('Error opening file: $e');
+      }
     }
   }
 
@@ -1037,7 +1093,7 @@ class ExportHelper {
     return '';
   }
 
-  /// Custom PDF export matching authentic Pakistani Bank Statement (Allied Bank format)
+  /// Custom PDF export matching authentic Pakistani Bank Statement format
   static Future<String> exportBankStatementPdf({
     required BankAccount account,
     required List<Map<String, dynamic>> transactions,
@@ -1097,13 +1153,13 @@ class ExportHelper {
       statementPeriod = '${periodDateFormat.format(startDt).toUpperCase()} TO ${periodDateFormat.format(endDt).toUpperCase()}';
     }
 
-    final bankName = isPersonalStatement
-      ? 'Personal Account'
-      : (account.bankName.isNotEmpty ? account.bankName : 'Allied Bank');
-    final branchName = 'HH TECH Hub';
-    final accountNumber = account.accountNumber.isNotEmpty ? account.accountNumber : '0010129874530014';
-    final accountStatus = account.status == 'Active' ? 'Regular' : account.status;
-    final accountHolderName = account.name.isNotEmpty ? account.name.toUpperCase() : 'MUHAMMAD SHAKEEL';
+    final accountDisplayName = account.name.isNotEmpty ? account.name : 'Company Account';
+    final bankDetails = account.bankName.isNotEmpty ? account.bankName : '';
+    final accountNumber = account.accountNumber.isNotEmpty ? account.accountNumber : '—';
+    final accountStatus = account.status == 'Active' ? 'Active' : account.status;
+    final accountHolderName = account.ownerName.isNotEmpty
+        ? account.ownerName.toUpperCase()
+        : (account.accountScope == 'Company' ? accountDisplayName.toUpperCase() : 'PERSONAL ACCOUNT');
 
     // Color constants
     final darkText = PdfColor.fromHex('#111827');
@@ -1342,8 +1398,14 @@ class ExportHelper {
     // Build statement MultiPage
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          buildBackground: (context) => _buildPdfWatermark(
+            logoImage: logoImage,
+            isLandscape: false,
+          ),
+        ),
         header: (context) {
           if (context.pageNumber == 1) {
             return pw.Column(
@@ -1362,39 +1424,54 @@ class ExportHelper {
                           children: [
                             if (logoImage != null)
                               pw.Container(
-                                width: 28,
-                                height: 28,
-                                margin: const pw.EdgeInsets.only(right: 6),
+                                width: 36,
+                                height: 36,
+                                margin: const pw.EdgeInsets.only(right: 8),
                                 child: pw.Image(logoImage, fit: pw.BoxFit.contain),
                               )
                             else
                               pw.Container(
-                                width: 22,
-                                height: 22,
+                                width: 30,
+                                height: 30,
+                                margin: const pw.EdgeInsets.only(right: 8),
                                 decoration: pw.BoxDecoration(
-                                  color: PdfColor.fromHex('#1A1A1A'),
-                                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(2)),
+                                  color: PdfColor.fromHex('#4F46E5'),
+                                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
                                 ),
                                 alignment: pw.Alignment.center,
                                 child: pw.Text(
-                                  'A',
+                                  accountDisplayName.isNotEmpty ? accountDisplayName[0].toUpperCase() : 'A',
                                   style: pw.TextStyle(
                                     color: PdfColors.white,
-                                    fontSize: 15,
+                                    fontSize: 16,
                                     fontWeight: pw.FontWeight.bold,
-                                    fontStyle: pw.FontStyle.italic,
                                   ),
                                 ),
                               ),
-                            pw.SizedBox(width: 7),
-                            pw.Text(
-                              bankName,
-                              style: pw.TextStyle(
-                                fontSize: 18,
-                                fontWeight: pw.FontWeight.bold,
-                                color: darkText,
-                                letterSpacing: -0.3,
-                              ),
+                            pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                pw.Text(
+                                  accountDisplayName,
+                                  style: pw.TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: darkText,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                if (bankDetails.isNotEmpty) ...[
+                                  pw.SizedBox(height: 2),
+                                  pw.Text(
+                                    bankDetails,
+                                    style: pw.TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: pw.FontWeight.bold,
+                                      color: subText,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
@@ -1415,7 +1492,7 @@ class ExportHelper {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.SizedBox(height: 10),
-                        _buildStatementMeta('Branch Name:', branchName),
+                        _buildStatementMeta('Account Type:', '${account.type} Account'),
                         pw.SizedBox(height: 2.5),
                         _buildStatementMeta('Statement Period:', statementPeriod),
                         pw.SizedBox(height: 2.5),
@@ -1483,7 +1560,7 @@ class ExportHelper {
                           pw.SizedBox(width: 5),
                         ],
                         pw.Text(
-                          bankName,
+                          accountDisplayName,
                           style: pw.TextStyle(
                             fontSize: 12,
                             fontWeight: pw.FontWeight.bold,
@@ -1544,19 +1621,19 @@ class ExportHelper {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        'Verification/Confirmed can be obtained from:',
+                        'Official Statement Verification',
                         style: pw.TextStyle(fontSize: 6, color: PdfColor.fromHex('#9CA3AF')),
                       ),
                       pw.Text(
-                        'Incharge Verification Desk',
+                        'Finance & Audit Department',
                         style: pw.TextStyle(fontSize: 6, color: PdfColor.fromHex('#9CA3AF')),
                       ),
                       pw.Text(
-                        'Allied Bank Building, Blue Area Islamabad',
+                        accountDisplayName,
                         style: pw.TextStyle(fontSize: 6, color: PdfColor.fromHex('#9CA3AF')),
                       ),
                       pw.Text(
-                        'ABL.VerificationDesk@abl.com',
+                        'Generated via ERP System',
                         style: pw.TextStyle(fontSize: 6, color: PdfColor.fromHex('#9CA3AF')),
                       ),
                     ],
@@ -1608,6 +1685,14 @@ class ExportHelper {
   }) async {
     final pdf = pw.Document();
 
+    pw.MemoryImage? logoImage;
+    try {
+      final logoBytes = await rootBundle.load('assets/logo.png');
+      logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
+    } catch (_) {
+      logoImage = null;
+    }
+
     final textColor = PdfColor.fromHex('#1E293B'); // Slate 800
     final secondaryTextColor = PdfColor.fromHex('#64748B'); // Slate 500
     final lightBg = PdfColor.fromHex('#F8FAFC'); // Slate 50
@@ -1626,25 +1711,22 @@ class ExportHelper {
     final offBgColor = PdfColor.fromHex('#F8FAFC');
 
     // Calculate Stats
-    int present = 0, lateCount = 0, absent = 0, leave = 0, off = 0;
-    int halfDay = 0, workFromHome = 0, notMarked = 0;
+    int present = 0, lateCount = 0, absent = 0, leave = 0;
+    int halfDay = 0, workFromHome = 0;
     for (var r in records) {
-      if (r.status == 'Present')
+      if (r.status == 'Present') {
         present++;
-      else if (r.status == 'Late')
+      } else if (r.status == 'Late') {
         lateCount++;
-      else if (r.status == 'Absent')
+      } else if (r.status == 'Absent') {
         absent++;
-      else if (r.status == 'Leave')
+      } else if (r.status == 'Leave') {
         leave++;
-      else if (r.status == 'Off')
-        off++;
-      else if (r.status == 'Half Day')
+      } else if (r.status == 'Half Day') {
         halfDay++;
-      else if (r.status == 'Work From Home')
+      } else if (r.status == 'Work From Home') {
         workFromHome++;
-      else if (r.status == 'Not Marked')
-        notMarked++;
+      }
     }
     final totalDays = records.length;
 
@@ -1935,8 +2017,14 @@ class ExportHelper {
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.letter.landscape,
-        margin: const pw.EdgeInsets.all(32),
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.letter.landscape,
+          margin: const pw.EdgeInsets.all(32),
+          buildBackground: (context) => _buildPdfWatermark(
+            logoImage: logoImage,
+            isLandscape: true,
+          ),
+        ),
         header: (context) {
           if (context.pageNumber == 1) {
             return pw.Column(
@@ -2049,14 +2137,21 @@ class ExportHelper {
                         ),
                       ],
                     ),
-                    pw.Text(
-                      'HH TECH HUB',
-                      style: pw.TextStyle(
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColor.fromHex('#4B55E5'),
+                    if (logoImage != null)
+                      pw.Container(
+                        width: 36,
+                        height: 36,
+                        child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                      )
+                    else
+                      pw.Text(
+                        'ERP SYSTEM',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColor.fromHex('#4B55E5'),
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 pw.SizedBox(height: 24),
@@ -2110,7 +2205,39 @@ class ExportHelper {
               ],
             );
           }
-          return pw.SizedBox();
+          return pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 12),
+            padding: const pw.EdgeInsets.only(bottom: 6),
+            decoration: pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: borderColor, width: 0.8)),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    if (logoImage != null)
+                      pw.Container(
+                        width: 20,
+                        height: 20,
+                        margin: const pw.EdgeInsets.only(right: 6),
+                        child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                      ),
+                    pw.Text(
+                      title,
+                      style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: textColor),
+                    ),
+                  ],
+                ),
+                pw.Text(
+                  subtitle,
+                  style: pw.TextStyle(fontSize: 8, color: secondaryTextColor),
+                ),
+              ],
+            ),
+          );
         },
         footer: (context) => pw.Container(
           alignment: pw.Alignment.centerRight,
@@ -2147,5 +2274,398 @@ class ExportHelper {
     );
 
     return await saveAndLaunchFile(await pdf.save(), '$fileName.pdf');
+  }
+
+  /// Generates a professional single-page employee salary payslip PDF
+  static Future<String> generatePayslipPdf({
+    required SalaryRecord record,
+    Employee? employee,
+  }) async {
+    final pdf = pw.Document();
+
+    pw.MemoryImage? logoImage;
+    try {
+      final logoBytes = await rootBundle.load('assets/logo.png');
+      logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
+    } catch (_) {
+      logoImage = null;
+    }
+
+    final primaryColor = PdfColor.fromHex('#2563EB'); // Royal Blue 600
+    final darkHeader = PdfColor.fromHex('#1E293B'); // Slate 800
+    final secondaryText = PdfColor.fromHex('#64748B'); // Slate 500
+    final lightBg = PdfColor.fromHex('#F8FAFC'); // Slate 50
+    final cardBorder = PdfColor.fromHex('#CBD5E1'); // Slate 300
+    final greenColor = PdfColor.fromHex('#16A34A'); // Emerald 600
+    final redColor = PdfColor.fromHex('#DC2626'); // Red 600
+
+    final grossEarnings = record.baseSalary + record.allowances;
+    final totalDeductions = record.deductions;
+    final netPay = record.netPaid;
+
+    pdf.addPage(
+      pw.Page(
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(36),
+          buildBackground: (context) => _buildPdfWatermark(
+            logoImage: logoImage,
+            isLandscape: false,
+          ),
+        ),
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // ── Header Section ──
+              pw.Container(
+                padding: const pw.EdgeInsets.all(14),
+                decoration: pw.BoxDecoration(
+                  color: lightBg,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  border: pw.Border.all(color: cardBorder, width: 1),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
+                  children: [
+                    pw.Row(
+                      children: [
+                        if (logoImage != null) ...[
+                          pw.Image(logoImage, width: 44, height: 44),
+                          pw.SizedBox(width: 12),
+                        ],
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              'HH TECH HUB',
+                              style: pw.TextStyle(
+                                fontSize: 17,
+                                fontWeight: pw.FontWeight.bold,
+                                color: darkHeader,
+                              ),
+                            ),
+                            pw.Text(
+                              'Software House & Enterprise Solutions ERP',
+                              style: pw.TextStyle(fontSize: 9.5, color: secondaryText),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: pw.BoxDecoration(
+                            color: primaryColor,
+                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                          ),
+                          child: pw.Text(
+                            'SALARY PAYSLIP',
+                            style: pw.TextStyle(
+                              color: PdfColors.white,
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 10.5,
+                            ),
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'Pay Period: ${record.payPeriod}',
+                          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: darkHeader),
+                        ),
+                        pw.Text(
+                          'Disbursed: ${record.paymentDate}',
+                          style: pw.TextStyle(fontSize: 8.5, color: secondaryText),
+                        ),
+                        pw.Text(
+                          'Slip Ref: PAY-${record.id.replaceAll('sal_', '')}',
+                          style: pw.TextStyle(fontSize: 8, color: secondaryText),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 14),
+
+              // ── Employee & Payment Method Info ──
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: cardBorder, width: 1),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    // Left Column: Employee Details
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildPdfPayslipInfoRow('Employee Name:', record.employeeName, isBold: true),
+                          pw.SizedBox(height: 4),
+                          _buildPdfPayslipInfoRow('Employee ID:', record.employeeId.isNotEmpty ? record.employeeId : 'EMP-01'),
+                          pw.SizedBox(height: 4),
+                          _buildPdfPayslipInfoRow('Designation:', employee?.designation ?? 'Team Member'),
+                          pw.SizedBox(height: 4),
+                          _buildPdfPayslipInfoRow('Department:', employee?.department ?? 'Operations'),
+                        ],
+                      ),
+                    ),
+                    pw.Container(width: 1, height: 60, color: cardBorder, margin: const pw.EdgeInsets.symmetric(horizontal: 12)),
+                    // Right Column: Payment & Account Details
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          _buildPdfPayslipInfoRow('Payment Method:', record.paymentMethod, isBold: true, highlightColor: primaryColor),
+                          pw.SizedBox(height: 4),
+                          _buildPdfPayslipInfoRow('Disbursed From:', record.accountName.isNotEmpty ? record.accountName : 'Company Account'),
+                          pw.SizedBox(height: 4),
+                          _buildPdfPayslipInfoRow('Salary Type:', employee?.salaryType ?? 'Monthly'),
+                          pw.SizedBox(height: 4),
+                          _buildPdfPayslipInfoRow('Payment Status:', record.status.toUpperCase(), isBold: true, highlightColor: greenColor),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 14),
+
+              // ── Earnings & Deductions Tables ──
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Earnings Side
+                  pw.Expanded(
+                    child: pw.Container(
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: cardBorder, width: 1),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Container(
+                            width: double.infinity,
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColor.fromHex('#EFF6FF'),
+                              borderRadius: const pw.BorderRadius.only(
+                                topLeft: pw.Radius.circular(8),
+                                topRight: pw.Radius.circular(8),
+                              ),
+                            ),
+                            child: pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('EARNINGS', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                                pw.Text('AMOUNT (PKR)', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                              ],
+                            ),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(10),
+                            child: pw.Column(
+                              children: [
+                                _buildPdfPayslipItemRow('Basic Salary', record.baseSalary),
+                                pw.SizedBox(height: 6),
+                                _buildPdfPayslipItemRow('Allowances & Bonuses', record.allowances),
+                                pw.Divider(color: cardBorder, thickness: 0.8),
+                                _buildPdfPayslipItemRow('Gross Earnings', grossEarnings, isTotal: true),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  pw.SizedBox(width: 12),
+
+                  // Deductions Side
+                  pw.Expanded(
+                    child: pw.Container(
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: cardBorder, width: 1),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      child: pw.Column(
+                        children: [
+                          pw.Container(
+                            width: double.infinity,
+                            padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColor.fromHex('#FEF2F2'),
+                              borderRadius: const pw.BorderRadius.only(
+                                topLeft: pw.Radius.circular(8),
+                                topRight: pw.Radius.circular(8),
+                              ),
+                            ),
+                            child: pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('DEDUCTIONS', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: redColor)),
+                                pw.Text('AMOUNT (PKR)', style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold, color: redColor)),
+                              ],
+                            ),
+                          ),
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.all(10),
+                            child: pw.Column(
+                              children: [
+                                _buildPdfPayslipItemRow('Absent / Leave Deductions', record.deductions),
+                                pw.Divider(color: cardBorder, thickness: 0.8),
+                                _buildPdfPayslipItemRow('Total Deductions', totalDeductions, isTotal: true, isDeduction: true),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              pw.SizedBox(height: 14),
+
+              // ── Net Pay Box ──
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex('#F0FDF4'),
+                  border: pw.Border.all(color: greenColor, width: 1.2),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'NET TAKE-HOME SALARY PAID',
+                          style: pw.TextStyle(fontSize: 10.5, fontWeight: pw.FontWeight.bold, color: greenColor),
+                        ),
+                        pw.Text(
+                          'Disbursed through ${record.paymentMethod}',
+                          style: pw.TextStyle(fontSize: 8.5, color: secondaryText),
+                        ),
+                      ],
+                    ),
+                    pw.Text(
+                      'Rs. ${netPay.toStringAsFixed(0)}',
+                      style: pw.TextStyle(
+                        fontSize: 19,
+                        fontWeight: pw.FontWeight.bold,
+                        color: greenColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 24),
+
+              // ── Signatures & Authorization ──
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Container(width: 160, height: 0.8, color: darkHeader),
+                      pw.SizedBox(height: 5),
+                      pw.Text('Employee Signature', style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: darkHeader)),
+                      pw.Text('Date: ________________', style: pw.TextStyle(fontSize: 7.5, color: secondaryText)),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Container(width: 160, height: 0.8, color: darkHeader),
+                      pw.SizedBox(height: 5),
+                      pw.Text('Authorized HR / Accounts Signatory', style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: darkHeader)),
+                      pw.Text('HH Tech Hub Seal & Stamp', style: pw.TextStyle(fontSize: 7.5, color: secondaryText)),
+                    ],
+                  ),
+                ],
+              ),
+
+              pw.SizedBox(height: 18),
+
+              // ── Disclaimer & Footer ──
+              pw.Center(
+                child: pw.Text(
+                  'CONFIDENTIAL • This payslip is a system-generated document issued by HH Tech Hub ERP.',
+                  style: pw.TextStyle(fontSize: 7.5, color: secondaryText),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    final cleanName = record.employeeName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    final cleanPeriod = record.payPeriod.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    final fileName = 'Payslip_${cleanName}_$cleanPeriod';
+    return await saveAndLaunchFile(await pdf.save(), '$fileName.pdf');
+  }
+
+  static pw.Widget _buildPdfPayslipInfoRow(String label, String value, {bool isBold = false, PdfColor? highlightColor}) {
+    return pw.Row(
+      children: [
+        pw.SizedBox(
+          width: 90,
+          child: pw.Text(label, style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700)),
+        ),
+        pw.Expanded(
+          child: pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 9,
+              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: highlightColor ?? PdfColors.black,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _buildPdfPayslipItemRow(String label, double amount, {bool isTotal = false, bool isDeduction = false}) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: isTotal ? 9 : 8.5,
+            fontWeight: isTotal ? pw.FontWeight.bold : pw.FontWeight.normal,
+            color: isTotal ? PdfColors.black : PdfColors.grey800,
+          ),
+        ),
+        pw.Text(
+          'Rs. ${amount.toStringAsFixed(0)}',
+          style: pw.TextStyle(
+            fontSize: isTotal ? 9 : 8.5,
+            fontWeight: isTotal ? pw.FontWeight.bold : pw.FontWeight.normal,
+            color: isDeduction
+                ? PdfColor.fromHex('#DC2626')
+                : (isTotal ? PdfColors.black : PdfColors.grey800),
+          ),
+        ),
+      ],
+    );
   }
 }

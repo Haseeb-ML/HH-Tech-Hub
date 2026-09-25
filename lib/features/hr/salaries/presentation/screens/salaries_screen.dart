@@ -13,6 +13,9 @@ import '../../../advances/presentation/providers/advances_provider.dart';
 import '../../domain/entities/salary_record.dart';
 import '../../../attendance/domain/entities/attendance_record.dart';
 import '../../../attendance/presentation/providers/attendance_provider.dart';
+import 'package:software_house_erp/core/utils/export_helper.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class SalariesScreen extends ConsumerWidget {
   const SalariesScreen({super.key});
@@ -59,10 +62,10 @@ class SalariesScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                   // Title + Add Button Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isMobile = constraints.maxWidth < 650;
+                      final titleWidget = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -81,46 +84,74 @@ class SalariesScreen extends ConsumerWidget {
                             ),
                           ),
                         ],
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          final employees = ref.read(employeesProvider).employees;
-                          if (employees.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Add employees in the Directory first before processing payroll.'),
-                                behavior: SnackBarBehavior.floating,
-                                backgroundColor: context.error,
-                              ),
-                            );
-                            return;
-                          }
+                      );
 
-                          final result = await showDialog<SalaryRecord>(
-                            context: context,
-                            builder: (context) => const _ProcessPayrollDialog(),
-                          );
-                          if (result != null) {
-                            ref.read(salariesProvider.notifier).addSalary(result);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Payroll processed for ${result.employeeName}.'),
-                                behavior: SnackBarBehavior.floating,
-                                backgroundColor: context.success,
+                      final canCreate = ref.watch(adminProvider).hasPermission(AppModule.payroll, PermissionAction.create);
+                      final actionButton = canCreate
+                          ? ElevatedButton.icon(
+                              onPressed: () async {
+                                final employees = ref.read(employeesProvider).employees;
+                                if (employees.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text('Add employees in the Directory first before processing payroll.'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: context.error,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final result = await showDialog<SalaryRecord>(
+                                  context: context,
+                                  builder: (context) => const _ProcessPayrollDialog(),
+                                );
+                                if (result != null) {
+                                  ref.read(salariesProvider.notifier).addSalary(result);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Payroll processed for ${result.employeeName}.'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: context.success,
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.payment, size: 18),
+                              label: const Text('Process Payroll'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: context.primaryColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               ),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.payment, size: 18),
-                        label: const Text('Process Payroll'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: context.primaryColor,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
-                      ),
-                    ],
+                            )
+                          : null;
+
+                      if (isMobile) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            titleWidget,
+                            if (actionButton != null) ...[
+                              const SizedBox(height: 14),
+                              actionButton,
+                            ],
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(child: titleWidget),
+                          if (actionButton != null) ...[
+                            const SizedBox(width: 16),
+                            actionButton,
+                          ],
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
 
@@ -129,31 +160,35 @@ class SalariesScreen extends ConsumerWidget {
                     builder: (context, constraints) {
                       final isMobile = constraints.maxWidth < 600;
                       if (isMobile) {
-                        return Column(
+                        return Row(
                           children: [
-                            ExplainTooltip(
-                              message: 'Monthly Payroll: Total amount paid out to employees for the current payroll month.',
-                              child: StatCard(
-                                title: payrollTitle,
-                                tooltipMessage: 'Detailed statistics and information regarding $payrollTitle.',
-                                value: 'Rs. ${totalPaid.toStringAsFixed(0)}',
-                                icon: Icons.check_circle_outline,
-                                iconColor: context.success,
-                                iconBgColor: context.successLight,
-                                trendText: 'Paid this month',
+                            Expanded(
+                              child: ExplainTooltip(
+                                message: 'Monthly Payroll: Total amount paid out to employees for the current payroll month.',
+                                child: StatCard(
+                                  title: payrollTitle,
+                                  tooltipMessage: 'Detailed statistics and information regarding $payrollTitle.',
+                                  value: 'Rs. ${totalPaid.toStringAsFixed(0)}',
+                                  icon: Icons.check_circle_outline,
+                                  iconColor: context.success,
+                                  iconBgColor: context.successLight,
+                                  trendText: 'Paid this month',
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            ExplainTooltip(
-                              message: 'Total Payslips: Total number of payslips generated and logged in the system.',
-                              child: StatCard(
-                                title: 'Total Payslips',
-                                tooltipMessage: 'Detailed statistics and information regarding Total Payslips.',
-                                value: totalPayslips.toString(),
-                                icon: Icons.receipt_long_outlined,
-                                iconColor: context.primaryColor,
-                                iconBgColor: context.infoLight,
-                                trendText: 'Issued logs',
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: ExplainTooltip(
+                                message: 'Total Payslips: Total number of payslips generated and logged in the system.',
+                                child: StatCard(
+                                  title: 'Total Payslips',
+                                  tooltipMessage: 'Detailed statistics and information regarding Total Payslips.',
+                                  value: totalPayslips.toString(),
+                                  icon: Icons.receipt_long_outlined,
+                                  iconColor: context.primaryColor,
+                                  iconBgColor: context.infoLight,
+                                  trendText: 'Issued logs',
+                                ),
                               ),
                             ),
                           ],
@@ -204,20 +239,19 @@ class SalariesScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isSmall = constraints.maxWidth < 500;
+                              final title = Text(
                                 'Issued Payslips Log',
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: context.textPrimary,
                                 ),
-                              ),
-                              
-                              // Filters dropdown
-                              SizedBox(
-                                width: 180,
+                              );
+
+                              final filterDropdown = SizedBox(
+                                width: isSmall ? double.infinity : 180,
                                 child: DropdownButtonFormField<String>(
                                   value: selectedFilter,
                                   dropdownColor: context.cardBg,
@@ -247,12 +281,29 @@ class SalariesScreen extends ConsumerWidget {
                                     }
                                   },
                                 ),
-                              ),
-                            ],
+                              );
+
+                              if (isSmall) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    title,
+                                    const SizedBox(height: 12),
+                                    filterDropdown,
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  title,
+                                  filterDropdown,
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 8),
 
                           // Table of payouts
                           state.filteredSalaries.isEmpty
@@ -265,16 +316,54 @@ class SalariesScreen extends ConsumerWidget {
                                     ),
                                   ),
                                 )
-                              : ListView.separated(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: state.filteredSalaries.length,
-                                  separatorBuilder: (context, index) => const Divider(),
-                                  itemBuilder: (context, index) {
-                                    final record = state.filteredSalaries[index];
-                                    return _SalaryRow(record: record);
+                              : LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final isMobile = constraints.maxWidth < 680;
+                                    if (isMobile) {
+                                      return ListView.separated(
+                                        shrinkWrap: true,
+                                        physics: const NeverScrollableScrollPhysics(),
+                                        itemCount: state.filteredSalaries.length,
+                                        separatorBuilder: (context, index) => Divider(
+                                          height: 1,
+                                          color: context.border.withValues(alpha: 0.35),
+                                        ),
+                                        itemBuilder: (context, index) {
+                                          final record = state.filteredSalaries[index];
+                                          return _SalaryRow(record: record, isMobile: true);
+                                        },
+                                      );
+                                    }
+
+                                    final double tableWidth = constraints.maxWidth < 850 ? 850 : constraints.maxWidth;
+                                    return SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: SizedBox(
+                                        width: tableWidth,
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            _buildTableHeader(context),
+                                            const SizedBox(height: 6),
+                                            ListView.separated(
+                                              shrinkWrap: true,
+                                              physics: const NeverScrollableScrollPhysics(),
+                                              itemCount: state.filteredSalaries.length,
+                                              separatorBuilder: (context, index) => Divider(
+                                                height: 1,
+                                                color: context.border.withValues(alpha: 0.35),
+                                              ),
+                                              itemBuilder: (context, index) {
+                                                final record = state.filteredSalaries[index];
+                                                return _SalaryRow(record: record, isMobile: false);
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
                                   },
-                                 ),
+                                ),
                         ],
                       ),
                     ),
@@ -287,28 +376,285 @@ class SalariesScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildTableHeader(BuildContext context) {
+    final headerStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.5,
+      color: context.textSecondary,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: context.scaffoldBg.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.border.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              'EMPLOYEE / PERIOD',
+              style: headerStyle,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              'BASE SALARY',
+              textAlign: TextAlign.right,
+              style: headerStyle,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              'ALLOWANCE',
+              textAlign: TextAlign.right,
+              style: headerStyle,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              'DEDUCTIONS',
+              textAlign: TextAlign.right,
+              style: headerStyle,
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              'NET PAY',
+              textAlign: TextAlign.right,
+              style: headerStyle,
+            ),
+          ),
+          SizedBox(
+            width: 80,
+            child: Text(
+              'ACTIONS',
+              textAlign: TextAlign.center,
+              style: headerStyle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _SalaryRow extends ConsumerWidget {
   final SalaryRecord record;
+  final bool isMobile;
 
-  const _SalaryRow({required this.record});
+  const _SalaryRow({required this.record, this.isMobile = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final canEdit = ref.watch(adminProvider).hasPermission(AppModule.payroll, PermissionAction.edit);
+    final canDelete = ref.watch(adminProvider).hasPermission(AppModule.payroll, PermissionAction.delete);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isWide = constraints.maxWidth > 800;
+    Widget buildMenu() {
+      if (!canEdit && !canDelete) return const SizedBox.shrink();
+      return PopupMenuButton<String>(
+        icon: Icon(Icons.more_vert, size: 18, color: context.textSecondary),
+        color: context.cardBg,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        onSelected: (val) async {
+          if (val == 'print') {
+            _showPayslipPreview(context, ref, record);
+          } else if (val == 'delete') {
+            if (!canDelete) return;
+            final confirm = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Delete Payslip'),
+                content: Text('Are you sure you want to delete payslip log for "${record.employeeName}"? This action cannot be undone.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text('Cancel', style: TextStyle(color: context.textSecondary)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text('Delete', style: TextStyle(color: context.error)),
+                  ),
+                ],
+              ),
+            );
+            if (confirm == true) {
+              ref.read(salariesProvider.notifier).deleteSalary(record.id);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Payslip for "${record.employeeName}" deleted.'),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: context.error,
+                  ),
+                );
+              }
+            }
+          } else if (val == 'edit') {
+            if (!canEdit) return;
+            showDialog(
+              context: context,
+              builder: (context) => _EditPayrollDialog(record: record),
+            );
+          }
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: 'print',
+            child: Row(
+              children: [
+                Icon(Icons.print_outlined, size: 16, color: context.primaryColor),
+                const SizedBox(width: 8),
+                Text('Print Payslip', style: TextStyle(color: context.textPrimary, fontSize: 13)),
+              ],
+            ),
+          ),
+          if (canEdit)
+            PopupMenuItem(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(Icons.edit_outlined, size: 16, color: context.textSecondary),
+                  const SizedBox(width: 8),
+                  Text('Edit Payslip', style: TextStyle(color: context.textPrimary, fontSize: 13)),
+                ],
+              ),
+            ),
+          if (canDelete)
+            PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline, size: 16, color: context.error),
+                  const SizedBox(width: 8),
+                  Text('Delete Log', style: TextStyle(color: context.error, fontSize: 13)),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
 
-          return Row(
+    if (isMobile) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        record.employeeName,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: context.textPrimary,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Period: ${record.payPeriod} • ${record.paymentDate}',
+                        style: TextStyle(color: context.textSecondary, fontSize: 11),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Rs. ${NumberFormat('#,##0').format(record.netPaid)}',
+                      style: TextStyle(
+                        color: context.success,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    _buildPaymentMethodBadge(record.paymentMethod, context),
+                  ],
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: Icon(Icons.print_outlined, size: 19, color: context.primaryColor),
+                  tooltip: 'Print Payslip',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: () => _showPayslipPreview(context, ref, record),
+                ),
+                const SizedBox(width: 2),
+                buildMenu(),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: context.scaffoldBg.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Base: Rs. ${NumberFormat('#,##0').format(record.baseSalary)}',
+                    style: TextStyle(color: context.textSecondary, fontSize: 11),
+                  ),
+                  Text(
+                    'Allowance: +Rs. ${NumberFormat('#,##0').format(record.allowances)}',
+                    style: TextStyle(
+                      color: record.allowances > 0 ? context.success : context.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                  Text(
+                    'Deductions: -Rs. ${NumberFormat('#,##0').format(record.deductions)}',
+                    style: TextStyle(
+                      color: record.deductions > 0 ? context.error : context.textSecondary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(6),
+        onTap: () => _showPayslipPreview(context, ref, record),
+        hoverColor: context.primaryColor.withValues(alpha: 0.04),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
             children: [
-              // Employee Name & Period
+              // Column 1: Employee Name & Period (flex: 3)
               Expanded(
-                flex: 2,
+                flex: 3,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -319,122 +665,491 @@ class _SalaryRow extends ConsumerWidget {
                         color: context.textPrimary,
                         fontSize: 14,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       'Period: ${record.payPeriod} | Paid on ${record.paymentDate}',
                       style: TextStyle(color: context.textSecondary, fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
 
-              // Details (Base, Allowance, Deduction)
-              if (isWide) ...[
-                Expanded(
-                  flex: 3,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildDetailItem('Base Pay', 'Rs. ${record.baseSalary.toStringAsFixed(0)}', context),
-                      _buildDetailItem('Allowance', '+Rs. ${record.allowances.toStringAsFixed(0)}', context, color: context.success),
-                      _buildDetailItem('Deductions', '-Rs. ${record.deductions.toStringAsFixed(0)}', context, color: context.error),
-                    ],
+              // Column 2: Base Salary (flex: 2, right-aligned)
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'Rs. ${NumberFormat('#,##0').format(record.baseSalary)}',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: context.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
-              ],
-
-              // Net Paid Amount
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Rs. ${record.netPaid.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      color: context.success,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    record.paymentMethod,
-                    style: TextStyle(color: context.textMuted, fontSize: 10),
-                  ),
-                ],
               ),
-              const SizedBox(width: 16),
 
-              // Edit / Delete action
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, size: 18, color: context.textSecondary),
-                color: context.cardBg,
-                onSelected: (val) async {
-                  if (val == 'delete') {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Delete Payslip'),
-                        content: Text('Are you sure you want to delete payslip log for "${record.employeeName}"? This action cannot be undone.'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text('Cancel', style: TextStyle(color: context.textSecondary)),
+              // Column 3: Allowances (flex: 2, right-aligned)
+              Expanded(
+                flex: 2,
+                child: Text(
+                  record.allowances > 0
+                      ? '+Rs. ${NumberFormat('#,##0').format(record.allowances)}'
+                      : 'Rs. 0',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: record.allowances > 0 ? context.success : context.textSecondary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+
+              // Column 4: Deductions (flex: 2, right-aligned)
+              Expanded(
+                flex: 2,
+                child: Text(
+                  record.deductions > 0
+                      ? '-Rs. ${NumberFormat('#,##0').format(record.deductions)}'
+                      : 'Rs. 0',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: record.deductions > 0 ? context.error : context.textSecondary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+
+              // Column 5: Net Pay & Payment Method (flex: 2, right-aligned)
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Rs. ${NumberFormat('#,##0').format(record.netPaid)}',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: context.success,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    _buildPaymentMethodBadge(record.paymentMethod, context),
+                  ],
+                ),
+              ),
+
+              // Column 6: Actions (fixed 80, centered)
+              SizedBox(
+                width: 80,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.print_outlined, size: 19, color: context.primaryColor),
+                      tooltip: 'Print Payslip',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      onPressed: () => _showPayslipPreview(context, ref, record),
+                    ),
+                    const SizedBox(width: 4),
+                    buildMenu(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _buildPaymentMethodBadge(String method, BuildContext context) {
+  Color fgColor;
+  Color bgColor;
+  IconData icon;
+  final m = method.toLowerCase();
+
+  if (m.contains('cash')) {
+    fgColor = Colors.green.shade700;
+    bgColor = Colors.green.withValues(alpha: 0.12);
+    icon = Icons.payments_outlined;
+  } else if (m.contains('cheque') || m.contains('chick')) {
+    fgColor = Colors.purple.shade700;
+    bgColor = Colors.purple.withValues(alpha: 0.12);
+    icon = Icons.receipt_long_outlined;
+  } else {
+    fgColor = Colors.blue.shade700;
+    bgColor = Colors.blue.withValues(alpha: 0.12);
+    icon = Icons.account_balance_outlined;
+  }
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+    decoration: BoxDecoration(
+      color: bgColor,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: fgColor.withValues(alpha: 0.3), width: 0.8),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: fgColor),
+        const SizedBox(width: 4),
+        Text(
+          method,
+          style: TextStyle(
+            color: fgColor,
+            fontSize: 10.5,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showPayslipPreview(BuildContext context, WidgetRef ref, SalaryRecord record) {
+  showDialog(
+    context: context,
+    builder: (context) => _PayslipPreviewDialog(record: record),
+  );
+}
+
+class _PayslipPreviewDialog extends ConsumerStatefulWidget {
+  final SalaryRecord record;
+  const _PayslipPreviewDialog({required this.record});
+
+  @override
+  ConsumerState<_PayslipPreviewDialog> createState() => _PayslipPreviewDialogState();
+}
+
+class _PayslipPreviewDialogState extends ConsumerState<_PayslipPreviewDialog> {
+  bool _isGeneratingPdf = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final record = widget.record;
+    final employees = ref.watch(employeesProvider).employees;
+    final emp = employees.where((e) => e.id == record.employeeId).firstOrNull;
+
+    final grossEarnings = record.baseSalary + record.allowances;
+
+    return Dialog(
+      backgroundColor: context.cardBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 580),
+        padding: const EdgeInsets.all(22),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: context.primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.receipt_long_rounded, color: context.primaryColor, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Salary Payslip',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: context.textPrimary,
+                            ),
                           ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text('Delete', style: TextStyle(color: context.error)),
+                          Text(
+                            'Pay Period: ${record.payPeriod}',
+                            style: TextStyle(fontSize: 11, color: context.textSecondary),
                           ),
                         ],
                       ),
-                    );
-                    if (confirm == true) {
-                      ref.read(salariesProvider.notifier).deleteSalary(record.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Payslip for "${record.employeeName}" deleted.'),
-                          behavior: SnackBarBehavior.floating,
-                          backgroundColor: context.error,
-                        ),
-                      );
-                    }
-                  } else if (val == 'edit') {
-                    showDialog(
-                      context: context,
-                      builder: (context) => _EditPayrollDialog(record: record),
-                    );
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Text('Edit Payslip', style: TextStyle(color: context.textPrimary, fontSize: 13)),
+                    ],
                   ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete Log', style: TextStyle(color: context.error, fontSize: 13)),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                    color: context.textSecondary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(),
+              const SizedBox(height: 12),
+
+              // Employee Details & Payment Method Card
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: context.scaffoldBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: context.border),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              record.employeeName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${emp?.designation ?? "Employee"} • ${emp?.department ?? "Operations"}',
+                              style: TextStyle(fontSize: 11, color: context.textSecondary),
+                            ),
+                          ],
+                        ),
+                        _buildPaymentMethodBadge(record.paymentMethod, context),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(height: 1),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildInfoColumn('Disbursed Date', record.paymentDate, context),
+                        _buildInfoColumn('Slip Ref', 'PAY-${record.id.replaceAll('sal_', '')}', context),
+                        _buildInfoColumn('Account', record.accountName.isNotEmpty ? record.accountName : 'Company Account', context),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Earnings & Deductions Tables
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Earnings Column
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.add_circle_outline, size: 14, color: Colors.blue),
+                              SizedBox(width: 6),
+                              Text('EARNINGS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          _buildAmountRow('Base Salary', record.baseSalary, context),
+                          const SizedBox(height: 4),
+                          _buildAmountRow('Allowances', record.allowances, context, isAdd: true),
+                          const Divider(height: 12),
+                          _buildAmountRow('Gross Earnings', grossEarnings, context, isBold: true),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Deductions Column
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.remove_circle_outline, size: 14, color: context.error),
+                              const SizedBox(width: 6),
+                              Text('DEDUCTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: context.error)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          _buildAmountRow('Deductions', record.deductions, context, isSub: true),
+                          const Divider(height: 12),
+                          _buildAmountRow('Total Deductions', record.deductions, context, isBold: true, isError: true),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+
+              // Net Take-Home Pay Box
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: context.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: context.success.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'NET TAKE-HOME PAY',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: context.success,
+                          ),
+                        ),
+                        Text(
+                          'Status: ${record.status.toUpperCase()} • Paid via ${record.paymentMethod}',
+                          style: TextStyle(fontSize: 10, color: context.textSecondary),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Rs. ${record.netPaid.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: context.success,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Close', style: TextStyle(color: context.textSecondary)),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _isGeneratingPdf
+                        ? null
+                        : () async {
+                            setState(() => _isGeneratingPdf = true);
+                            try {
+                              final filePath = await ExportHelper.generatePayslipPdf(
+                                record: record,
+                                employee: emp,
+                              );
+                              await ExportHelper.openFile(filePath);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Payslip for "${record.employeeName}" opened for printing.'),
+                                    backgroundColor: context.success,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error generating PDF: $e'), backgroundColor: context.error),
+                                );
+                              }
+                            } finally {
+                              if (mounted) setState(() => _isGeneratingPdf = false);
+                            }
+                          },
+                    icon: _isGeneratingPdf
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.print, size: 18),
+                    label: Text(_isGeneratingPdf ? 'Generating...' : 'Print / Download PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: context.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
                 ],
               ),
             ],
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildDetailItem(String label, String val, BuildContext context, {Color? color}) {
+  Widget _buildInfoColumn(String label, String value, BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(label, style: TextStyle(fontSize: 10, color: context.textMuted)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: context.textPrimary)),
+      ],
+    );
+  }
+
+  Widget _buildAmountRow(String label, double amount, BuildContext context, {bool isAdd = false, bool isSub = false, bool isBold = false, bool isError = false}) {
+    String prefix = '';
+    if (isAdd && amount > 0) prefix = '+';
+    if (isSub && amount > 0) prefix = '-';
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
         Text(
           label,
-          style: TextStyle(color: context.textMuted, fontSize: 9, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: isBold ? context.textPrimary : context.textSecondary,
+          ),
         ),
         Text(
-          val,
+          '$prefix Rs. ${amount.toStringAsFixed(0)}',
           style: TextStyle(
-            color: color ?? context.textPrimary,
             fontSize: 11,
-            fontWeight: FontWeight.w600,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            color: isError
+                ? context.error
+                : (isAdd ? context.success : (isBold ? context.textPrimary : context.textPrimary)),
           ),
         ),
       ],
@@ -580,6 +1295,7 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final canCreate = ref.watch(adminProvider).hasPermission(AppModule.payroll, PermissionAction.create);
     
     // Fetch active employees & accounts
     final employees = ref.watch(employeesProvider).employees.where((e) => e.status == 'Active').toList();
@@ -588,9 +1304,10 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
     return Dialog(
       backgroundColor: context.cardBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 450,
-        padding: const EdgeInsets.all(24),
+        constraints: const BoxConstraints(maxWidth: 500),
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -641,6 +1358,7 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                 // Employee Select
                 _buildLabel('Select Employee'),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: _selectedEmployeeId,
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textPrimary, fontSize: 13),
@@ -649,7 +1367,7 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                   items: employees.map((emp) {
                     return DropdownMenuItem(
                       value: emp.id,
-                      child: Text(emp.name),
+                      child: Text(emp.name, overflow: TextOverflow.ellipsis),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -672,7 +1390,8 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                         _selectedEmployeeId = val;
                         _selectedEmployeeName = emp.name;
                         _baseSalary = emp.baseSalary;
-                        _paymentMethod = emp.paymentMethod;
+                        final validMethods = ['Bank Transfer', 'Cash', 'Cheque'];
+                        _paymentMethod = validMethods.contains(emp.paymentMethod) ? emp.paymentMethod : 'Bank Transfer';
                         _advanceDeduction = deductionVal;
                         _hasActiveAdvance = activeAdv;
                       });
@@ -682,9 +1401,57 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                 ),
                 const SizedBox(height: 16),
 
+                // Payment Method (Required)
+                _buildLabel('Payment Method', isRequired: true),
+                DropdownButtonFormField<String>(
+                  value: ['Bank Transfer', 'Cash', 'Cheque'].contains(_paymentMethod) ? _paymentMethod : 'Bank Transfer',
+                  dropdownColor: context.cardBg,
+                  style: TextStyle(color: context.textPrimary, fontSize: 13),
+                  decoration: _buildInputDecoration('Select Payment Method'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Bank Transfer',
+                      child: Row(
+                        children: [
+                          Icon(Icons.account_balance_outlined, size: 16, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('Bank Transfer'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Cash',
+                      child: Row(
+                        children: [
+                          Icon(Icons.payments_outlined, size: 16, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Cash'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Cheque',
+                      child: Row(
+                        children: [
+                          Icon(Icons.receipt_long_outlined, size: 16, color: Colors.purple),
+                          SizedBox(width: 8),
+                          Text('Cheque'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _paymentMethod = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 16),
+
                 // Payment Account Select (Required)
                 _buildLabel('Payment Account', isRequired: true),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: _selectedAccountId,
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textPrimary, fontSize: 13),
@@ -694,7 +1461,7 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                     final scopeLabel = acc.accountScope.isNotEmpty ? ' (${acc.accountScope})' : '';
                     return DropdownMenuItem(
                       value: acc.id,
-                      child: Text('${acc.name}$scopeLabel • Rs. ${acc.balance.toStringAsFixed(0)}'),
+                      child: Text('${acc.name}$scopeLabel • Rs. ${acc.balance.toStringAsFixed(0)}', overflow: TextOverflow.ellipsis),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -771,12 +1538,14 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Monthly Attendance Overview',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: context.textSecondary,
+                            Flexible(
+                              child: Text(
+                                'Monthly Attendance Overview',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: context.textSecondary,
+                                ),
                               ),
                             ),
                             if (_isLoadingAttendance)
@@ -923,35 +1692,37 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
                       style: TextButton.styleFrom(foregroundColor: context.textSecondary),
                       child: const Text('Cancel'),
                     ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate() && _selectedEmployeeId != null && _selectedAccountId != null) {
-                          final slip = SalaryRecord(
-                            id: 'sal_${DateTime.now().millisecondsSinceEpoch}',
-                            employeeId: _selectedEmployeeId!,
-                            employeeName: _selectedEmployeeName!,
-                            payPeriod: _payPeriod,
-                            baseSalary: _baseSalary,
-                            allowances: double.tryParse(_allowancesController.text) ?? 0.0,
-                            deductions: (double.tryParse(_deductionsController.text) ?? 0.0) + _advanceDeduction,
-                            netPaid: netSalary,
-                            paymentDate: DateTime.now().toIso8601String().substring(0, 10),
-                            status: 'Paid',
-                            paymentMethod: _paymentMethod,
-                            accountId: _selectedAccountId!,
-                            accountName: _selectedAccountName!,
-                          );
-                          Navigator.of(context).pop(slip);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: context.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    if (canCreate) ...[
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_formKey.currentState!.validate() && _selectedEmployeeId != null && _selectedAccountId != null) {
+                            final slip = SalaryRecord(
+                              id: 'sal_${DateTime.now().millisecondsSinceEpoch}',
+                              employeeId: _selectedEmployeeId!,
+                              employeeName: _selectedEmployeeName!,
+                              payPeriod: _payPeriod,
+                              baseSalary: _baseSalary,
+                              allowances: double.tryParse(_allowancesController.text) ?? 0.0,
+                              deductions: (double.tryParse(_deductionsController.text) ?? 0.0) + _advanceDeduction,
+                              netPaid: netSalary,
+                              paymentDate: DateTime.now().toIso8601String().substring(0, 10),
+                              status: 'Paid',
+                              paymentMethod: _paymentMethod,
+                              accountId: _selectedAccountId!,
+                              accountName: _selectedAccountName!,
+                            );
+                            Navigator.of(context).pop(slip);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: context.primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Pay Out & Log'),
                       ),
-                      child: const Text('Pay Out & Log'),
-                    ),
+                    ],
                   ],
                 ),
               ],
@@ -967,13 +1738,16 @@ class _ProcessPayrollDialogState extends ConsumerState<_ProcessPayrollDialog> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: context.textSecondary,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: context.textSecondary,
+              ),
             ),
           ),
           if (isRequired)
@@ -1028,6 +1802,7 @@ class _EditPayrollDialogState extends ConsumerState<_EditPayrollDialog> {
   late String _paymentMethod;
   late final TextEditingController _allowancesController;
   late final TextEditingController _deductionsController;
+  late final List<String> _payPeriodOptions;
 
   @override
   void initState() {
@@ -1037,6 +1812,16 @@ class _EditPayrollDialogState extends ConsumerState<_EditPayrollDialog> {
     _paymentMethod = widget.record.paymentMethod;
     _allowancesController = TextEditingController(text: widget.record.allowances.toStringAsFixed(0));
     _deductionsController = TextEditingController(text: widget.record.deductions.toStringAsFixed(0));
+
+    final now = DateTime.now();
+    final dynamicPeriods = List.generate(24, (i) {
+      final d = DateTime(now.year, now.month - i, 1);
+      return DateFormat('MMMM yyyy').format(d);
+    });
+    if (!dynamicPeriods.contains(_payPeriod) && _payPeriod.isNotEmpty) {
+      dynamicPeriods.insert(0, _payPeriod);
+    }
+    _payPeriodOptions = dynamicPeriods;
   }
 
   @override
@@ -1059,9 +1844,10 @@ class _EditPayrollDialogState extends ConsumerState<_EditPayrollDialog> {
     return Dialog(
       backgroundColor: context.cardBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 450,
-        padding: const EdgeInsets.all(24),
+        constraints: const BoxConstraints(maxWidth: 500),
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -1103,10 +1889,9 @@ class _EditPayrollDialogState extends ConsumerState<_EditPayrollDialog> {
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textPrimary, fontSize: 13),
                   decoration: _buildInputDecoration(''),
-                  items: const [
-                    DropdownMenuItem(value: 'May 2026', child: Text('May 2026')),
-                    DropdownMenuItem(value: 'April 2026', child: Text('April 2026')),
-                  ],
+                  items: _payPeriodOptions.map((period) {
+                    return DropdownMenuItem(value: period, child: Text(period));
+                  }).toList(),
                   onChanged: (val) {
                     if (val != null) setState(() => _payPeriod = val);
                   },
@@ -1175,14 +1960,41 @@ class _EditPayrollDialogState extends ConsumerState<_EditPayrollDialog> {
                 // Payment Method
                 _buildLabel('Payment Method'),
                 DropdownButtonFormField<String>(
-                  value: _paymentMethod,
+                  value: ['Bank Transfer', 'Cash', 'Cheque'].contains(_paymentMethod) ? _paymentMethod : 'Bank Transfer',
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textPrimary, fontSize: 13),
                   decoration: _buildInputDecoration(''),
                   items: const [
-                    DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer')),
-                    DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                    DropdownMenuItem(value: 'Cheque', child: Text('Cheque')),
+                    DropdownMenuItem(
+                      value: 'Bank Transfer',
+                      child: Row(
+                        children: [
+                          Icon(Icons.account_balance_outlined, size: 16, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('Bank Transfer'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Cash',
+                      child: Row(
+                        children: [
+                          Icon(Icons.payments_outlined, size: 16, color: Colors.green),
+                          SizedBox(width: 8),
+                          Text('Cash'),
+                        ],
+                      ),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Cheque',
+                      child: Row(
+                        children: [
+                          Icon(Icons.receipt_long_outlined, size: 16, color: Colors.purple),
+                          SizedBox(width: 8),
+                          Text('Cheque'),
+                        ],
+                      ),
+                    ),
                   ],
                   onChanged: (val) {
                     if (val != null) setState(() => _paymentMethod = val);
@@ -1229,35 +2041,37 @@ class _EditPayrollDialogState extends ConsumerState<_EditPayrollDialog> {
                       style: TextButton.styleFrom(foregroundColor: context.textSecondary),
                       child: const Text('Cancel'),
                     ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          final updated = widget.record.copyWith(
-                            payPeriod: _payPeriod,
-                            allowances: double.tryParse(_allowancesController.text) ?? 0.0,
-                            deductions: double.tryParse(_deductionsController.text) ?? 0.0,
-                            netPaid: netSalary,
-                            paymentMethod: _paymentMethod,
-                          );
-                          ref.read(salariesProvider.notifier).updateSalary(updated);
-                          Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Payroll details updated successfully.'),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: context.success,
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: context.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    if (ref.watch(adminProvider).hasPermission(AppModule.payroll, PermissionAction.edit)) ...[
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_formKey.currentState!.validate()) {
+                            final updated = widget.record.copyWith(
+                              payPeriod: _payPeriod,
+                              allowances: double.tryParse(_allowancesController.text) ?? 0.0,
+                              deductions: double.tryParse(_deductionsController.text) ?? 0.0,
+                              netPaid: netSalary,
+                              paymentMethod: _paymentMethod,
+                            );
+                            ref.read(salariesProvider.notifier).updateSalary(updated);
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Payroll details updated successfully.'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: context.success,
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: context.primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Save Changes'),
                       ),
-                      child: const Text('Save Changes'),
-                    ),
+                    ],
                   ],
                 ),
               ],

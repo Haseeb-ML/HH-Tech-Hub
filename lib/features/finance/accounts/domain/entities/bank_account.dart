@@ -25,6 +25,27 @@ class BankAccount {
     required this.status,
   });
 
+  bool get isPersonal =>
+      accountScope.toLowerCase() == 'personal' ||
+      id.toLowerCase().contains('personal') ||
+      name.toLowerCase().contains('personal');
+
+  bool get isCompany => !isPersonal;
+
+  String get ledgerOpeningDate {
+    if (openingBalanceDate.isNotEmpty) {
+      return openingBalanceDate;
+    }
+
+    final match = RegExp(r'\d{12,14}').firstMatch(id);
+    final timestamp = match == null ? null : int.tryParse(match.group(0)!);
+    if (timestamp != null && timestamp > 0 && timestamp < 8640000000000000) {
+      return DateTime.fromMillisecondsSinceEpoch(timestamp).toIso8601String();
+    }
+
+    return DateTime.fromMillisecondsSinceEpoch(0).toIso8601String();
+  }
+
   BankAccount copyWith({
     String? id,
     String? name,
@@ -70,17 +91,27 @@ class BankAccount {
   }
 
   factory BankAccount.fromMap(Map<String, dynamic> map) {
+    final id = map['id']?.toString() ?? '';
+    final name = map['name']?.toString() ?? '';
+    final rawScope = map['accountScope']?.toString().trim() ?? '';
+    final isPersonal = rawScope.toLowerCase() == 'personal' ||
+        id.toLowerCase().contains('personal') ||
+        name.toLowerCase().contains('personal');
+    final bal = (map['balance'] as num?)?.toDouble() ?? 0.0;
+    final openingBal = (map['openingBalance'] as num?)?.toDouble() ?? 0.0;
+
     return BankAccount(
-      id: map['id'] ?? '',
-      name: map['name'] ?? '',
+      id: id,
+      name: name,
       type: map['type'] ?? 'Bank',
       accountNumber: map['accountNumber'] ?? '',
       bankName: map['bankName'] ?? '',
-      balance: (map['balance'] as num?)?.toDouble() ?? 0.0,
-      openingBalance: (map['openingBalance'] as num?)?.toDouble() ?? 0.0,
+      balance: bal,
+      openingBalance: openingBal > 0 ? openingBal : (bal > 0 ? bal : 0.0),
       openingBalanceDate: map['openingBalanceDate'] ?? '',
-      accountScope: map['accountScope'] ?? 'Company',
-      ownerName: map['ownerName'] ?? '',
+      accountScope: isPersonal ? 'Personal' : 'Company',
+      ownerName: map['ownerName'] ??
+          (isPersonal ? name.replaceAll(RegExp(r'Personal\s*Account', caseSensitive: false), '').trim() : ''),
       status: map['status'] ?? 'Active',
     );
   }

@@ -8,6 +8,8 @@ import '../../../ledger/presentation/providers/ledger_provider.dart';
 import '../../../ledger/domain/entities/ledger_entry.dart';
 import '../../../../projects/projects/presentation/providers/projects_provider.dart';
 import '../../../../clients/clients/presentation/providers/clients_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class IncomeState {
   final List<IncomeRecord> incomes;
@@ -160,6 +162,12 @@ class IncomeNotifier extends Notifier<IncomeState> {
   }
 
   Future<void> addIncome(IncomeRecord record) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.income, PermissionAction.create)) {
+      throw Exception('Access Denied: You do not have permission to create income records.');
+    }
+
+    record = record.copyWith(amount: record.amount.abs());
     state = state.copyWith(isLoading: true);
     await _repository.addIncome(record);
 
@@ -211,21 +219,23 @@ class IncomeNotifier extends Notifier<IncomeState> {
     }
 
     String isoDate = record.date;
-    final idNumStr = record.id.replaceAll(RegExp(r'[^0-9]'), '');
-    if (idNumStr.length > 10) {
-      final ms = int.tryParse(idNumStr);
-      if (ms != null) {
-        final dt = DateTime.fromMillisecondsSinceEpoch(ms);
-        if (isoDate.length == 10) {
-          isoDate += dt.toIso8601String().substring(10);
-        } else if (isoDate.endsWith('T00:00:00.000') || isoDate.endsWith('T00:00:00') || isoDate.endsWith(':00.000')) {
-          final p = DateTime.tryParse(isoDate);
-          if (p != null && p.second == 0 && p.millisecond == 0) {
-            isoDate = DateTime(p.year, p.month, p.day, p.hour, p.minute, dt.second, dt.millisecond).toIso8601String();
+    try {
+      final match = RegExp(r'\d{12,14}').firstMatch(record.id);
+      if (match != null) {
+        final ms = int.tryParse(match.group(0)!);
+        if (ms != null && ms > 0 && ms < 8640000000000000) {
+          final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+          if (isoDate.length == 10) {
+            isoDate += dt.toIso8601String().substring(10);
+          } else if (isoDate.endsWith('T00:00:00.000') || isoDate.endsWith('T00:00:00') || isoDate.endsWith(':00.000')) {
+            final p = DateTime.tryParse(isoDate);
+            if (p != null && p.second == 0 && p.millisecond == 0) {
+              isoDate = DateTime(p.year, p.month, p.day, p.hour, p.minute, dt.second, dt.millisecond).toIso8601String();
+            }
           }
         }
       }
-    }
+    } catch (_) {}
 
     // 4. Add General Ledger entry (Debit / Inflow)
     String paymentTypeText = record.projectPaymentType ?? 'Payment';
@@ -261,11 +271,24 @@ class IncomeNotifier extends Notifier<IncomeState> {
     );
     await ref.read(ledgerProvider.notifier).addLedgerEntry(ledgerEntry);
 
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Added income record: ${record.description} (Amount: ${record.amount}, Client: ${record.clientName})',
+      module: 'Finance',
+    );
+
     final updated = await _repository.getIncomes();
     state = state.copyWith(incomes: updated, isLoading: false);
+    await ref.read(accountsProvider.notifier).syncBalancesFromDb();
   }
 
   Future<void> updateIncome(IncomeRecord oldRecord, IncomeRecord newRecord) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.income, PermissionAction.edit)) {
+      throw Exception('Access Denied: You do not have permission to edit income records.');
+    }
+
+    oldRecord = oldRecord.copyWith(amount: oldRecord.amount.abs());
+    newRecord = newRecord.copyWith(amount: newRecord.amount.abs());
     state = state.copyWith(isLoading: true);
     await _repository.updateIncome(newRecord);
 
@@ -384,11 +407,22 @@ class IncomeNotifier extends Notifier<IncomeState> {
     );
     await ref.read(ledgerProvider.notifier).updateLedgerEntry(ledgerEntry);
 
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated income record: ${newRecord.description} (Amount: ${oldRecord.amount} → ${newRecord.amount}, Client: ${newRecord.clientName})',
+      module: 'Finance',
+    );
+
     final updated = await _repository.getIncomes();
     state = state.copyWith(incomes: updated, isLoading: false);
+    await ref.read(accountsProvider.notifier).syncBalancesFromDb();
   }
 
   Future<void> deleteIncome(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.income, PermissionAction.delete)) {
+      throw Exception('Access Denied: You do not have permission to delete income records.');
+    }
+
     final list = List<IncomeRecord>.from(state.incomes);
     final recordIndex = list.indexWhere((i) => i.id == id);
     if (recordIndex == -1) return;
@@ -442,8 +476,14 @@ class IncomeNotifier extends Notifier<IncomeState> {
     // 5. Delete income record
     await _repository.deleteIncome(id);
 
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted income record: ${record.description} (Amount: ${record.amount}, Client: ${record.clientName})',
+      module: 'Finance',
+    );
+
     final updated = await _repository.getIncomes();
     state = state.copyWith(incomes: updated, isLoading: false);
+    await ref.read(accountsProvider.notifier).syncBalancesFromDb();
   }
 }
 

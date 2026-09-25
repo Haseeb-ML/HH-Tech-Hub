@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
 import 'package:software_house_erp/features/finance/ledger/domain/entities/ledger_entry.dart';
 import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 enum PersonalTransactionType { deposit, transfer, expense }
 enum PersonalTransferDirection { companyToPersonal, personalToCompany }
@@ -31,6 +33,11 @@ Future<void> recordPersonalAccountTransaction(
   WidgetRef ref,
   PersonalAccountTransaction transaction,
 ) async {
+  final adminState = ref.read(adminProvider);
+  if (!adminState.hasPermission(AppModule.accounts, PermissionAction.create)) {
+    throw StateError('Access Denied: You do not have permission to add transactions.');
+  }
+
   final accounts = ref.read(accountsProvider).accounts;
   final personal = accounts.firstWhere((a) => a.id == transaction.personalAccountId);
   final accountNotifier = ref.read(accountsProvider.notifier);
@@ -94,10 +101,10 @@ Future<void> recordPersonalAccountTransaction(
   await accountNotifier.adjustBalance(source.id, -transaction.amount);
   await accountNotifier.adjustBalance(destination.id, transaction.amount);
 
-    final sourceLabel = source.accountScope == 'Personal'
+    final sourceLabel = source.isPersonal
       ? '${source.ownerName.isNotEmpty ? source.ownerName : source.name} Personal Account'
       : source.name;
-    final destinationLabel = destination.accountScope == 'Personal'
+    final destinationLabel = destination.isPersonal
       ? '${destination.ownerName.isNotEmpty ? destination.ownerName : destination.name} Personal Account'
       : destination.name;
     final sourceDescription = transaction.description.isEmpty
@@ -177,8 +184,8 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
   @override
   Widget build(BuildContext context) {
     final accounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
-    final personalAccounts = accounts.where((a) => a.accountScope == 'Personal').toList();
-    final companyAccounts = accounts.where((a) => a.accountScope != 'Personal').toList();
+    final personalAccounts = accounts.where((a) => a.isPersonal).toList();
+    final companyAccounts = accounts.where((a) => a.isCompany).toList();
     final personalId = personalAccounts.any((a) => a.id == _personalAccountId)
         ? _personalAccountId
         : personalAccounts.firstOrNull?.id;
@@ -193,8 +200,9 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
 
     return AlertDialog(
       title: Text(dialogTitle),
-      content: SizedBox(
-        width: 480,
+      content: Container(
+        width: MediaQuery.of(context).size.width < 500 ? double.infinity : 480,
+        constraints: const BoxConstraints(maxWidth: 480),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -202,6 +210,7 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<PersonalTransactionType>(
+                  isExpanded: true,
                   initialValue: _type,
                   decoration: const InputDecoration(labelText: 'Transaction Type'),
                   items: const [
@@ -219,18 +228,21 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
                 ),
                 if (_type == PersonalTransactionType.transfer) ...[
                   const SizedBox(height: 12),
-                  SegmentedButton<PersonalTransferDirection>(
-                    segments: const [
-                      ButtonSegment(
-                          value: PersonalTransferDirection.companyToPersonal,
-                          label: Text('Company to Personal')),
-                      ButtonSegment(
-                          value: PersonalTransferDirection.personalToCompany,
-                          label: Text('Personal to Company')),
-                    ],
-                    selected: {_direction},
-                    onSelectionChanged: (value) =>
-                        setState(() => _direction = value.first),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: SegmentedButton<PersonalTransferDirection>(
+                      segments: const [
+                        ButtonSegment(
+                            value: PersonalTransferDirection.companyToPersonal,
+                            label: Text('Company to Personal')),
+                        ButtonSegment(
+                            value: PersonalTransferDirection.personalToCompany,
+                            label: Text('Personal to Company')),
+                      ],
+                      selected: {_direction},
+                      onSelectionChanged: (value) =>
+                          setState(() => _direction = value.first),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(

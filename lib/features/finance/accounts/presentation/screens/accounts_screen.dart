@@ -17,6 +17,9 @@ import '../../../loans/domain/entities/loan_record.dart';
 import '../../../ledger/presentation/providers/ledger_provider.dart';
 import '../../../../../../core/utils/export_helper.dart';
 import 'package:intl/intl.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
 
@@ -24,6 +27,8 @@ class AccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
     final state = ref.watch(accountsProvider);
+    final adminState = ref.watch(adminProvider);
+    final canCreateAccount = adminState.hasPermission(AppModule.accounts, PermissionAction.create);
     final theme = Theme.of(context);
 
     // Watch related providers for accurate balance calculation
@@ -32,57 +37,45 @@ class AccountsScreen extends ConsumerWidget {
     final loans = ref.watch(loansProvider).loans;
     final ledgerEntries = ref.watch(ledgerProvider).entries;
 
-    // Calculate metrics
-    final companyAccounts = state.accounts.where((a) => a.accountScope != 'Personal').toList();
+    // Calculate metrics (Company Accounts only)
+    final companyAccounts = state.accounts.where((a) => a.isCompany).toList();
     final totalAccounts = companyAccounts.length;
     
-    double totalBalance = 0.0;
-    for (final acc in companyAccounts) {
-      final accIncomes = incomes.where((i) => i.accountId == acc.id).fold(0.0, (s, i) => s + i.amount);
-      final borrowedLoans = loans.where((l) => (l.accountId == acc.id || l.resolvedAccountId == acc.id) && l.type == 'Borrowed');
-      final loanBorrowedInflow = borrowedLoans.fold(0.0, (s, l) => s + l.amount);
-      final lentRepaymentsInflow = loans.where((l) => l.type == 'Lent').expand((l) => l.repayments).where((r) => r.accountId == acc.id).fold(0.0, (s, r) => s + r.amount);
-      final totalInflow = accIncomes + loanBorrowedInflow + lentRepaymentsInflow;
-        final transferInflow = ledgerEntries
-          .where((entry) => entry.accountId == acc.id && entry.category == 'Account Transfer' && entry.type == 'Debit')
-          .fold<double>(0.0, (sum, entry) => sum + entry.amount);
-
-      final accExpenses = expenses.where((e) => e.accountId == acc.id).fold(0.0, (s, e) => s + e.amount);
-      final lentLoans = loans.where((l) => (l.accountId == acc.id || l.resolvedAccountId == acc.id) && l.type == 'Lent');
-      final loanLentOutflow = lentLoans.fold(0.0, (s, l) => s + l.amount);
-      final borrowedRepaymentsOutflow = loans.where((l) => l.type == 'Borrowed').expand((l) => l.repayments).where((r) => r.accountId == acc.id).fold(0.0, (s, r) => s + r.amount);
-        final transferOutflow = ledgerEntries
-          .where((entry) => entry.accountId == acc.id && entry.category == 'Account Transfer' && entry.type == 'Credit')
-          .fold<double>(0.0, (sum, entry) => sum + entry.amount);
-        final totalOutflow = accExpenses + loanLentOutflow + borrowedRepaymentsOutflow;
-
-        totalBalance += (acc.openingBalance + totalInflow + transferInflow - totalOutflow - transferOutflow);
-    }
-    
-    final bankAccountsCount = state.accounts.where((acc) => acc.type == 'Bank').length;
-    final cashAccountsCount = state.accounts.where((acc) => acc.type == 'Cash').length;
+    final totalBalance = companyAccounts.fold<double>(
+      0.0,
+      (sum, acc) => sum + calculateAuthoritativeAccountBalance(
+        account: acc,
+        incomes: incomes,
+        expenses: expenses,
+        loans: loans,
+        ledgerEntries: ledgerEntries,
+      ),
+    );
+    final bankAccountsCount = companyAccounts.where((acc) => acc.type == 'Bank').length;
+    final cashAccountsCount = companyAccounts.where((acc) => acc.type == 'Cash').length;
 
     final width = MediaQuery.of(context).size.width;
-    int crossAxisCount = width >= 1200 ? 3 : (width >= 800 ? 2 : 1);
+    final isMob = width < 600;
+    int crossAxisCount = isMob ? 1 : (width >= 1200 ? 3 : 2);
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
-      body: state.isLoading && state.accounts.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                const FinanceSubNav(activeRoute: '/finance/accounts'),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+      body: Column(
+        children: [
+          const FinanceSubNav(activeRoute: '/finance/accounts'),
+          Expanded(
+            child: (state.isLoading && state.accounts.isEmpty)
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: EdgeInsets.all(width < 600 ? 12 : 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Title + Add Button Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
+                        // Title + Add Button Row (responsive)
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMob = constraints.maxWidth < 600;
+                            final titleCol = Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -101,69 +94,73 @@ class AccountsScreen extends ConsumerWidget {
                                   ),
                                 ),
                               ],
-                            ),
-                            Row(
+                            );
+                            final actionsRow = ElevatedButton.icon(
+                              onPressed: () async {
+                                final result = await showDialog<BankAccount>(
+                                  context: context,
+                                  builder: (context) => const AddEditAccountDialog(
+                                    defaultScope: 'Company',
+                                    isScopeFixed: true,
+                                  ),
+                                );
+                                if (result != null) {
+                                  ref.read(accountsProvider.notifier).addAccount(result);
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('${tr("Account")} "${result.name}" ${tr("added successfully.")}'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: context.success,
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Add Account'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: context.primaryColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                            );
+                            if (isMob) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  titleCol,
+                                  if (canCreateAccount) ...[
+                                    const SizedBox(height: 12),
+                                    actionsRow,
+                                  ],
+                                ],
+                              );
+                            }
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                OutlinedButton.icon(
-                                  onPressed: () => _showExportBankStatementDialog(context, ref),
-                                  icon: const Icon(Icons.download, size: 18),
-                                  label: const Text('Export Data'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: context.primaryColor,
-                                    side: BorderSide(color: context.primaryColor),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                ElevatedButton.icon(
-                                  onPressed: () async {
-                                    final result = await showDialog<BankAccount>(
-                                      context: context,
-                                      builder: (context) => const AddEditAccountDialog(
-                                        defaultScope: 'Company',
-                                        isScopeFixed: true,
-                                      ),
-                                    );
-                                    if (result != null) {
-                                      ref.read(accountsProvider.notifier).addAccount(result);
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('${tr("Account")} "${result.name}" ${tr("added successfully.")}'),
-                                          behavior: SnackBarBehavior.floating,
-                                          backgroundColor: context.success,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  icon: const Icon(Icons.add, size: 18),
-                                  label: const Text('Add Account'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: context.primaryColor,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  ),
-                                ),
+                                titleCol,
+                                if (canCreateAccount) actionsRow,
                               ],
-                            ),
-                          ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
 
                         // Metrics Cards
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final gridCrossCount = constraints.maxWidth >= 1200 ? 4 : (constraints.maxWidth >= 600 ? 2 : 1);
+                            final isMobile = constraints.maxWidth < 600;
+                            final gridCrossCount = constraints.maxWidth >= 1200 ? 4 : 2;
                             return GridView(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: gridCrossCount,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: gridCrossCount == 4 ? 1.6 : 2.5,
+                                crossAxisSpacing: isMobile ? 10 : 16,
+                                mainAxisSpacing: isMobile ? 10 : 16,
+                                childAspectRatio: gridCrossCount >= 4 ? 1.6 : (isMobile ? 0.85 : 1.7),
                               ),
                               children: [
                                 StatCard(
@@ -204,73 +201,20 @@ class AccountsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 24),
 
-                        // Search and Filters Bar
-                        GlassCard(
+                        // Search and Filters Bar (Single row with animated auto-expanding search & filter icon on right)
+                        const GlassCard(
                           child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                // Search
-                                Expanded(
-                                  child: Container(
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: TextField(
-                                      onChanged: (val) => ref.read(accountsProvider.notifier).setSearchQuery(val),
-                                      style: TextStyle(color: context.textPrimary),
-                                      decoration: InputDecoration(
-                                        hintText: tr('Search by account name or bank...'),
-                                        hintStyle: TextStyle(fontSize: 13, color: context.textMuted),
-                                        prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
-                                        border: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-
-                                // Type Filter
-                                Container(
-                                  height: 40,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  decoration: BoxDecoration(
-                                    color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: context.border, width: 1),
-                                  ),
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<String>(
-                                      value: state.typeFilter,
-                                      dropdownColor: context.cardBg,
-                                      style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                                      items: ['All', tr('Cash'), 'Bank', 'Wallet'].map((t) {
-                                        return DropdownMenuItem<String>(
-                                          value: t,
-                                          child: Text('${tr("Type")}: $t'),
-                                        );
-                                      }).toList(),
-                                      onChanged: (val) {
-                                        if (val != null) {
-                                          ref.read(accountsProvider.notifier).setTypeFilter(val);
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                            padding: EdgeInsets.all(12),
+                            child: _AccountsSearchAndFilterBar(),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
 
-                        // Accounts Grid (Company accounts only)
+                        // Accounts Grid (Company Accounts Only)
                         (() {
-                          final displayedAccounts = state.filteredAccounts.where((a) => a.accountScope != 'Personal').toList();
+                          final displayedAccounts = state.filteredAccounts
+                              .where((a) => a.isCompany)
+                              .toList();
                           return displayedAccounts.isEmpty
                               ? _buildEmptyState(context)
                               : GridView.builder(
@@ -278,9 +222,9 @@ class AccountsScreen extends ConsumerWidget {
                                   physics: const NeverScrollableScrollPhysics(),
                                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: crossAxisCount,
-                                    crossAxisSpacing: 16,
-                                    mainAxisSpacing: 16,
-                                    childAspectRatio: 1.5,
+                                    crossAxisSpacing: isMob ? 10 : 16,
+                                    mainAxisSpacing: isMob ? 10 : 16,
+                                    childAspectRatio: isMob ? 1.55 : 1.5,
                                   ),
                                   itemCount: displayedAccounts.length,
                                   itemBuilder: (context, index) {
@@ -297,6 +241,7 @@ class AccountsScreen extends ConsumerWidget {
             ),
     );
   }
+
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
@@ -330,6 +275,502 @@ class AccountsScreen extends ConsumerWidget {
   }
 }
 
+class _AccountsSearchAndFilterBar extends ConsumerStatefulWidget {
+  const _AccountsSearchAndFilterBar();
+
+  @override
+  ConsumerState<_AccountsSearchAndFilterBar> createState() =>
+      _AccountsSearchAndFilterBarState();
+}
+
+class _AccountsSearchAndFilterBarState
+    extends ConsumerState<_AccountsSearchAndFilterBar> {
+  final FocusNode _searchFocusNode = FocusNode();
+  late final TextEditingController _searchController;
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialQuery = ref.read(accountsProvider).searchQuery;
+    _searchController = TextEditingController(text: initialQuery);
+    _searchFocusNode.addListener(() {
+      if (mounted) {
+        setState(() {
+          _isFocused = _searchFocusNode.hasFocus;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _showFilterBottomSheet(BuildContext context, String currentFilter) {
+    final tr = ref.read(translationProvider);
+    final state = ref.read(accountsProvider);
+    final theme = Theme.of(context);
+
+    final bankCount = state.accounts
+        .where((a) => a.isCompany && a.type == 'Bank')
+        .length;
+    final cashCount = state.accounts
+        .where((a) => a.isCompany && a.type == 'Cash')
+        .length;
+    final walletCount = state.accounts
+        .where((a) => a.isCompany && a.type == 'Wallet')
+        .length;
+    final allCount =
+        state.accounts.where((a) => a.isCompany).length;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final activeType = ref.watch(accountsProvider).typeFilter;
+
+            Widget buildFilterOption({
+              required String typeValue,
+              required String label,
+              required IconData icon,
+              required Color color,
+              required int count,
+            }) {
+              final isSelected = activeType == typeValue;
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    ref.read(accountsProvider.notifier).setTypeFilter(typeValue);
+                    Navigator.pop(sheetContext);
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? color.withValues(alpha: 0.12)
+                          : (context.isDarkMode
+                              ? const Color(0xFF1E293B)
+                              : Colors.grey.shade50),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? color : context.border,
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(icon, size: 18, color: color),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.w600,
+                                  fontSize: 14,
+                                  color: context.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$count ${count == 1 ? "account" : "accounts"}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: context.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          Icon(Icons.check_circle_rounded,
+                              color: color, size: 20)
+                        else
+                          Icon(Icons.circle_outlined,
+                              color: context.textMuted, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: context.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color:
+                                    context.primaryColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.tune_rounded,
+                                  size: 20, color: context.primaryColor),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Filter by Type',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: context.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  'Select account category',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: context.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        if (activeType != 'All')
+                          TextButton.icon(
+                            onPressed: () {
+                              ref
+                                  .read(accountsProvider.notifier)
+                                  .setTypeFilter('All');
+                              Navigator.pop(sheetContext);
+                            },
+                            icon: const Icon(Icons.refresh, size: 14),
+                            label: const Text('Reset',
+                                style: TextStyle(fontSize: 12)),
+                            style: TextButton.styleFrom(
+                              foregroundColor: context.primaryColor,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    buildFilterOption(
+                      typeValue: 'All',
+                      label: tr('All Accounts'),
+                      icon: Icons.apps_rounded,
+                      color: context.primaryColor,
+                      count: allCount,
+                    ),
+                    buildFilterOption(
+                      typeValue: 'Bank',
+                      label: tr('Bank Accounts'),
+                      icon: Icons.account_balance_outlined,
+                      color: Colors.blue,
+                      count: bankCount,
+                    ),
+                    buildFilterOption(
+                      typeValue: 'Cash',
+                      label: tr('Cash Accounts'),
+                      icon: Icons.wallet_outlined,
+                      color: Colors.teal,
+                      count: cashCount,
+                    ),
+                    buildFilterOption(
+                      typeValue: 'Wallet',
+                      label: tr('Digital Wallets'),
+                      icon: Icons.phone_android_outlined,
+                      color: Colors.purple,
+                      count: walletCount,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tr = ref.watch(translationProvider);
+    final state = ref.watch(accountsProvider);
+    final isFilterActive = state.typeFilter != 'All';
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final totalWidth = constraints.maxWidth;
+        final isMobile = totalWidth < 600;
+
+        if (!isMobile) {
+          final searchWidget = Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: context.border, width: 1),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (val) => ref.read(accountsProvider.notifier).setSearchQuery(val),
+              style: TextStyle(color: context.textPrimary),
+              decoration: InputDecoration(
+                hintText: tr('Search by account name or bank...'),
+                hintStyle: TextStyle(fontSize: 13, color: context.textMuted),
+                prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
+          );
+
+          final typeWidget = Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: context.border, width: 1),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: state.typeFilter,
+                dropdownColor: context.cardBg,
+                style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                items: ['All', tr('Cash'), 'Bank', 'Wallet'].map((t) {
+                  return DropdownMenuItem<String>(
+                    value: t,
+                    child: Text('${tr("Type")}: $t'),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(accountsProvider.notifier).setTypeFilter(val);
+                  }
+                },
+              ),
+            ),
+          );
+
+          return Row(
+            children: [
+              Expanded(child: searchWidget),
+              const SizedBox(width: 16),
+              typeWidget,
+            ],
+          );
+        }
+
+        // Mobile layout: auto-expanding search bar + filter icon on right
+        final double searchBarWidth = _isFocused ? totalWidth - 52 : totalWidth * 0.64;
+        final double filterButtonWidth = _isFocused ? 44 : totalWidth - searchBarWidth - 8;
+
+        return Row(
+          children: [
+            // Auto-expanding search bar
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              width: searchBarWidth,
+              height: 42,
+              decoration: BoxDecoration(
+                color: context.isDarkMode
+                    ? const Color(0xFF111827)
+                    : context.scaffoldBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _isFocused ? context.primaryColor : context.border,
+                  width: _isFocused ? 1.5 : 1.0,
+                ),
+                boxShadow: _isFocused
+                    ? [
+                        BoxShadow(
+                          color: context.primaryColor.withValues(alpha: 0.15),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                onChanged: (val) =>
+                    ref.read(accountsProvider.notifier).setSearchQuery(val),
+                style: TextStyle(color: context.textPrimary, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: _isFocused
+                      ? tr('Search by account name or bank...')
+                      : (isMobile
+                          ? tr('Search accounts...')
+                          : tr('Search by account name or bank...')),
+                  hintStyle: TextStyle(fontSize: 12.5, color: context.textMuted),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    size: 18,
+                    color:
+                        _isFocused ? context.primaryColor : context.textMuted,
+                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.close, size: 16),
+                          onPressed: () {
+                            _searchController.clear();
+                            ref
+                                .read(accountsProvider.notifier)
+                                .setSearchQuery('');
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Filter button on the right with icon and field
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              width: filterButtonWidth,
+              height: 42,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () =>
+                      _showFilterBottomSheet(context, state.typeFilter),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: (_isFocused && isMobile) ? 0 : 10),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isFilterActive
+                          ? context.primaryColor.withValues(alpha: 0.1)
+                          : (context.isDarkMode
+                              ? const Color(0xFF111827)
+                              : context.scaffoldBg),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isFilterActive
+                            ? context.primaryColor
+                            : context.border,
+                        width: isFilterActive ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.filter_list_rounded,
+                              size: 18,
+                              color: isFilterActive
+                                  ? context.primaryColor
+                                  : context.textSecondary,
+                            ),
+                            if (!(_isFocused && isMobile)) ...[
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  state.typeFilter == 'All'
+                                      ? tr('Type')
+                                      : state.typeFilter,
+                                  style: TextStyle(
+                                    color: isFilterActive
+                                        ? context.primaryColor
+                                        : context.textPrimary,
+                                    fontSize: 12,
+                                    fontWeight: isFilterActive
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.arrow_drop_down,
+                                size: 16,
+                                color: isFilterActive
+                                    ? context.primaryColor
+                                    : context.textSecondary,
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (isFilterActive && (_isFocused && isMobile))
+                          Positioned(
+                            top: 6,
+                            right: 8,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: context.primaryColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _AccountCard extends ConsumerWidget {
   final BankAccount account;
 
@@ -338,7 +779,11 @@ class _AccountCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
+    final adminState = ref.watch(adminProvider);
+    final canEditAccount = adminState.hasPermission(AppModule.accounts, PermissionAction.edit);
+    final canDeleteAccount = adminState.hasPermission(AppModule.accounts, PermissionAction.delete);
     final theme = Theme.of(context);
+    final isMob = MediaQuery.of(context).size.width < 600;
 
     IconData typeIcon;
     Color typeColor;
@@ -373,7 +818,7 @@ class _AccountCard extends ConsumerWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(isMob ? 14 : 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -381,7 +826,7 @@ class _AccountCard extends ConsumerWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: EdgeInsets.all(isMob ? 7 : 8),
                     decoration: BoxDecoration(
                       color: typeColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -398,67 +843,16 @@ class _AccountCard extends ConsumerWidget {
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: context.textPrimary,
-                            fontSize: 15,
+                            fontSize: isMob ? 14 : 15,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (account.accountScope == 'Personal') ...[
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: context.primaryColor.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: context.primaryColor.withValues(alpha: 0.3)),
-                                ),
-                                child: Text(
-                                  'Personal • ${account.ownerName}',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: context.primaryColor,
-                                  ),
-                                ),
-                              ),
-                                if (account.id == 'acc_personal_hassan' ||
-                                  account.id == 'acc_personal_huzaifa') ...[
-                                const SizedBox(width: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.verified, size: 9, color: Colors.blue),
-                                      SizedBox(width: 2),
-                                      Text(
-                                        'Permanent',
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.blue,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
                         if (account.type != 'Cash') ...[
                           const SizedBox(height: 2),
                           Text(
                             '${account.bankName} • ${account.accountNumber}',
-                            style: TextStyle(color: context.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+                            style: TextStyle(color: context.textSecondary, fontSize: isMob ? 9.5 : 11, fontWeight: FontWeight.w600),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -473,7 +867,7 @@ class _AccountCard extends ConsumerWidget {
                     onSelected: (val) async {
                       if (val == 'details') {
                         context.push('/finance/accounts/details/${account.id}');
-                      } else if (val == 'delete') {
+                      } else if (val == 'delete' && canDeleteAccount) {
                         final isPermanent = account.id == 'acc_personal_hassan' ||
                           account.id == 'acc_personal_huzaifa';
                         if (isPermanent) return;
@@ -506,7 +900,7 @@ class _AccountCard extends ConsumerWidget {
                             ),
                           );
                         }
-                      } else if (val == 'edit') {
+                      } else if (val == 'edit' && canEditAccount) {
                         final result = await showDialog<BankAccount>(
                           context: context,
                           builder: (context) => AddEditAccountDialog(
@@ -516,7 +910,7 @@ class _AccountCard extends ConsumerWidget {
                           ),
                         );
                         if (result != null) {
-                          ref.read(accountsProvider.notifier).updateAccount(result);
+                          await ref.read(accountsProvider.notifier).updateAccount(result);
                         }
                       }
                     },
@@ -529,11 +923,12 @@ class _AccountCard extends ConsumerWidget {
                           value: 'details',
                           child: Text('View Details', style: TextStyle(color: context.textPrimary, fontSize: 13)),
                         ),
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Text(tr('Edit Details'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
-                        ),
-                        if (!isPermanent)
+                        if (canEditAccount)
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Text(tr('Edit Details'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
+                          ),
+                        if (!isPermanent && canDeleteAccount)
                           PopupMenuItem(
                             value: 'delete',
                             child: Text('Delete Account', style: TextStyle(color: context.error, fontSize: 13)),
@@ -543,9 +938,9 @@ class _AccountCard extends ConsumerWidget {
                   ),
                 ],
               ),
-              const Spacer(),
+              SizedBox(height: isMob ? 8 : 16),
               const Divider(height: 1),
-              const SizedBox(height: 12),
+              SizedBox(height: isMob ? 6 : 12),
 
               (() {
                 final incomes = ref.watch(incomeProvider).incomes;
@@ -578,7 +973,11 @@ class _AccountCard extends ConsumerWidget {
 
                 final totalInflow = incomeInflow + loanBorrowedInflow + lentRepaymentsInflow;
                 final transferInflow = ledgerEntries
-                  .where((entry) => entry.accountId == account.id && entry.category == 'Account Transfer' && entry.type == 'Debit')
+                  .where((entry) => entry.accountId == account.id &&
+                      (entry.category == 'Account Transfer' ||
+                       entry.category == 'Company Deposit' ||
+                       entry.category == 'Personal Deposit') &&
+                      entry.type == 'Debit')
                   .fold<double>(0.0, (sum, entry) => sum + entry.amount);
 
                 // Outflows
@@ -599,10 +998,20 @@ class _AccountCard extends ConsumerWidget {
 
                 final totalOutflow = expenseOutflow + loanLentOutflow + borrowedRepaymentsOutflow;
                 final transferOutflow = ledgerEntries
-                  .where((entry) => entry.accountId == account.id && entry.category == 'Account Transfer' && entry.type == 'Credit')
+                  .where((entry) => entry.accountId == account.id &&
+                      (entry.category == 'Account Transfer' ||
+                       entry.category == 'Other Expense' ||
+                       entry.category == 'Salary Advance') &&
+                      entry.type == 'Credit')
                   .fold<double>(0.0, (sum, entry) => sum + entry.amount);
 
-                final currentBalance = account.openingBalance + totalInflow + transferInflow - totalOutflow - transferOutflow;
+                final currentBalance = calculateAuthoritativeAccountBalance(
+                  account: account,
+                  incomes: incomes,
+                  expenses: expenses,
+                  loans: loans,
+                  ledgerEntries: ledgerEntries,
+                );
                 final activeBorrowedCount = borrowedLoans.where((l) => l.status == 'Active').length;
 
                 return Column(
@@ -610,7 +1019,7 @@ class _AccountCard extends ConsumerWidget {
                   children: [
                     if (activeBorrowedCount > 0) ...[
                       Container(
-                        margin: const EdgeInsets.only(bottom: 6),
+                        margin: const EdgeInsets.only(bottom: 4),
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: context.warning.withValues(alpha: 0.12),
@@ -624,7 +1033,7 @@ class _AccountCard extends ConsumerWidget {
                             const SizedBox(width: 4),
                             Text(
                               '$activeBorrowedCount Active Borrowed ${activeBorrowedCount == 1 ? "Loan" : "Loans"}',
-                              style: TextStyle(color: context.warning, fontSize: 10, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: context.warning, fontSize: isMob ? 9 : 10, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -635,41 +1044,41 @@ class _AccountCard extends ConsumerWidget {
                       children: [
                         Text(
                           'Total Inflow',
-                          style: TextStyle(color: context.textMuted, fontSize: 10, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: context.textMuted, fontSize: isMob ? 10.5 : 10, fontWeight: FontWeight.w600),
                         ),
                         Text(
                           'Rs. ${(totalInflow + transferInflow).toStringAsFixed(0)}',
-                          style: TextStyle(color: context.success, fontSize: 11, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: context.success, fontSize: isMob ? 11.5 : 11, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: isMob ? 3 : 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Expenses / Outflow',
-                          style: TextStyle(color: context.textMuted, fontSize: 10, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: context.textMuted, fontSize: isMob ? 10.5 : 10, fontWeight: FontWeight.w600),
                         ),
                         Text(
                           'Rs. ${(totalOutflow + transferOutflow).toStringAsFixed(0)}',
-                          style: TextStyle(color: context.error, fontSize: 11, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: context.error, fontSize: isMob ? 11.5 : 11, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: isMob ? 5 : 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Current Balance',
-                          style: TextStyle(color: context.textMuted, fontSize: 11, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: context.textMuted, fontSize: isMob ? 11 : 11, fontWeight: FontWeight.bold),
                         ),
                         Text(
                           'Rs. ${currentBalance.toStringAsFixed(0)}',
                           style: TextStyle(
                             color: currentBalance >= 0 ? context.success : context.error,
-                            fontSize: 14,
+                            fontSize: isMob ? 14 : 14,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -757,13 +1166,40 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
   Widget build(BuildContext context) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 550;
+
+    final bankNameField = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('Bank/Provider Name (optional)'),
+        TextFormField(
+          controller: _bankController,
+          style: TextStyle(color: context.textPrimary),
+          decoration: _buildInputDecoration('e.g. Meezan Bank'),
+        ),
+      ],
+    );
+
+    final accountNoField = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('Account / Mobile No. (optional)'),
+        TextFormField(
+          controller: _numberController,
+          style: TextStyle(color: context.textPrimary),
+          decoration: _buildInputDecoration('e.g. 0230100982'),
+        ),
+      ],
+    );
 
     return Dialog(
       backgroundColor: context.cardBg,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 480,
-        padding: const EdgeInsets.all(24),
+        width: isMobile ? double.infinity : 480,
+        constraints: const BoxConstraints(maxWidth: 480),
+        padding: EdgeInsets.all(isMobile ? 16 : 24),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -774,13 +1210,16 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      widget.account == null
-                          ? (_accountScope == 'Personal' ? 'Add Personal Account' : 'Add Financial Account')
-                          : (_accountScope == 'Personal' ? 'Edit Personal Account' : 'Edit Account Details'),
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: context.textPrimary,
+                    Expanded(
+                      child: Text(
+                        widget.account == null
+                            ? (_accountScope == 'Personal' ? 'Add Personal Account' : 'Add Financial Account')
+                            : (_accountScope == 'Personal' ? 'Edit Personal Account' : 'Edit Account Details'),
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: context.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
@@ -803,6 +1242,17 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
                   validator: (val) => val == null || val.trim().isEmpty ? 'Please enter account label' : null,
                 ),
                 const SizedBox(height: 16),
+
+                // Owner Name (if Personal Account)
+                if (_accountScope == 'Personal') ...[
+                  _buildLabel('Account Owner Name (optional)'),
+                  TextFormField(
+                    controller: _ownerNameController,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('e.g. Ali Khan'),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Type Select (Only for Company accounts)
                 if (_accountScope != 'Personal') ...[
@@ -852,37 +1302,19 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
 
                 // Bank Details (If not Cash)
                 if (_type != 'Cash' || _accountScope == 'Personal') ...[
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel('Bank/Provider Name (optional)'),
-                            TextFormField(
-                              controller: _bankController,
-                              style: TextStyle(color: context.textPrimary),
-                              decoration: _buildInputDecoration('e.g. Meezan Bank'),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildLabel('Account / Mobile No. (optional)'),
-                            TextFormField(
-                              controller: _numberController,
-                              style: TextStyle(color: context.textPrimary),
-                              decoration: _buildInputDecoration('e.g. 0230100982'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                  if (isMobile) ...[
+                    bankNameField,
+                    const SizedBox(height: 16),
+                    accountNoField,
+                  ] else ...[
+                    Row(
+                      children: [
+                        Expanded(child: bankNameField),
+                        const SizedBox(width: 16),
+                        Expanded(child: accountNoField),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 16),
                 ],
 
@@ -900,66 +1332,73 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
                 // Actions Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: context.border),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.end,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: context.border),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
                       ),
-                      child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState?.validate() == true) {
-                          final openingBal = double.tryParse(_openingBalanceController.text.trim().isEmpty ? "0" : _openingBalanceController.text) ?? 0.0;
-                          final double calculatedBalance;
-                          if (widget.account == null) {
-                            calculatedBalance = openingBal;
-                          } else {
-                            final diff = openingBal - widget.account!.openingBalance;
-                            calculatedBalance = (widget.account!.balance == 0.0 && widget.account!.openingBalance == 0.0)
-                                ? openingBal
-                                : (widget.account!.balance + diff);
+                      ElevatedButton(
+                        onPressed: () {
+                          if (_formKey.currentState?.validate() == true) {
+                            final openingBal = double.tryParse(_openingBalanceController.text.trim().isEmpty ? "0" : _openingBalanceController.text) ?? 0.0;
+                            final double calculatedBalance;
+                            if (widget.account == null) {
+                              calculatedBalance = openingBal;
+                            } else if (widget.account!.balance == widget.account!.openingBalance ||
+                                (widget.account!.openingBalance == 0.0 && widget.account!.balance == 0.0)) {
+                              calculatedBalance = openingBal;
+                            } else {
+                              final diff = openingBal - widget.account!.openingBalance;
+                              calculatedBalance = widget.account!.balance + diff;
+                            }
+                            final isPersonalScope = _accountScope.toLowerCase() == 'personal';
+                            final prefix = isPersonalScope ? 'acc_personal_' : 'acc_company_';
+                            final acc = BankAccount(
+                              id: widget.account?.id ?? '$prefix${DateTime.now().millisecondsSinceEpoch}',
+                              name: _nameController.text.trim(),
+                              type: _type,
+                              accountNumber: _type == 'Cash' ? '' : _numberController.text.trim(),
+                              bankName: _type == 'Cash' ? '' : _bankController.text.trim(),
+                              balance: calculatedBalance,
+                              openingBalance: openingBal,
+                              openingBalanceDate: widget.account == null || openingBal != widget.account!.openingBalance
+                                ? DateTime.now().toIso8601String()
+                                : widget.account!.openingBalanceDate,
+                              accountScope: isPersonalScope ? 'Personal' : 'Company',
+                              ownerName: isPersonalScope
+                                  ? (_ownerNameController.text.trim().isNotEmpty
+                                      ? _ownerNameController.text.trim()
+                                      : _nameController.text.trim())
+                                  : '',
+                              status: _status,
+                            );
+                            Navigator.of(context).pop(acc);
                           }
-                          final acc = BankAccount(
-                            id: widget.account?.id ?? 'acc_${DateTime.now().millisecondsSinceEpoch}',
-                            name: _nameController.text.trim(),
-                            type: _type,
-                            accountNumber: _type == 'Cash' ? '' : _numberController.text.trim(),
-                            bankName: _type == 'Cash' ? '' : _bankController.text.trim(),
-                            balance: calculatedBalance,
-                            openingBalance: openingBal,
-                            openingBalanceDate: widget.account == null || openingBal != widget.account!.openingBalance
-                              ? DateTime.now().toIso8601String()
-                              : widget.account!.openingBalanceDate,
-                            accountScope: _accountScope,
-                            ownerName: _accountScope == 'Personal'
-                                ? (_ownerNameController.text.trim().isNotEmpty
-                                    ? _ownerNameController.text.trim()
-                                    : _nameController.text.trim())
-                                : '',
-                            status: _status,
-                          );
-                          Navigator.of(context).pop(acc);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: context.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: context.primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        child: Text(widget.account == null ? (_accountScope == 'Personal' ? 'Create Personal Account' : 'Create Account') : tr('Save Changes')),
                       ),
-                      child: Text(widget.account == null ? (_accountScope == 'Personal' ? 'Create Personal Account' : 'Create Account') : tr('Save Changes')),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -1326,7 +1765,7 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Income: Rs. ${incomeInflow.toStringAsFixed(0)} • Loans: Rs. ${borrowedLoanInflow.toStringAsFixed(0)}',
+                                  'Income: Rs. ${incomeInflow.toStringAsFixed(0)} • Transfers: Rs. ${transferInflow.toStringAsFixed(0)} • Loans: Rs. ${borrowedLoanInflow.toStringAsFixed(0)}',
                                   style: TextStyle(color: context.textMuted, fontSize: 10),
                                 ),
                               ],
@@ -1359,7 +1798,7 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Expenses: Rs. ${expenseOutflow.toStringAsFixed(0)} • Loans: Rs. ${lentLoanOutflow.toStringAsFixed(0)}',
+                                  'Expenses: Rs. ${expenseOutflow.toStringAsFixed(0)} • Transfers: Rs. ${transferOutflow.toStringAsFixed(0)} • Loans: Rs. ${lentLoanOutflow.toStringAsFixed(0)}',
                                   style: TextStyle(color: context.textMuted, fontSize: 10),
                                 ),
                               ],
@@ -1624,7 +2063,7 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
   }
 }
 
-Future<void> _showExportBankStatementDialog(BuildContext context, WidgetRef ref) async {
+Future<void> showExportBankStatementDialog(BuildContext context, WidgetRef ref) async {
   final accountsList = ref.read(accountsProvider).accounts.where((a) => a.type == 'Bank' || a.type == 'Wallet').toList();
   
   if (accountsList.isEmpty) {
@@ -1798,13 +2237,15 @@ Future<void> _showExportBankStatementDialog(BuildContext context, WidgetRef ref)
 }
 
 DateTime _resolveTransactionDate(String id, String rawDate) {
-  final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
-  if (digits.length >= 13) {
-    final ms = int.tryParse(digits.substring(digits.length - 13));
-    if (ms != null) {
-      return DateTime.fromMillisecondsSinceEpoch(ms);
+  try {
+    final match = RegExp(r'\d{12,14}').firstMatch(id);
+    if (match != null) {
+      final ms = int.tryParse(match.group(0)!);
+      if (ms != null && ms > 0 && ms < 8640000000000000) {
+        return DateTime.fromMillisecondsSinceEpoch(ms);
+      }
     }
-  }
+  } catch (_) {}
 
   try {
     return DateTime.parse(rawDate);
@@ -1945,6 +2386,37 @@ Future<void> _generateBankStatement(BuildContext context, WidgetRef ref, BankAcc
     }
   }
 
+  // Add Direct Ledger Entries (Salary Advances, Deposits, Transfers, Other Expenses)
+  final accountLedgers = ref.read(ledgerProvider).entries.where((l) =>
+    l.accountId == account.id &&
+    (l.category == 'Account Transfer' ||
+     l.category == 'Personal Deposit' ||
+     l.category == 'Company Deposit' ||
+     l.category == 'Salary Advance' ||
+     l.category == 'Other Expense')).toList();
+  for (var entry in accountLedgers) {
+    try {
+      final isDebit = entry.type == 'Debit';
+      final resolvedDate = _resolveTransactionDate(entry.id, entry.date);
+      transactions.add({
+        'id': entry.id,
+        'sortKey': entry.id,
+        'date': resolvedDate,
+        'desc': entry.description.isNotEmpty ? entry.description : entry.category,
+        'type': isDebit ? 'Direct Inflow' : 'Direct Outflow',
+        'ref': entry.reference.isNotEmpty ? entry.reference : '-',
+        'inflow': isDebit ? entry.amount : 0.0,
+        'outflow': isDebit ? 0.0 : entry.amount,
+      });
+      if (isDebit) {
+        totalInflow += entry.amount;
+        totalIncomeTx++;
+      } else {
+        totalOutflow += entry.amount;
+        totalExpenseTx++;
+      }
+    } catch (_) {}
+  }
 
   // Sort by date descending (newest first)
   final sortedTransactions = ExportHelper.sortTransactionsNewestFirst(transactions);

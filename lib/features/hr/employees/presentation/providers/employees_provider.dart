@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/employee.dart';
 import '../../domain/repositories/employees_repository.dart';
 import '../../data/repositories/employees_repository_impl.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 
 class EmployeesState {
@@ -93,22 +95,52 @@ class EmployeesNotifier extends Notifier<EmployeesState> {
   }
 
   Future<void> addEmployee(Employee employee) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.employees, PermissionAction.create)) {
+      throw Exception('Access Denied: You do not have permission to add employees.');
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.addEmployee(employee);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Added new employee: ${employee.name} (${employee.designation})',
+      module: 'HR',
+    );
     final updated = await _repository.getEmployees();
     state = state.copyWith(employees: updated, isLoading: false);
   }
 
   Future<void> updateEmployee(Employee employee) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.employees, PermissionAction.edit)) {
+      throw Exception('Access Denied: You do not have permission to edit employees.');
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.updateEmployee(employee);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated employee: ${employee.name}',
+      module: 'HR',
+    );
     final updated = await _repository.getEmployees();
     state = state.copyWith(employees: updated, isLoading: false);
   }
 
   Future<void> deleteEmployee(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.employees, PermissionAction.delete)) {
+      throw Exception('Access Denied: You do not have permission to delete employees.');
+    }
+
+    final found = state.employees.where((e) => e.id == id).firstOrNull;
+    final empName = found != null ? found.name : 'ID $id';
+
     state = state.copyWith(isLoading: true);
     await _repository.deleteEmployee(id);
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted employee: $empName',
+      module: 'HR',
+    );
     final updated = await _repository.getEmployees();
     state = state.copyWith(employees: updated, isLoading: false);
   }

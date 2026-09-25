@@ -161,6 +161,36 @@ void main() {
       expect(sorted[2].id, advance.id, reason: 'Advance payment made first at 10:40 AM must be 3rd');
       expect(sorted[3].id, inventoryYesterday.id, reason: 'Yesterday inventory purchase must be last');
     });
+
+    test('keeps opening balance after transactions even when its date is newer', () {
+      const opening = LedgerEntry(
+        id: 'led_opening_hh_tech_hub',
+        date: '2026-09-22T12:00:00.000',
+        accountId: 'hh-tech-hub',
+        accountName: 'HH Tech Hub',
+        type: 'Debit',
+        category: 'Opening Balance',
+        amount: 100000,
+        reference: 'Opening Balance',
+        description: 'Opening balance deposited for HH Tech Hub',
+      );
+      const transaction = LedgerEntry(
+        id: 'led_inc_1788932408083',
+        date: '2026-09-01T10:00:00.000',
+        accountId: 'hh-tech-hub',
+        accountName: 'HH Tech Hub',
+        type: 'Debit',
+        category: 'Bank',
+        amount: 5000,
+        reference: 'INV-1',
+        description: 'Client payment',
+      );
+
+      final sorted = LedgerEntry.sortEntriesNewestFirst([opening, transaction]);
+
+      expect(sorted.first.id, transaction.id);
+      expect(sorted.last.id, opening.id);
+    });
   });
 
   group('Bank statement export sorting', () {

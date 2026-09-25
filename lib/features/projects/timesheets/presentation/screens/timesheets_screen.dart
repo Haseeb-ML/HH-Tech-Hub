@@ -10,6 +10,8 @@ import '../providers/timesheets_provider.dart';
 import '../../domain/entities/timesheet_entry.dart';
 import '../../../projects/presentation/providers/projects_provider.dart';
 import '../../../../hr/employees/presentation/providers/employees_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class TimesheetsScreen extends ConsumerWidget {
   const TimesheetsScreen({super.key});
@@ -22,6 +24,9 @@ class TimesheetsScreen extends ConsumerWidget {
     final projects = ref.watch(projectsProvider).projects;
     final employees = ref.watch(employeesProvider).employees;
     final theme = Theme.of(context);
+
+    final adminState = ref.watch(adminProvider);
+    final canCreate = adminState.hasPermission(AppModule.timesheets, PermissionAction.create);
 
     // Calculate metrics
     final totalHours = state.entries.fold<double>(0, (sum, e) => sum + e.hours);
@@ -44,10 +49,10 @@ class TimesheetsScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Title + Add Button Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 650;
+                            final titleWidget = Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
@@ -66,8 +71,9 @@ class TimesheetsScreen extends ConsumerWidget {
                                   ),
                                 ),
                               ],
-                            ),
-                            ElevatedButton.icon(
+                            );
+
+                            final actionBtn = ElevatedButton.icon(
                               onPressed: () async {
                                 final result = await showDialog<TimesheetEntry>(
                                   context: context,
@@ -92,8 +98,32 @@ class TimesheetsScreen extends ConsumerWidget {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               ),
-                            ),
-                          ],
+                            );
+
+                            if (isMobile) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  titleWidget,
+                                  if (canCreate) ...[
+                                    const SizedBox(height: 14),
+                                    actionBtn,
+                                  ],
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(child: titleWidget),
+                                if (canCreate) ...[
+                                  const SizedBox(width: 16),
+                                  actionBtn,
+                                ],
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 24),
 
@@ -145,104 +175,92 @@ class TimesheetsScreen extends ConsumerWidget {
                         GlassCard(
                           child: Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                // Search
-                                Expanded(
-                                  flex: 2,
-                                  child: Container(
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: TextField(
-                                      onChanged: (val) => ref.read(timesheetsProvider.notifier).setSearchQuery(val),
-                                      style: TextStyle(color: context.textPrimary),
-                                      decoration: InputDecoration(
-                                        hintText: tr('Search logs by employee or description...'),
-                                        hintStyle: TextStyle(
-                                          fontSize: 13,
-                                          color: context.textMuted,
-                                        ),
-                                        prefixIcon: Icon(
-                                          Icons.search,
-                                          size: 18,
-                                          color: context.textMuted,
-                                        ),
-                                        border: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final isNarrow = constraints.maxWidth < 750;
+
+                                final searchField = Container(
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: context.border, width: 1),
+                                  ),
+                                  child: TextField(
+                                    onChanged: (val) => ref.read(timesheetsProvider.notifier).setSearchQuery(val),
+                                    style: TextStyle(color: context.textPrimary),
+                                    decoration: InputDecoration(
+                                      hintText: tr('Search logs by employee or description...'),
+                                      hintStyle: TextStyle(
+                                        fontSize: 13,
+                                        color: context.textMuted,
                                       ),
+                                      prefixIcon: Icon(
+                                        Icons.search,
+                                        size: 18,
+                                        color: context.textMuted,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
+                                );
 
-                                // Project Filter
-                                Expanded(
-                                  child: Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        isExpanded: true,
-                                        value: state.projectIdFilter,
-                                        dropdownColor: context.cardBg,
-                                        style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                                        items: [
-                                          const DropdownMenuItem(value: 'All', child: Text('All Projects')),
-                                          ...projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            ref.read(timesheetsProvider.notifier).setProjectIdFilter(val);
-                                          }
-                                        },
-                                      ),
+                                final projectFilter = Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: context.border, width: 1),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: state.projectIdFilter,
+                                      dropdownColor: context.cardBg,
+                                      style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                      items: [
+                                        const DropdownMenuItem(value: 'All', child: Text('All Projects')),
+                                        ...projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          ref.read(timesheetsProvider.notifier).setProjectIdFilter(val);
+                                        }
+                                      },
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
+                                );
 
-                                // Employee Filter
-                                Expanded(
-                                  child: Container(
-                                    height: 40,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: context.border, width: 1),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        isExpanded: true,
-                                        value: state.employeeIdFilter,
-                                        dropdownColor: context.cardBg,
-                                        style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                                        items: [
-                                          const DropdownMenuItem(value: 'All', child: Text('All Employees')),
-                                          ...employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))),
-                                        ],
-                                        onChanged: (val) {
-                                          if (val != null) {
-                                            ref.read(timesheetsProvider.notifier).setEmployeeIdFilter(val);
-                                          }
-                                        },
-                                      ),
+                                final employeeFilter = Container(
+                                  height: 40,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: context.border, width: 1),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: state.employeeIdFilter,
+                                      dropdownColor: context.cardBg,
+                                      style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                      items: [
+                                        const DropdownMenuItem(value: 'All', child: Text('All Employees')),
+                                        ...employees.map((e) => DropdownMenuItem(value: e.id, child: Text(e.name))),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          ref.read(timesheetsProvider.notifier).setEmployeeIdFilter(val);
+                                        }
+                                      },
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 12),
+                                );
 
-                                // Status Filter
-                                Container(
+                                final statusFilter = Container(
                                   height: 40,
                                   padding: const EdgeInsets.symmetric(horizontal: 12),
                                   decoration: BoxDecoration(
@@ -268,8 +286,41 @@ class TimesheetsScreen extends ConsumerWidget {
                                       },
                                     ),
                                   ),
-                                ),
-                              ],
+                                );
+
+                                if (isNarrow) {
+                                  return Column(
+                                    children: [
+                                      searchField,
+                                      const SizedBox(height: 12),
+                                      SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          children: [
+                                            SizedBox(width: 150, child: projectFilter),
+                                            const SizedBox(width: 10),
+                                            SizedBox(width: 150, child: employeeFilter),
+                                            const SizedBox(width: 10),
+                                            statusFilter,
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }
+
+                                return Row(
+                                  children: [
+                                    Expanded(flex: 2, child: searchField),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: projectFilter),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: employeeFilter),
+                                    const SizedBox(width: 12),
+                                    statusFilter,
+                                  ],
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -336,6 +387,9 @@ class _TimesheetRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final adminState = ref.watch(adminProvider);
+    final canEdit = adminState.hasPermission(AppModule.timesheets, PermissionAction.edit);
+    final canDelete = adminState.hasPermission(AppModule.timesheets, PermissionAction.delete);
 
     // Status mapping
     Color statusColor = context.warning;
@@ -439,80 +493,83 @@ class _TimesheetRow extends ConsumerWidget {
               const SizedBox(width: 16),
 
               // Actions (Approve / Reject / Edit / Delete)
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, size: 18, color: context.textSecondary),
-                color: context.cardBg,
-                onSelected: (val) async {
-                  if (val == 'delete') {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Delete Timesheet Log'),
-                        content: Text('${tr("Are you sure you want to delete this timesheet log for")} "${entry.employeeName}"? ${tr("This action cannot be undone.")}'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+              if (canEdit || canDelete)
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, size: 18, color: context.textSecondary),
+                  color: context.cardBg,
+                  onSelected: (val) async {
+                    if (val == 'delete' && canDelete) {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Delete Timesheet Log'),
+                          content: Text('${tr("Are you sure you want to delete this timesheet log for")} "${entry.employeeName}"? ${tr("This action cannot be undone.")}'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: Text(tr('Delete'), style: TextStyle(color: context.error)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        ref.read(timesheetsProvider.notifier).deleteTimesheet(entry.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Timesheet entry deleted.'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: context.error,
                           ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text(tr('Delete'), style: TextStyle(color: context.error)),
+                        );
+                      }
+                    } else if (val == 'approve' && canEdit) {
+                      ref.read(timesheetsProvider.notifier).updateTimesheet(entry.copyWith(status: 'Approved'));
+                    } else if (val == 'reject' && canEdit) {
+                      ref.read(timesheetsProvider.notifier).updateTimesheet(entry.copyWith(status: 'Rejected'));
+                    } else if (val == 'edit' && canEdit) {
+                      final result = await showDialog<TimesheetEntry>(
+                        context: context,
+                        builder: (context) => _AddEditTimesheetDialog(entry: entry),
+                      );
+                      if (result != null) {
+                        ref.read(timesheetsProvider.notifier).updateTimesheet(result);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Timesheet entry updated.'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: context.success,
                           ),
-                        ],
+                        );
+                      }
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    if (canEdit && entry.status == 'Pending') ...[
+                      PopupMenuItem(
+                        value: 'approve',
+                        child: Text('Approve log', style: TextStyle(color: context.success, fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
-                    );
-                    if (confirm == true) {
-                      ref.read(timesheetsProvider.notifier).deleteTimesheet(entry.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Timesheet entry deleted.'),
-                          behavior: SnackBarBehavior.floating,
-                          backgroundColor: context.error,
-                        ),
-                      );
-                    }
-                  } else if (val == 'approve') {
-                    ref.read(timesheetsProvider.notifier).updateTimesheet(entry.copyWith(status: 'Approved'));
-                  } else if (val == 'reject') {
-                    ref.read(timesheetsProvider.notifier).updateTimesheet(entry.copyWith(status: 'Rejected'));
-                  } else if (val == 'edit') {
-                    final result = await showDialog<TimesheetEntry>(
-                      context: context,
-                      builder: (context) => _AddEditTimesheetDialog(entry: entry),
-                    );
-                    if (result != null) {
-                      ref.read(timesheetsProvider.notifier).updateTimesheet(result);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Timesheet entry updated.'),
-                          behavior: SnackBarBehavior.floating,
-                          backgroundColor: context.success,
-                        ),
-                      );
-                    }
-                  }
-                },
-                itemBuilder: (context) => [
-                  if (entry.status == 'Pending') ...[
-                    PopupMenuItem(
-                      value: 'approve',
-                      child: Text('Approve log', style: TextStyle(color: context.success, fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
-                    PopupMenuItem(
-                      value: 'reject',
-                      child: Text('Reject log', style: TextStyle(color: context.error, fontSize: 12, fontWeight: FontWeight.bold)),
-                    ),
+                      PopupMenuItem(
+                        value: 'reject',
+                        child: Text('Reject log', style: TextStyle(color: context.error, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                    if (canEdit)
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Edit details', style: TextStyle(color: context.textPrimary, fontSize: 12)),
+                      ),
+                    if (canDelete)
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete log', style: TextStyle(color: context.error, fontSize: 12)),
+                      ),
                   ],
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Text('Edit details', style: TextStyle(color: context.textPrimary, fontSize: 12)),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete log', style: TextStyle(color: context.error, fontSize: 12)),
-                  ),
-                ],
-              ),
+                ),
             ],
           );
         },
@@ -753,6 +810,25 @@ class _AddEditTimesheetDialogState extends ConsumerState<_AddEditTimesheetDialog
                         const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () {
+                            final adminState = ref.read(adminProvider);
+                            if (widget.entry == null && !adminState.hasPermission(AppModule.timesheets, PermissionAction.create)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Access Denied: You do not have permission to log time.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                            if (widget.entry != null && !adminState.hasPermission(AppModule.timesheets, PermissionAction.edit)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Access Denied: You do not have permission to edit timesheets.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
                             if (_formKey.currentState!.validate() &&
                                 _selectedEmployeeId != null &&
                                 _selectedProjectId != null) {

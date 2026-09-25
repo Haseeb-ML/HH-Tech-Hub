@@ -7,6 +7,8 @@ import '../../../accounts/presentation/providers/accounts_provider.dart';
 import '../../../ledger/presentation/providers/ledger_provider.dart';
 import '../../../ledger/domain/entities/ledger_entry.dart';
 import '../../../loans/presentation/providers/loans_provider.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 class ExpensesState {
   final List<ExpenseRecord> expenses;
@@ -282,17 +284,24 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
   }
 
   Future<void> addExpense(ExpenseRecord record) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.expenses, PermissionAction.create)) {
+      throw Exception('Access Denied: You do not have permission to create expense records.');
+    }
+
     state = state.copyWith(isLoading: true);
 
     String isoDate = record.date;
-    final idNumStr = record.id.replaceAll(RegExp(r'[^0-9]'), '');
-    if (idNumStr.length > 10) {
-      final ms = int.tryParse(idNumStr);
-      if (ms != null) {
-        final timePart = DateTime.fromMillisecondsSinceEpoch(ms).toIso8601String().substring(10);
-        if (isoDate.length == 10) isoDate += timePart;
+    try {
+      final match = RegExp(r'\d{12,14}').firstMatch(record.id);
+      if (match != null) {
+        final ms = int.tryParse(match.group(0)!);
+        if (ms != null && ms > 0 && ms < 8640000000000000) {
+          final timePart = DateTime.fromMillisecondsSinceEpoch(ms).toIso8601String().substring(10);
+          if (isoDate.length == 10) isoDate += timePart;
+        }
       }
-    }
+    } catch (_) {}
     if (isoDate.length == 10) {
       isoDate += DateTime.now().toIso8601String().substring(10);
     }
@@ -304,7 +313,7 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
     final accounts = ref.read(accountsProvider).accounts;
     final account = accounts.where((a) => a.id == recordToSave.accountId).firstOrNull;
     final accountName = account?.name ?? 'Unknown Account';
-    final isCompanyAccount = account?.accountScope != 'Personal';
+    final isCompanyAccount = account?.isCompany ?? true;
 
     // 1. Adjust bank account balance (Deduct expense amount)
     await ref.read(accountsProvider.notifier).adjustBalance(recordToSave.accountId, -recordToSave.amount);
@@ -331,11 +340,21 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
     // 3. Ledger entry already recorded above.
     // Auto-loans are not created for regular expenses to keep Loans module clean.
 
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Added expense: ${recordToSave.description} (Amount: ${recordToSave.amount}, Category: ${recordToSave.category})',
+      module: 'Finance',
+    );
+
     final updated = await _repository.getExpenses();
     state = state.copyWith(expenses: updated, isLoading: false);
   }
 
   Future<void> updateExpense(ExpenseRecord oldRecord, ExpenseRecord newRecord) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.expenses, PermissionAction.edit)) {
+      throw Exception('Access Denied: You do not have permission to edit expense records.');
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.updateExpense(newRecord);
 
@@ -343,7 +362,7 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
     final accounts = ref.read(accountsProvider).accounts;
     final account = accounts.where((a) => a.id == newRecord.accountId).firstOrNull;
     final accountName = account?.name ?? 'Unknown Account';
-    final isCompanyAccount = account?.accountScope != 'Personal';
+    final isCompanyAccount = account?.isCompany ?? true;
 
     // Bank Account Balance adjustment
     if (oldRecord.accountId == newRecord.accountId) {
@@ -386,11 +405,21 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
       await ref.read(loansProvider.notifier).loadLoans();
     }
 
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Updated expense: ${newRecord.description} (Amount: ${oldRecord.amount} → ${newRecord.amount}, Category: ${newRecord.category})',
+      module: 'Finance',
+    );
+
     final updated = await _repository.getExpenses();
     state = state.copyWith(expenses: updated, isLoading: false);
   }
 
   Future<void> deleteExpense(String id) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.expenses, PermissionAction.delete)) {
+      throw Exception('Access Denied: You do not have permission to delete expense records.');
+    }
+
     ExpenseRecord? record = state.expenses.where((e) => e.id == id).firstOrNull;
     if (record == null) {
       final all = await _repository.getExpenses();
@@ -420,6 +449,11 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
 
     // 4. Delete expense record from database
     await _repository.deleteExpense(id);
+
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted expense: ${record?.description ?? id} (Amount: ${record?.amount ?? 'N/A'})',
+      module: 'Finance',
+    );
 
     final updated = await _repository.getExpenses();
     state = state.copyWith(expenses: updated, isLoading: false);
