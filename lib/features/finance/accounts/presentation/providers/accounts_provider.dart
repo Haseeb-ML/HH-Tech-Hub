@@ -113,7 +113,9 @@ double calculateAuthoritativeAccountBalance({
 
   final opening = account.openingBalance > 0
       ? account.openingBalance
-      : (account.balance > 0 ? account.balance : 0.0);
+      : ((totalInflow == 0 && totalOutflow == 0 && account.balance > 0)
+          ? account.balance
+          : 0.0);
   return opening + totalInflow - totalOutflow;
 }
 
@@ -247,6 +249,7 @@ class AccountsNotifier extends Notifier<AccountsState> {
       }
 
       state = state.copyWith(accounts: list, isLoading: false);
+      syncBalancesFromDb();
     } catch (_) {
       state = state.copyWith(isLoading: false);
     }

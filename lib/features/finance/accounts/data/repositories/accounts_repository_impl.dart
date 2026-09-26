@@ -73,7 +73,7 @@ class AccountsRepositoryImpl implements AccountsRepository {
       final ledgerOpening = openingLedgerMap[a.id];
       final rawOpening = (m['openingBalance'] as num?)?.toDouble() ??
           (ledgerOpening != null ? ledgerOpening.amount : 0.0);
-      final openingBal = rawOpening > 0 ? rawOpening : (ledgerOpening?.amount ?? (a.balance > 0 ? a.balance : 0.0));
+      final openingBal = rawOpening > 0 ? rawOpening : (ledgerOpening?.amount ?? 0.0);
       final rawOwner = m['ownerName'] as String? ?? '';
       final owner = rawOwner.isNotEmpty
           ? rawOwner

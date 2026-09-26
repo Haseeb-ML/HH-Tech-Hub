@@ -11,6 +11,11 @@ import '../../features/clients/clients/presentation/providers/clients_provider.d
 import '../../features/projects/projects/presentation/providers/projects_provider.dart';
 import '../../features/hr/employees/presentation/providers/employees_provider.dart';
 import '../../features/finance/accounts/presentation/providers/accounts_provider.dart';
+import '../../features/finance/accounts/domain/entities/bank_account.dart';
+import '../../features/finance/income/domain/entities/income_record.dart';
+import '../../features/finance/expenses/domain/entities/expense_record.dart';
+import '../../features/finance/loans/domain/entities/loan_record.dart';
+import '../../features/finance/ledger/domain/entities/ledger_entry.dart';
 import '../../features/sales/sales/presentation/providers/products_provider.dart';
 import '../../features/sales/sales/presentation/providers/sales_invoices_provider.dart';
 import '../../features/inventory/inventory/presentation/providers/inventory_provider.dart';
@@ -543,7 +548,7 @@ class CloudSyncService {
               final balance = (m['balance'] as num?)?.toDouble() ?? 0.0;
               final opening = (m['openingBalance'] as num?)?.toDouble() ??
                   (existing['openingBalance'] as num?)?.toDouble() ??
-                  (balance > 0 ? balance : 0.0);
+                  0.0;
               final rawOwner = m['ownerName']?.toString() ?? existing['ownerName']?.toString() ?? '';
               final owner = rawOwner.isNotEmpty
                   ? rawOwner
@@ -854,6 +859,7 @@ class CloudSyncService {
         await Future.delayed(const Duration(milliseconds: 10));
       }
 
+      await _reconcileAccountBalances();
       await _saveSyncedHashes();
       if (totalSynced > 0 || forcePush) {
         await _touchSyncMeta();
@@ -1083,6 +1089,10 @@ class CloudSyncService {
           rawMap.remove('ownerName');
         }
 
+        if (tableName == 'expense_records') {
+          rawMap.remove('isPersonalExpense');
+        }
+
         for (final key in ['phones', 'teamMembers', 'items', 'repayments']) {
           if (rawMap[key] is String && (rawMap[key] as String).startsWith('[')) {
             try {
@@ -1210,6 +1220,10 @@ class CloudSyncService {
           rawMap.remove('ownerName');
         }
 
+        if (tableName == 'expense_records') {
+          rawMap.remove('isPersonalExpense');
+        }
+
         // Ensure lists aren't string-encoded for JSONB columns
         for (final key in ['phones', 'teamMembers', 'items', 'repayments']) {
           if (rawMap[key] is String && (rawMap[key] as String).startsWith('[')) {
@@ -1316,6 +1330,130 @@ class CloudSyncService {
     }
 
     return syncedCount;
+  }
+
+  Future<void> _reconcileAccountBalances() async {
+    try {
+      final accounts = await db.getAll(db.bankAccountsTable);
+      if (accounts.isEmpty) return;
+
+      final meta = await AccountsRepositoryImpl.getGlobalMetaMap();
+      final allLedgers = await db.getAll(db.ledgerEntriesTable);
+      final openingLedgerMap = <String, LedgerEntriesTableData>{};
+      for (final l in allLedgers) {
+        if (l.category == 'Opening Balance' || l.id.startsWith('led_opening_')) {
+          openingLedgerMap[l.accountId] = l;
+        }
+      }
+
+      final incomes = await db.getAll(db.incomeRecordsTable);
+      final expenses = await db.getAll(db.expenseRecordsTable);
+      final loans = await db.getAll(db.loanRecordsTable);
+
+      final domainIncomes = incomes.map((i) => IncomeRecord(
+        id: i.id,
+        date: i.date,
+        clientId: i.clientId,
+        clientName: i.clientName,
+        amount: i.amount,
+        accountId: i.accountId,
+        invoiceNumber: i.invoiceNumber,
+        description: i.description,
+        status: i.status,
+        projectId: i.projectId,
+        projectName: i.projectName,
+        projectPaymentType: i.projectPaymentType,
+      )).toList();
+
+      final domainExpenses = expenses.map((e) => ExpenseRecord(
+        id: e.id,
+        date: e.date,
+        amount: e.amount,
+        accountId: e.accountId,
+        category: e.category,
+        vendorName: e.vendorName,
+        description: e.description,
+      )).toList();
+
+      final domainLoans = loans.map((l) => LoanRecord(
+        id: l.id,
+        borrowerName: l.borrowerName,
+        type: l.type,
+        amount: l.amount,
+        remainingBalance: l.remainingBalance,
+        startDate: l.startDate,
+        endDate: l.endDate,
+        status: l.status,
+        description: l.description,
+        repayments: l.repayments.map((r) => LoanRepayment(
+          id: r['id']?.toString() ?? '',
+          date: r['date']?.toString() ?? '',
+          amount: (r['amount'] as num?)?.toDouble() ?? 0.0,
+          accountId: r['accountId']?.toString() ?? '',
+          accountName: r['accountName']?.toString() ?? '',
+        )).toList(),
+      )).toList();
+
+      final domainLedgers = allLedgers.map((l) => LedgerEntry(
+        id: l.id,
+        date: l.date,
+        accountId: l.accountId,
+        accountName: l.accountName,
+        type: l.type,
+        category: l.category,
+        amount: l.amount,
+        reference: l.reference,
+        description: l.description,
+      )).toList();
+
+      for (final a in accounts) {
+        final m = (meta[a.id] as Map<String, dynamic>?) ?? {};
+        final isPersonal = (m['accountScope']?.toString().toLowerCase() == 'personal') ||
+            a.id.toLowerCase().contains('personal') ||
+            a.name.toLowerCase().contains('personal');
+        final ledgerOpening = openingLedgerMap[a.id];
+        final rawOpening = (m['openingBalance'] as num?)?.toDouble() ??
+            (ledgerOpening != null ? ledgerOpening.amount : 0.0);
+        final openingBal = rawOpening > 0 ? rawOpening : (ledgerOpening?.amount ?? 0.0);
+
+        final bankAcc = BankAccount(
+          id: a.id,
+          name: a.name,
+          type: a.type,
+          accountNumber: a.accountNumber,
+          bankName: a.bankName,
+          balance: a.balance,
+          status: a.status,
+          openingBalance: openingBal,
+          accountScope: isPersonal ? 'Personal' : 'Company',
+        );
+
+        final realBal = calculateAuthoritativeAccountBalance(
+          account: bankAcc,
+          incomes: domainIncomes,
+          expenses: domainExpenses,
+          loans: domainLoans,
+          ledgerEntries: domainLedgers,
+        );
+
+        if ((a.balance - realBal).abs() > 0.001) {
+          await db.upsert(
+            db.bankAccountsTable,
+            BankAccountsTableCompanion.insert(
+              id: a.id,
+              name: a.name,
+              type: a.type,
+              accountNumber: a.accountNumber,
+              bankName: a.bankName,
+              balance: realBal,
+              status: a.status,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('CloudSync: reconcile balances error: $e');
+    }
   }
 }
 
