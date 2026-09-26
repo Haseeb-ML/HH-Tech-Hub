@@ -10,6 +10,7 @@ import 'package:software_house_erp/core/services/cloud_sync_service.dart';
 
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/core/widgets/app_logo.dart';
+import 'sync_options_dialog.dart';
 
 class CollapsibleSidebar extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -220,30 +221,7 @@ class CollapsibleSidebar extends ConsumerWidget {
                 final widget = InkWell(
                   onTap: isSyncing
                       ? null
-                      : () async {
-                          try {
-                            await ref.read(cloudSyncStateProvider.notifier).syncNow();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Sync completed successfully!'),
-                                  backgroundColor: context.success,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Sync failed: '),
-                                  backgroundColor: context.error,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          }
-                        },
+                      : () => showCloudSyncOptions(context, ref),
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),

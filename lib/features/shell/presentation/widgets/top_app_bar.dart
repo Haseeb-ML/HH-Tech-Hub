@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'spotlight_search_dialog.dart';
 import 'package:software_house_erp/core/widgets/explain_tooltip.dart';
 import 'package:software_house_erp/core/widgets/app_logo.dart';
+import 'sync_options_dialog.dart';
 
 class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final StatefulNavigationShell navigationShell;
@@ -719,7 +720,7 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
     super.dispose();
   }
 
-  void _triggerSync(BuildContext ctx, {bool force = false}) async {
+  void _triggerSync(BuildContext ctx, {bool force = false, bool pushOnly = false}) async {
     final messenger = ScaffoldMessenger.of(ctx);
     final notifier = ref.read(cloudSyncStateProvider.notifier);
     messenger.clearSnackBars();
@@ -735,7 +736,9 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                force ? 'Force pushing all records to cloud...' : 'Syncing data with cloud...',
+                pushOnly
+                    ? 'Pushing local changes to cloud...'
+                    : (force ? 'Force pushing all records to cloud...' : 'Syncing data with cloud (Pull & Push)...'),
                 style: const TextStyle(fontSize: 13),
               ),
             ),
@@ -746,7 +749,18 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
     );
 
     try {
-      if (force) {
+      if (pushOnly) {
+        await notifier.pushChangesOnly();
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.green.shade700,
+            content: const Text('Push complete! Local changes pushed to cloud.'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      } else if (force) {
         await notifier.forceSync();
       } else {
         await notifier.syncNow();
@@ -817,24 +831,35 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
         ? Tooltip(
             message: isSyncing
                 ? 'Syncing in progress...'
-                : 'Sync Now\nLast: ${_formatTime(syncState.lastSyncedAt)}',
+                : 'Cloud Sync Options (Tap for Pull & Push)\nLast: ${_formatTime(syncState.lastSyncedAt)}',
             child: InkWell(
-              onTap: isSyncing ? null : () => _triggerSync(context),
+              onTap: isSyncing ? null : () => showCloudSyncOptions(context, ref),
               borderRadius: BorderRadius.circular(16),
               child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: AnimatedBuilder(
-                  animation: _animController,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: _animController.value * 2 * 3.14159,
-                      child: Icon(
-                        Icons.sync,
-                        color: statusColor,
-                        size: 20,
-                      ),
-                    );
-                  },
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedBuilder(
+                      animation: _animController,
+                      builder: (context, child) {
+                        return Transform.rotate(
+                          angle: _animController.value * 2 * 3.14159,
+                          child: Icon(
+                            Icons.sync,
+                            color: statusColor,
+                            size: 20,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.arrow_drop_down,
+                      color: statusColor,
+                      size: 16,
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -902,6 +927,8 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
                       _triggerSync(context, force: false);
                     } else if (value == 'force_sync') {
                       _triggerSync(context, force: true);
+                    } else if (value == 'push_changes') {
+                      _triggerSync(context, pushOnly: true);
                     }
                   },
                   itemBuilder: (context) => [
@@ -964,7 +991,21 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
                           Icon(Icons.cloud_upload_outlined, size: 18, color: context.primaryColor),
                           const SizedBox(width: 10),
                           Text(
-                            'Force Push All',
+                            'Force Push All (Local to Cloud)',
+                            style: TextStyle(color: context.textPrimary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'push_changes',
+                      enabled: !isSyncing,
+                      child: Row(
+                        children: [
+                          Icon(Icons.upload_file_rounded, size: 18, color: context.primaryColor),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Push Changes Only',
                             style: TextStyle(color: context.textPrimary),
                           ),
                         ],
