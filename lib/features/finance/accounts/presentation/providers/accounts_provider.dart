@@ -476,6 +476,9 @@ class AccountsNotifier extends Notifier<AccountsState> {
       if (anyUpdated) {
         final updatedList = await _repository.getAccounts();
         state = state.copyWith(accounts: updatedList, isLoading: false);
+        try {
+          await ref.read(cloudSyncServiceProvider).pushChangesOnly();
+        } catch (_) {}
       }
     } catch (_) {}
   }
@@ -491,6 +494,9 @@ class AccountsNotifier extends Notifier<AccountsState> {
       await _repository.updateAccount(updatedAccount);
       final updatedList = await _repository.getAccounts();
       state = state.copyWith(accounts: updatedList, isLoading: false);
+      try {
+        await ref.read(cloudSyncServiceProvider).pushChangesOnly();
+      } catch (_) {}
     }
   }
 }

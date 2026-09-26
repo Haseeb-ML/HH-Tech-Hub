@@ -345,6 +345,7 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
       module: 'Finance',
     );
 
+    await ref.read(accountsProvider.notifier).syncBalancesFromDb();
     final updated = await _repository.getExpenses();
     state = state.copyWith(expenses: updated, isLoading: false);
   }
@@ -410,6 +411,7 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
       module: 'Finance',
     );
 
+    await ref.read(accountsProvider.notifier).syncBalancesFromDb();
     final updated = await _repository.getExpenses();
     state = state.copyWith(expenses: updated, isLoading: false);
   }
@@ -455,6 +457,7 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
       module: 'Finance',
     );
 
+    await ref.read(accountsProvider.notifier).syncBalancesFromDb();
     final updated = await _repository.getExpenses();
     state = state.copyWith(expenses: updated, isLoading: false);
   }
