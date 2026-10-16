@@ -108,4 +108,4 @@ flutter pub get
 ---
 
 ## 📄 License
-Developed for **HH Tech Hub**. All rights reserved.
+Developed for **Haseeb-ML**. All rights reserved.
