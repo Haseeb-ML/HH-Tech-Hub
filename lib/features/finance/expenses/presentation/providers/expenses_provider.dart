@@ -348,13 +348,16 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
     await _repository.addExpense(recordToSave);
 
     // Resolve Account Name
+    final isKhata = recordToSave.accountId == 'general_khata';
     final accounts = ref.read(accountsProvider).accounts;
     final account = accounts.where((a) => a.id == recordToSave.accountId).firstOrNull;
-    final accountName = account?.name ?? 'Unknown Account';
-    final isCompanyAccount = account?.isCompany ?? true;
+    final accountName = isKhata ? 'General Khata' : (account?.name ?? 'Unknown Account');
+    final isCompanyAccount = isKhata ? true : (account?.isCompany ?? true);
 
-    // 1. Adjust bank account balance (Deduct expense amount)
-    await ref.read(accountsProvider.notifier).adjustBalance(recordToSave.accountId, -recordToSave.amount);
+    // 1. Adjust bank account balance (Deduct expense amount only if not General Khata)
+    if (!isKhata) {
+      await ref.read(accountsProvider.notifier).adjustBalance(recordToSave.accountId, -recordToSave.amount);
+    }
 
     // 2. Add General Ledger entry (Credit / Outflow)
     String ledgerCategory = recordToSave.category;
@@ -404,20 +407,30 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
 
     // Resolve Account Name
     final accounts = ref.read(accountsProvider).accounts;
+    final isOldKhata = oldRecord.accountId == 'general_khata';
+    final isNewKhata = newRecord.accountId == 'general_khata';
     final account = accounts.where((a) => a.id == newRecord.accountId).firstOrNull;
-    final accountName = account?.name ?? 'Unknown Account';
-    final isCompanyAccount = account?.isCompany ?? true;
+    final accountName = isNewKhata ? 'General Khata' : (account?.name ?? 'Unknown Account');
+    final isCompanyAccount = isNewKhata ? true : (account?.isCompany ?? true);
 
     // Bank Account Balance adjustment
-    if (oldRecord.accountId == newRecord.accountId) {
-      final diff = newRecord.amount - oldRecord.amount;
-      if (diff != 0) {
-        await ref.read(accountsProvider.notifier).adjustBalance(newRecord.accountId, -diff);
+    if (!isOldKhata && !isNewKhata) {
+      if (oldRecord.accountId == newRecord.accountId) {
+        final diff = newRecord.amount - oldRecord.amount;
+        if (diff != 0) {
+          await ref.read(accountsProvider.notifier).adjustBalance(newRecord.accountId, -diff);
+        }
+      } else {
+        // Revert old account deduction
+        await ref.read(accountsProvider.notifier).adjustBalance(oldRecord.accountId, oldRecord.amount);
+        // Apply new account deduction
+        await ref.read(accountsProvider.notifier).adjustBalance(newRecord.accountId, -newRecord.amount);
       }
-    } else {
-      // Revert old account deduction
+    } else if (!isOldKhata && isNewKhata) {
+      // Switched from Bank Account to General Khata: refund the old bank account
       await ref.read(accountsProvider.notifier).adjustBalance(oldRecord.accountId, oldRecord.amount);
-      // Apply new account deduction
+    } else if (isOldKhata && !isNewKhata) {
+      // Switched from General Khata to Bank Account: deduct from the new bank account
       await ref.read(accountsProvider.notifier).adjustBalance(newRecord.accountId, -newRecord.amount);
     }
 
@@ -483,8 +496,10 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
         deletedBy: adminState.currentUser?.name ?? 'Admin',
       );
 
-      // 1. Rollback bank account balance (Add back expense amount)
-      await ref.read(accountsProvider.notifier).adjustBalance(record.accountId, record.amount);
+      // 1. Rollback bank account balance (Add back expense amount if not General Khata)
+      if (record.accountId != 'general_khata') {
+        await ref.read(accountsProvider.notifier).adjustBalance(record.accountId, record.amount);
+      }
 
       // 2. Remove General Ledger entry
       await ref.read(ledgerProvider.notifier).deleteLedgerEntry('led_exp_${record.id}');

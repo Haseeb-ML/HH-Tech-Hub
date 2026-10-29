@@ -178,6 +178,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                           style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
                           items: [
                             const DropdownMenuItem(value: 'All', child: Text('All Accounts')),
+                            const DropdownMenuItem(value: 'general_khata', child: Text('General Khata (Direct)')),
                             ...accountsState.accounts.map((acc) {
                               final scopeLabel = acc.accountScope.isNotEmpty ? ' (${acc.accountScope})' : '';
                               return DropdownMenuItem<String>(
@@ -714,6 +715,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                             value: 'All',
                                                             child: Text('Account: All'),
                                                           ),
+                                                          const DropdownMenuItem<String>(
+                                                            value: 'general_khata',
+                                                            child: Text('Account: General Khata'),
+                                                          ),
                                                           ...accountsState.accounts.map((acc) {
                                                             final scopeLabel = acc.accountScope.isNotEmpty ? ' (${acc.accountScope})' : '';
                                                             return DropdownMenuItem<String>(
@@ -855,9 +860,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                             DataColumn(label: SizedBox(width: 90, child: Center(child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))))),
                                                           ],
                                                           rows: paginatedExpenses.map((exp) {
+                                                            final isKhata = exp.accountId == 'general_khata';
                                                             final account = accountsState.accounts.where((a) => a.id == exp.accountId).firstOrNull;
-                                                            final accountName = account?.name ?? 'Bank/Cash Account';
-                                                            final accountScope = account?.accountScope ?? 'Company';
+                                                            final accountName = isKhata ? 'General Khata' : (account?.name ?? 'Bank/Cash Account');
+                                                            final accountScope = isKhata ? 'Direct Entry' : (account?.accountScope ?? 'Company');
                                                             final ownerName = account?.ownerName ?? '';
                                                             final paidBy = exp.vendorName.isNotEmpty ? exp.vendorName : 'Company';
 
@@ -1428,9 +1434,11 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
     final allExpenses = ref.watch(expensesProvider).expenses;
     final uniqueExpenseId = TransactionIdHelper.getExpenseId(expense, allExpenses);
     final isMobile = MediaQuery.of(context).size.width < 600;
-    final accountLabel = accountScope == 'Personal' && ownerName.isNotEmpty
-        ? '$accountName • Personal ($ownerName)'
-        : '$accountName • $accountScope';
+    final accountLabel = expense.accountId == 'general_khata'
+        ? 'General Khata • Direct Entry (No Bank Impact)'
+        : (accountScope == 'Personal' && ownerName.isNotEmpty
+            ? '$accountName • Personal ($ownerName)'
+            : '$accountName • $accountScope');
 
     return Dialog(
       backgroundColor: context.cardBg,
@@ -1817,7 +1825,7 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
           builder: (context, ref, child) {
             final accounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
 
-            final accountExists = accounts.any((a) => a.id == _selectedAccountId);
+            final accountExists = accounts.any((a) => a.id == _selectedAccountId) || _selectedAccountId == 'general_khata';
             if (!accountExists && accounts.isNotEmpty) {
               _selectedAccountId = accounts.first.id;
             }
@@ -1862,15 +1870,33 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                   dropdownColor: context.cardBg,
                   style: TextStyle(color: context.textPrimary, fontSize: 13),
                   decoration: _buildInputDecoration('Select Account'),
-                  items: accounts.map((a) {
-                    final scope = a.isPersonal
-                        ? 'Personal${a.ownerName.isNotEmpty ? ' • ${a.ownerName}' : ''}'
-                        : 'Company';
-                    return DropdownMenuItem(
-                      value: a.id,
-                      child: Text('${a.name} • $scope', overflow: TextOverflow.ellipsis),
-                    );
-                  }).toList(),
+                  items: [
+                    DropdownMenuItem<String>(
+                      value: 'general_khata',
+                      child: Row(
+                        children: [
+                          Icon(Icons.menu_book_outlined, size: 16, color: context.primaryColor),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '📖 General Khata • Direct Entry (No Bank Impact)',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: context.primaryColor, fontSize: 13),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ...accounts.map((a) {
+                      final scope = a.isPersonal
+                          ? 'Personal${a.ownerName.isNotEmpty ? ' • ${a.ownerName}' : ''}'
+                          : 'Company';
+                      return DropdownMenuItem(
+                        value: a.id,
+                        child: Text('${a.name} • $scope (Rs. ${a.balance.toStringAsFixed(0)})', overflow: TextOverflow.ellipsis),
+                      );
+                    }),
+                  ],
                   onChanged: (val) {
                     setState(() => _selectedAccountId = val);
                   },
@@ -2105,22 +2131,31 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                             onPressed: () {
                               if (_formKey.currentState?.validate() == true) {
                                 final double expAmount = double.tryParse(_amountController.text) ?? 0.0;
-                                final selectedAccount = accounts.firstWhere((a) => a.id == _selectedAccountId);
-                                
-                                double availableBalance = selectedAccount.balance;
-                                if (widget.expense != null && widget.expense!.accountId == selectedAccount.id) {
-                                  availableBalance += widget.expense!.amount;
-                                }
+                                if (_selectedAccountId != 'general_khata') {
+                                  final selectedAccount = accounts.firstWhere((a) => a.id == _selectedAccountId);
+                                  
+                                  double availableBalance = selectedAccount.balance;
+                                  if (widget.expense != null && widget.expense!.accountId == selectedAccount.id) {
+                                    availableBalance += widget.expense!.amount;
+                                  }
 
-                                if (expAmount > availableBalance) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Insufficient Funds in ${selectedAccount.name}. Available: Rs. ${availableBalance.toStringAsFixed(0)}'),
-                                      behavior: SnackBarBehavior.floating,
-                                      backgroundColor: context.error,
-                                    ),
-                                  );
-                                  return;
+                                  if (expAmount > availableBalance) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Insufficient Funds in ${selectedAccount.name}. Available: Rs. ${availableBalance.toStringAsFixed(0)}. Choose "General Khata" to record without bank deduction.'),
+                                        behavior: SnackBarBehavior.floating,
+                                        backgroundColor: context.error,
+                                        action: SnackBarAction(
+                                          label: 'Use Khata',
+                                          textColor: Colors.white,
+                                          onPressed: () {
+                                            setState(() => _selectedAccountId = 'general_khata');
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
                                 }
 
                                 final now = DateTime.now();
