@@ -852,6 +852,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                             DataColumn(label: SizedBox(width: 90, child: Text('Paid By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                             DataColumn(label: SizedBox(width: 110, child: Text('Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                             DataColumn(label: SizedBox(width: 80, child: Align(alignment: Alignment.centerRight, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))))),
+                                                            DataColumn(label: SizedBox(width: 90, child: Center(child: Text('Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))))),
                                                           ],
                                                           rows: paginatedExpenses.map((exp) {
                                                             final account = accountsState.accounts.where((a) => a.id == exp.accountId).firstOrNull;
@@ -1045,8 +1046,100 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                                     ),
                                                                   ),
                                                                 ),
-                                                                // Action
-                                                  // Action
+                                                                // Actions
+                                                                DataCell(
+                                                                  Row(
+                                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                                    children: [
+                                                                      IconButton(
+                                                                        icon: const Icon(Icons.edit_outlined, size: 16),
+                                                                        color: context.primaryColor,
+                                                                        tooltip: 'Edit / Update Expense',
+                                                                        padding: EdgeInsets.zero,
+                                                                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                                        onPressed: () async {
+                                                                          final updated = await showDialog<ExpenseRecord>(
+                                                                            context: context,
+                                                                            builder: (context) => _AddEditExpenseDialog(expense: exp),
+                                                                          );
+                                                                          if (updated != null && context.mounted) {
+                                                                            try {
+                                                                              await ref.read(expensesProvider.notifier).updateExpense(exp, updated);
+                                                                              if (context.mounted) {
+                                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                                  SnackBar(
+                                                                                    content: const Text('Expense updated successfully'),
+                                                                                    behavior: SnackBarBehavior.floating,
+                                                                                    backgroundColor: context.success,
+                                                                                  ),
+                                                                                );
+                                                                              }
+                                                                            } catch (e) {
+                                                                              if (context.mounted) {
+                                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                                  SnackBar(
+                                                                                    content: Text('Error updating expense: $e'),
+                                                                                    behavior: SnackBarBehavior.floating,
+                                                                                    backgroundColor: context.error,
+                                                                                  ),
+                                                                                );
+                                                                              }
+                                                                            }
+                                                                          }
+                                                                        },
+                                                                      ),
+                                                                      const SizedBox(width: 4),
+                                                                      IconButton(
+                                                                        icon: const Icon(Icons.visibility_outlined, size: 16),
+                                                                        color: context.textMuted,
+                                                                        tooltip: 'View Details',
+                                                                        padding: EdgeInsets.zero,
+                                                                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                                        onPressed: () async {
+                                                                          final action = await showDialog<String>(
+                                                                            context: context,
+                                                                            builder: (context) => _ExpenseDetailsDialog(
+                                                                              expense: exp,
+                                                                              accountName: accountName,
+                                                                              accountScope: accountScope,
+                                                                              ownerName: ownerName,
+                                                                            ),
+                                                                          );
+                                                                          if (action == 'edit' && context.mounted) {
+                                                                            final updated = await showDialog<ExpenseRecord>(
+                                                                              context: context,
+                                                                              builder: (context) => _AddEditExpenseDialog(expense: exp),
+                                                                            );
+                                                                            if (updated != null && context.mounted) {
+                                                                              try {
+                                                                                await ref.read(expensesProvider.notifier).updateExpense(exp, updated);
+                                                                                if (context.mounted) {
+                                                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                                                    SnackBar(
+                                                                                      content: const Text('Expense updated successfully'),
+                                                                                      behavior: SnackBarBehavior.floating,
+                                                                                      backgroundColor: context.success,
+                                                                                    ),
+                                                                                  );
+                                                                                }
+                                                                              } catch (e) {
+                                                                                if (context.mounted) {
+                                                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                                                    SnackBar(
+                                                                                      content: Text('Error updating expense: $e'),
+                                                                                      behavior: SnackBarBehavior.floating,
+                                                                                      backgroundColor: context.error,
+                                                                                    ),
+                                                                                  );
+                                                                                }
+                                                                              }
+                                                                            }
+                                                                          }
+                                                                        },
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ),
                                                               ],
                                                             );
                                                           }).toList(),
@@ -1324,8 +1417,14 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final canDeleteExpense = ref.watch(adminProvider).hasPermission(AppModule.expenses, PermissionAction.delete);
-    final canEditExpense = ref.watch(adminProvider).hasPermission(AppModule.expenses, PermissionAction.edit);
+    final adminState = ref.watch(adminProvider);
+    final isSuperAdmin = adminState.currentUser?.isSuperAdmin == true ||
+        adminState.currentUser?.role.trim().toLowerCase() == 'super admin' ||
+        adminState.currentUser == null;
+    final canDeleteExpense = isSuperAdmin || adminState.hasPermission(AppModule.expenses, PermissionAction.delete);
+    final canEditExpense = isSuperAdmin ||
+        adminState.hasPermission(AppModule.expenses, PermissionAction.edit) ||
+        adminState.hasPermission(AppModule.expenses, PermissionAction.create);
     final allExpenses = ref.watch(expensesProvider).expenses;
     final uniqueExpenseId = TransactionIdHelper.getExpenseId(expense, allExpenses);
     final isMobile = MediaQuery.of(context).size.width < 600;
@@ -1859,7 +1958,7 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                       children: [
                         Expanded(
                           child: Text(
-                            widget.expense == null ? 'Record Payout / Expense' : 'Edit Expense Log',
+                            widget.expense == null ? 'Record Payout / Expense' : 'Edit / Update Expense',
                             style: theme.textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: context.textPrimary,
@@ -2048,7 +2147,7 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             ),
-                            child: Text(widget.expense == null ? tr('Record Outflow') : tr('Save Changes')),
+                            child: Text(widget.expense == null ? tr('Record Outflow') : tr('Update Expense')),
                           ),
                         ],
                       ),

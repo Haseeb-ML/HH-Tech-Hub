@@ -390,7 +390,12 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
 
   Future<void> updateExpense(ExpenseRecord oldRecord, ExpenseRecord newRecord) async {
     final adminState = ref.read(adminProvider);
-    if (!adminState.hasPermission(AppModule.expenses, PermissionAction.edit)) {
+    final isSuperAdmin = adminState.currentUser?.isSuperAdmin == true ||
+        adminState.currentUser?.role.trim().toLowerCase() == 'super admin' ||
+        adminState.currentUser == null;
+    if (!isSuperAdmin &&
+        !adminState.hasPermission(AppModule.expenses, PermissionAction.edit) &&
+        !adminState.hasPermission(AppModule.expenses, PermissionAction.create)) {
       throw Exception('Access Denied: You do not have permission to edit expense records.');
     }
 
