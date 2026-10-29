@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1560,6 +1561,57 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
   }
 }
 
+class _DateTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Smooth backspacing: if user is deleting, allow it without forcing re-addition of dashes
+    if (newValue.text.length < oldValue.text.length) {
+      if (oldValue.text.endsWith('-') && newValue.text.length == oldValue.text.length - 1) {
+        final text = newValue.text.substring(0, newValue.text.length - 1);
+        return TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      }
+      return newValue;
+    }
+
+    // Keep only numbers
+    final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    // Maximum 8 digits: dd (2) + mm (2) + yyyy (4)
+    final limited = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < limited.length; i++) {
+      buffer.write(limited[i]);
+      if ((i == 1 || i == 3) && i != limited.length - 1) {
+        buffer.write('-');
+      }
+    }
+
+    // Automatically append '-' after 2 digits (day) or 4 digits (month)
+    if (limited.length == 2 || limited.length == 4) {
+      buffer.write('-');
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
 class _AddEditExpenseDialog extends ConsumerStatefulWidget {
   final ExpenseRecord? expense;
   const _AddEditExpenseDialog({this.expense});
@@ -1764,6 +1816,9 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                   controller: _dateController,
                   style: TextStyle(color: context.textPrimary, fontSize: 13),
                   keyboardType: TextInputType.datetime,
+                  inputFormatters: [
+                    _DateTextFormatter(),
+                  ],
                   decoration: _buildInputDecoration('DD-MM-YYYY (e.g. 29-10-2026)').copyWith(
                     suffixIcon: IconButton(
                       tooltip: 'Pick Date from Calendar',
