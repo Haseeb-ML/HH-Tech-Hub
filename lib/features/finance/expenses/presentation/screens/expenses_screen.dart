@@ -37,12 +37,14 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   String _formatExpenseDateTime(String isoDate) {
     try {
       final dt = DateTime.parse(isoDate);
-      if (dt.hour != 0 || dt.minute != 0) {
-        return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
-      }
-      return DateFormat('dd MMM yyyy').format(dt);
+      return DateFormat('dd-MM-yyyy').format(dt);
     } catch (_) {
-      return isoDate;
+      try {
+        final parsed = DateFormat('dd-MM-yyyy').parse(isoDate);
+        return DateFormat('dd-MM-yyyy').format(parsed);
+      } catch (_) {
+        return isoDate;
+      }
     }
   }
 
@@ -845,7 +847,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                             DataColumn(label: SizedBox(width: 100, child: Text('Expense ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                              DataColumn(label: SizedBox(width: 115, child: Text('Expense Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                             DataColumn(label: SizedBox(width: 125, child: Text('Comment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                                                            DataColumn(label: SizedBox(width: 110, child: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                            DataColumn(label: SizedBox(width: 110, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                             DataColumn(label: SizedBox(width: 90, child: Text('Paid By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                             DataColumn(label: SizedBox(width: 110, child: Text('Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                             DataColumn(label: SizedBox(width: 80, child: Align(alignment: Alignment.centerRight, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))))),
@@ -1308,12 +1310,14 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
   String _formatDate(String iso) {
     try {
       final dt = DateTime.parse(iso);
-      if (dt.hour != 0 || dt.minute != 0) {
-        return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
-      }
-      return DateFormat('dd MMM yyyy').format(dt);
+      return DateFormat('dd-MM-yyyy').format(dt);
     } catch (_) {
-      return iso;
+      try {
+        final parsed = DateFormat('dd-MM-yyyy').parse(iso);
+        return DateFormat('dd-MM-yyyy').format(parsed);
+      } catch (_) {
+        return iso;
+      }
     }
   }
 
@@ -1577,7 +1581,7 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
   bool _isPersonalExpense = false;
 
   String _formatDateForDisplay(DateTime dt) {
-    return DateFormat('yyyy-MM-dd HH:mm').format(dt);
+    return DateFormat('dd-MM-yyyy').format(dt);
   }
 
   DateTime _parseInputDate(String raw) {
@@ -1585,23 +1589,27 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
     if (trimmed.isEmpty) return DateTime.now();
 
     final formats = [
+      'dd-MM-yyyy',
+      'dd/MM/yyyy',
+      'dd.MM.yyyy',
+      'yyyy-MM-dd',
+      'yyyy/MM/dd',
+      'dd-MM-yyyy HH:mm',
+      'dd/MM/yyyy HH:mm',
       'yyyy-MM-dd HH:mm:ss',
       'yyyy-MM-dd HH:mm',
       'yyyy-MM-ddTHH:mm:ss',
       'yyyy-MM-ddTHH:mm',
-      'yyyy-MM-dd',
-      'dd-MM-yyyy HH:mm',
-      'dd-MM-yyyy',
-      'dd/MM/yyyy HH:mm',
-      'dd/MM/yyyy',
-      'yyyy/MM/dd HH:mm',
-      'yyyy/MM/dd',
     ];
 
     for (final fmt in formats) {
       try {
-        return DateFormat(fmt).parse(trimmed);
-      } catch (_) {}
+        return DateFormat(fmt).parseStrict(trimmed);
+      } catch (_) {
+        try {
+          return DateFormat(fmt).parse(trimmed);
+        } catch (_) {}
+      }
     }
 
     try {
@@ -1621,7 +1629,7 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
     if (widget.expense != null) {
       _category = widget.expense!.category;
       _selectedAccountId = widget.expense!.accountId;
-      final parsed = DateTime.tryParse(widget.expense!.date) ?? DateTime.now();
+      final parsed = DateTime.tryParse(widget.expense!.date) ?? _parseInputDate(widget.expense!.date);
       _date = parsed;
       _dateController = TextEditingController(text: _formatDateForDisplay(parsed));
       _isPersonalExpense = widget.expense!.isPersonalExpense;
@@ -1740,10 +1748,10 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.access_time, size: 12, color: context.primaryColor),
+                            Icon(Icons.today_outlined, size: 12, color: context.primaryColor),
                             const SizedBox(width: 3),
                             Text(
-                              'Current Time',
+                              'Today',
                               style: TextStyle(color: context.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
                             ),
                           ],
@@ -1756,9 +1764,9 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                   controller: _dateController,
                   style: TextStyle(color: context.textPrimary, fontSize: 13),
                   keyboardType: TextInputType.datetime,
-                  decoration: _buildInputDecoration('YYYY-MM-DD HH:mm (or leave for now)').copyWith(
+                  decoration: _buildInputDecoration('DD-MM-YYYY (e.g. 29-10-2026)').copyWith(
                     suffixIcon: IconButton(
-                      tooltip: 'Pick Date & Time from Calendar',
+                      tooltip: 'Pick Date from Calendar',
                       icon: Icon(Icons.calendar_month_outlined, size: 20, color: context.primaryColor),
                       onPressed: () async {
                         final current = _parseInputDate(_dateController.text);
@@ -1766,23 +1774,12 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                           context: context,
                           initialDate: current,
                           firstDate: DateTime(2020),
-                          lastDate: DateTime(2030),
+                          lastDate: DateTime(2035),
                         );
                         if (pickedDate != null && context.mounted) {
-                          final pickedTime = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay.fromDateTime(current),
-                          );
-                          final finalDateTime = DateTime(
-                            pickedDate.year,
-                            pickedDate.month,
-                            pickedDate.day,
-                            pickedTime?.hour ?? current.hour,
-                            pickedTime?.minute ?? current.minute,
-                          );
                           setState(() {
-                            _date = finalDateTime;
-                            _dateController.text = _formatDateForDisplay(finalDateTime);
+                            _date = pickedDate;
+                            _dateController.text = _formatDateForDisplay(pickedDate);
                           });
                         }
                       },
@@ -1975,7 +1972,7 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                                 final now = DateTime.now();
                                 final rawInput = _dateController.text.trim();
                                 final DateTime chosenDate = rawInput.isEmpty ? now : _parseInputDate(rawInput);
-                                final expenseDate = chosenDate.toIso8601String();
+                                final expenseDate = DateTime(chosenDate.year, chosenDate.month, chosenDate.day).toIso8601String();
 
                                 final expense = ExpenseRecord(
                                   id: widget.expense?.id ?? 'exp_${now.millisecondsSinceEpoch}',
