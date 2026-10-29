@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 /// A sub-navigation bar for the HR module.
 /// Place this at the top of every HR screen body.
@@ -15,33 +17,39 @@ class HrSubNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final tr = ref.watch(translationProvider);
+    final adminState = ref.watch(adminProvider);
 
     final tabs = [
-      _HrTab(
-        label: tr('Employees'),
-        icon: Icons.badge_outlined,
-        route: '/hr/employees',
-      ),
-      _HrTab(
-        label: tr('Attendance'),
-        icon: Icons.calendar_today_outlined,
-        route: '/hr/attendance',
-      ),
-      _HrTab(
-        label: tr('Salaries'),
-        icon: Icons.payments_outlined,
-        route: '/hr/salaries',
-      ),
-      _HrTab(
-        label: tr('Advances'),
-        icon: Icons.account_balance_wallet_outlined,
-        route: '/hr/advances',
-      ),
-      _HrTab(
-        label: tr('History'),
-        icon: Icons.history_outlined,
-        route: '/hr/history',
-      ),
+      if (adminState.hasPermission(AppModule.employees, PermissionAction.view))
+        _HrTab(
+          label: tr('Employees'),
+          icon: Icons.badge_outlined,
+          route: '/hr/employees',
+        ),
+      if (adminState.hasPermission(AppModule.attendance, PermissionAction.view))
+        _HrTab(
+          label: tr('Attendance'),
+          icon: Icons.calendar_today_outlined,
+          route: '/hr/attendance',
+        ),
+      if (adminState.hasPermission(AppModule.payroll, PermissionAction.view))
+        _HrTab(
+          label: tr('Salaries'),
+          icon: Icons.payments_outlined,
+          route: '/hr/salaries',
+        ),
+      if (adminState.hasPermission(AppModule.advances, PermissionAction.view))
+        _HrTab(
+          label: tr('Advances'),
+          icon: Icons.account_balance_wallet_outlined,
+          route: '/hr/advances',
+        ),
+      if (adminState.hasPermission(AppModule.employeeHistory, PermissionAction.view))
+        _HrTab(
+          label: tr('History'),
+          icon: Icons.history_outlined,
+          route: '/hr/history',
+        ),
     ];
 
     final isMobile = MediaQuery.of(context).size.width < 600;

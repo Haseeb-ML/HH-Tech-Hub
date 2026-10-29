@@ -43,7 +43,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
         .fold<double>(0, (sum, e) => sum + e.baseSalary);
 
     final width = MediaQuery.of(context).size.width;
-    int crossAxisCount = width >= 1400 ? 4 : (width >= 900 ? 3 : 2);
+    int crossAxisCount = width >= 1400 ? 4 : (width >= 950 ? 3 : (width >= 600 ? 2 : 1));
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -557,7 +557,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                             crossAxisCount: crossAxisCount,
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
-                            mainAxisExtent: 295,
+                            mainAxisExtent: width < 600 ? 275 : 295,
                           ),
                           itemCount: state.filteredEmployees.length,
                           itemBuilder: (context, index) {
@@ -587,7 +587,13 @@ class _EmployeeCard extends ConsumerWidget {
     final adminState = ref.watch(adminProvider);
     final canEdit = adminState.hasPermission(AppModule.employees, PermissionAction.edit);
     final canDelete = adminState.hasPermission(AppModule.employees, PermissionAction.delete);
-    final initials = employee.name.split(' ').map((e) => e[0]).take(2).join().toUpperCase();
+    final cleanName = employee.name.trim();
+    final nameParts = cleanName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final initials = nameParts.isEmpty
+        ? 'EMP'
+        : (nameParts.length == 1
+            ? nameParts[0].substring(0, nameParts[0].length >= 2 ? 2 : 1).toUpperCase()
+            : (nameParts[0][0] + nameParts[1][0]).toUpperCase());
 
     // Determine status badge colors
     Color statusColor = context.success;
@@ -654,17 +660,18 @@ class _EmployeeCard extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            employee.name,
+                            cleanName.isNotEmpty ? cleanName : tr('Unnamed Employee'),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: context.textPrimary,
                               fontSize: 14,
                             ),
-                            maxLines: 1,
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          const SizedBox(height: 2),
                           Text(
-                            employee.designation,
+                            employee.designation.isNotEmpty ? employee.designation : tr('Staff Member'),
                             style: TextStyle(
                               color: context.textSecondary,
                               fontSize: 11,
@@ -865,6 +872,23 @@ class _EmployeeCard extends ConsumerWidget {
               ),
             ],
           ),
+          if (employee.cnic.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.badge_outlined, size: 14, color: context.textMuted),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${tr("CNIC:")} ${employee.cnic.trim()}',
+                    style: TextStyle(color: context.textSecondary, fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8),
 
           // Salary details
@@ -919,6 +943,7 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _cnicController = TextEditingController();
   final List<TextEditingController> _phoneControllers = [TextEditingController()];
   final List<String> _phoneRelationships = ['Personal'];
   final List<TextEditingController> _customRelationshipControllers = [TextEditingController()];
@@ -933,6 +958,7 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _cnicController.dispose();
     for (final controller in _phoneControllers) {
       controller.dispose();
     }
@@ -1039,6 +1065,20 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                     if (!val.contains('@')) return 'Please enter valid email';
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+
+                // CNIC Number
+                _buildLabel('${tr('CNIC Number')} (Optional)'),
+                TextFormField(
+                  controller: _cnicController,
+                  style: TextStyle(color: context.textPrimary),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
+                    LengthLimitingTextInputFormatter(15),
+                  ],
+                  decoration: _buildInputDecoration('35202-1234567-1'),
                 ),
                 const SizedBox(height: 16),
 
@@ -1337,6 +1377,7 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                               }
                               return list;
                             }(),
+                            cnic: _cnicController.text.trim(),
                             designation: _designationController.text.trim(),
                             department: _department,
                             joiningDate: _joiningDateController.text.trim(),
@@ -1429,6 +1470,7 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _emailController;
+  late final TextEditingController _cnicController;
   late final List<TextEditingController> _phoneControllers;
   late final List<String> _phoneRelationships;
   late final List<TextEditingController> _customRelationshipControllers;
@@ -1445,7 +1487,8 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
     super.initState();
     _nameController = TextEditingController(text: widget.employee.name);
     _emailController = TextEditingController(text: widget.employee.email);
-    
+    _cnicController = TextEditingController(text: widget.employee.cnic);
+
     _phoneControllers = [];
     _phoneRelationships = [];
     _customRelationshipControllers = [];
@@ -1498,6 +1541,7 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _cnicController.dispose();
     for (final controller in _phoneControllers) {
       controller.dispose();
     }
@@ -1579,6 +1623,20 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                     if (!val.contains('@')) return 'Please enter valid email';
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+
+                // CNIC Number
+                _buildLabel('${tr('CNIC Number')} (Optional)'),
+                TextFormField(
+                  controller: _cnicController,
+                  style: TextStyle(color: context.textPrimary),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9\-]')),
+                    LengthLimitingTextInputFormatter(15),
+                  ],
+                  decoration: _buildInputDecoration('35202-1234567-1'),
                 ),
                 const SizedBox(height: 16),
 
@@ -1955,6 +2013,7 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                               }
                               return list;
                             }(),
+                            cnic: _cnicController.text.trim(),
                             designation: _designationController.text.trim(),
                             department: _department,
                             status: _status,
@@ -2053,7 +2112,13 @@ class _ViewEmployeeDetailsDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final tr = ref.watch(translationProvider);
-    final initials = employee.name.split(' ').map((e) => e[0]).take(2).join().toUpperCase();
+    final cleanName = employee.name.trim();
+    final nameParts = cleanName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final initials = nameParts.isEmpty
+        ? 'EMP'
+        : (nameParts.length == 1
+            ? nameParts[0].substring(0, nameParts[0].length >= 2 ? 2 : 1).toUpperCase()
+            : (nameParts[0][0] + nameParts[1][0]).toUpperCase());
 
     // Determine status badge colors
     Color statusColor = context.success;
@@ -2168,6 +2233,7 @@ class _ViewEmployeeDetailsDialog extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // Details Grid
+              _buildDetailItem(context, tr('CNIC Number'), employee.cnic.trim().isNotEmpty ? employee.cnic.trim() : tr('N/A')),
               _buildDetailItem(context, tr('Department'), employee.department),
               _buildDetailItem(context, tr('Joining Date'), employee.joiningDate),
               if (employee.leavingDate != null && employee.status == 'Terminated')

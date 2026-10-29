@@ -5,6 +5,7 @@ import '../../domain/repositories/tasks_repository.dart';
 import '../../data/repositories/tasks_repository_impl.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
 
 
 
@@ -137,6 +138,17 @@ class TasksNotifier extends Notifier<TasksState> {
     final adminState = ref.read(adminProvider);
     if (!adminState.hasPermission(AppModule.tasks, PermissionAction.delete)) {
       return;
+    }
+    final task = state.tasks.where((t) => t.id == id).firstOrNull;
+    if (task != null) {
+      await ref.read(recoveryProvider.notifier).addDeletedItem(
+        id: task.id,
+        itemType: 'Task',
+        title: task.title,
+        subtitle: '${task.projectName} • Assignee: ${task.assigneeName}',
+        jsonData: task.toMap(),
+        deletedBy: adminState.currentUser?.name ?? 'Admin',
+      );
     }
     state = state.copyWith(isLoading: true);
     await _repository.deleteTask(id);

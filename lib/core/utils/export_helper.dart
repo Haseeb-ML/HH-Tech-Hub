@@ -6,10 +6,12 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../../features/hr/employees/domain/entities/employee.dart';
 import '../../features/hr/salaries/domain/entities/salary_record.dart';
+import '../../features/hr/advances/domain/entities/advance_record.dart';
 import '../../features/hr/attendance/domain/entities/attendance_record.dart';
 import '../../features/finance/accounts/domain/entities/bank_account.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 
 class ExportHelper {
@@ -94,6 +96,42 @@ class ExportHelper {
     return baseDate;
   }
 
+  /// Safely sanitizes text for PDF generation using standard Helvetica font.
+  /// Replaces non-ASCII Unicode characters (em-dash, bullet, smart quotes, etc.)
+  /// with standard ASCII equivalents to prevent PDF font encoding exceptions.
+  static String sanitizePdfText(dynamic input) {
+    if (input == null) return '';
+    var text = input.toString();
+    if (text.isEmpty) return '';
+
+    text = text
+        .replaceAll('—', '-')
+        .replaceAll('–', '-')
+        .replaceAll('•', '*')
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('‘', "'")
+        .replaceAll('’', "'")
+        .replaceAll('…', '...')
+        .replaceAll('₨', 'Rs.')
+        .replaceAll('₹', 'Rs.')
+        .replaceAll(RegExp(r'[^\x00-\x7F]'), '');
+
+    // Soft-wrap tokens > 35 chars by inserting spaces so PDF layout engines wrap without error
+    return text.split(' ').map((word) {
+      if (word.length > 35) {
+        return RegExp(r'.{1,35}').allMatches(word).map((m) => m.group(0)).join(' ');
+      }
+      return word;
+    }).join(' ');
+  }
+
+  /// Sanitizes file names to remove illegal OS path characters.
+  static String sanitizeFileName(String fileName) {
+    final clean = fileName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
+    return clean.isEmpty ? 'export_report' : clean;
+  }
+
   /// Save Excel workbook with automatic total calculation for numeric columns
   static Future<String> exportToExcel({
     required String fileName,
@@ -102,6 +140,7 @@ class ExportHelper {
   }) async {
     final excel = ex.Excel.createExcel();
     final sheet = excel[excel.getDefaultSheet()!];
+    final safeFileName = sanitizeFileName(fileName);
 
     // Elegant header style: bold, dark indigo text, light lavender/indigo background, thin borders
     final headerStyle = ex.CellStyle(
@@ -262,7 +301,7 @@ class ExportHelper {
 
     final fileBytes = excel.save();
     if (fileBytes != null) {
-      return await saveAndLaunchFile(fileBytes, '$fileName.xlsx');
+      return await saveAndLaunchFile(fileBytes, '$safeFileName.xlsx');
     }
     return '';
   }
@@ -276,7 +315,7 @@ class ExportHelper {
       ignoreMargins: true,
       child: pw.Center(
         child: pw.Transform.rotateBox(
-          angle: isLandscape ? -0.26 : -0.34,
+          angle: isLandscape ? 0.26 : 0.34,
           child: pw.Opacity(
             opacity: 0.12,
             child: logoImage != null
@@ -306,8 +345,12 @@ class ExportHelper {
     required String fileName,
     required List<String> headers,
     required List<List<dynamic>> rows,
+    Map<int, pw.TableColumnWidth>? columnWidths,
   }) async {
     final pdf = pw.Document();
+    final safeFileName = sanitizeFileName(fileName);
+    final safeTitle = sanitizePdfText(title);
+    final safeHeaders = headers.map((h) => sanitizePdfText(h)).toList();
 
     pw.MemoryImage? logoImage;
     try {
@@ -326,21 +369,46 @@ class ExportHelper {
     final lightBorder = PdfColor.fromHex('#E2E8F0'); // Slate 200
 
     // Prepare PDF rows and calculate totals
-    final pdfRows = rows
-        .map((row) => row.map((cell) => cell?.toString() ?? '').toList())
-        .toList();
-    final totalsRow = _calculateTotalsRow(headers, rows);
-    final hasTotals = totalsRow.any(
-      (val) =>
-          val != null && val.toString().isNotEmpty && val.toString() != 'TOTAL',
-    );
+    final pdfRows = rows.isEmpty
+        ? [List.generate(headers.length, (i) => i == 0 ? 'No records found' : '')]
+        : rows
+            .map((row) => row.map((cell) => sanitizePdfText(cell)).toList())
+            .toList();
 
-    if (hasTotals) {
-      pdfRows.add(totalsRow.map((cell) => cell?.toString() ?? '').toList());
+    if (rows.isNotEmpty) {
+      final totalsRow = _calculateTotalsRow(headers, rows);
+      final hasTotals = totalsRow.any(
+        (val) =>
+            val != null && val.toString().isNotEmpty && val.toString() != 'TOTAL',
+      );
+
+      if (hasTotals) {
+        pdfRows.add(totalsRow.map((cell) => sanitizePdfText(cell)).toList());
+      }
+    }
+
+    // Determine smart column widths if not explicitly provided
+    Map<int, pw.TableColumnWidth> finalColumnWidths = columnWidths ?? {};
+    if (columnWidths == null && safeHeaders.isNotEmpty) {
+      final widths = <int, pw.TableColumnWidth>{};
+      for (var i = 0; i < safeHeaders.length; i++) {
+        final h = safeHeaders[i].toLowerCase();
+        if (h.contains('action') || h.contains('description') || h.contains('detail') || h.contains('note') || h.contains('message')) {
+          widths[i] = const pw.FlexColumnWidth(3.5);
+        } else if (h.contains('user') || h.contains('account') || h.contains('email') || h.contains('name')) {
+          widths[i] = const pw.FlexColumnWidth(1.8);
+        } else if (h.contains('time') || h.contains('date') || h.contains('ip') || h.contains('module') || h.contains('scope')) {
+          widths[i] = const pw.FlexColumnWidth(1.4);
+        } else {
+          widths[i] = const pw.FlexColumnWidth(1.5);
+        }
+      }
+      finalColumnWidths = widths;
     }
 
     pdf.addPage(
       pw.MultiPage(
+        maxPages: 10000,
         pageTheme: pw.PageTheme(
           pageFormat: PdfPageFormat.letter.landscape,
           margin: const pw.EdgeInsets.all(32),
@@ -373,7 +441,7 @@ class ExportHelper {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
-                          title.toUpperCase(),
+                          safeTitle.toUpperCase(),
                           style: pw.TextStyle(
                             fontWeight: pw.FontWeight.bold,
                             fontSize: 18,
@@ -534,10 +602,11 @@ class ExportHelper {
           ),
           pw.SizedBox(height: 16),
 
-          // Clean professional table
+          // Clean professional table (dynamic cell heights & smart column widths)
           pw.TableHelper.fromTextArray(
-            headers: headers,
+            headers: safeHeaders,
             data: pdfRows,
+            columnWidths: finalColumnWidths,
             headerStyle: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               fontSize: 8,
@@ -545,14 +614,13 @@ class ExportHelper {
             ),
             headerDecoration: pw.BoxDecoration(color: headerBg),
             cellStyle: pw.TextStyle(fontSize: 7.5, color: textColor),
-            cellHeight: 26,
             cellAlignments: {
-              for (var i = 0; i < headers.length; i++)
+              for (var i = 0; i < safeHeaders.length; i++)
                 i: pw.Alignment.centerLeft,
             },
             cellPadding: const pw.EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 5,
+              horizontal: 6,
+              vertical: 4,
             ),
             rowDecoration: const pw.BoxDecoration(color: null),
             oddRowDecoration: pw.BoxDecoration(color: lightBg),
@@ -565,7 +633,7 @@ class ExportHelper {
       ),
     );
 
-    return await saveAndLaunchFile(await pdf.save(), '$fileName.pdf');
+    return await saveAndLaunchFile(await pdf.save(), '$safeFileName.pdf');
   }
 
   /// Open file natively in Windows / handle safely on other platforms
@@ -582,8 +650,14 @@ class ExportHelper {
       try {
         final result = await OpenFilex.open(filePath);
         debugPrint('OpenFilex result: ${result.message}');
+        if (result.type != ResultType.done && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+          await Share.shareXFiles([XFile(filePath)], text: 'Exported Report');
+        }
       } catch (e) {
         debugPrint('Error opening file: $e');
+        if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+          await Share.shareXFiles([XFile(filePath)], text: 'Exported Report');
+        }
       }
     }
   }
@@ -704,6 +778,7 @@ class ExportHelper {
     required String fileName,
     required Employee employee,
     required List<SalaryRecord> salaries,
+    List<AdvanceRecord> advances = const [],
     required List<AttendanceRecord> attendance,
     required Map<String, dynamic> attendanceStats,
   }) async {
@@ -996,7 +1071,71 @@ class ExportHelper {
     }
     rowIdx += 3;
 
-    // 3. Attendance History Section
+    // 3. Salary Advances History Section
+    if (advances.isNotEmpty) {
+      sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIdx))
+        ..value = ex.TextCellValue('SALARY ADVANCES HISTORY')
+        ..cellStyle = sectionHeaderStyle;
+      rowIdx += 2;
+
+      final advanceHeaders = [
+        'Request Date',
+        'Total Amount',
+        'Monthly Deduction',
+        'Reason',
+        'Status',
+      ];
+      for (int i = 0; i < advanceHeaders.length; i++) {
+        sheet.cell(
+            ex.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: rowIdx),
+          )
+          ..value = ex.TextCellValue(advanceHeaders[i])
+          ..cellStyle = headerStyle;
+      }
+      rowIdx++;
+
+      double totalAdvAmount = 0;
+
+      for (var adv in advances) {
+        final rowStyle = (rowIdx % 2 == 0) ? evenRowStyle : oddRowStyle;
+
+        sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIdx))
+          ..value = ex.TextCellValue(adv.requestDate)
+          ..cellStyle = rowStyle;
+        sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIdx))
+          ..value = ex.TextCellValue('Rs. ${adv.amount.toStringAsFixed(0)}')
+          ..cellStyle = rowStyle;
+        sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIdx))
+          ..value = ex.TextCellValue('Rs. ${adv.monthlyDeduction.toStringAsFixed(0)}/mo')
+          ..cellStyle = rowStyle;
+        sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIdx))
+          ..value = ex.TextCellValue(adv.reason)
+          ..cellStyle = rowStyle;
+        sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIdx))
+          ..value = ex.TextCellValue(adv.status)
+          ..cellStyle = rowStyle;
+
+        totalAdvAmount += adv.amount;
+        rowIdx++;
+      }
+
+      // Totals row for advances
+      sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIdx))
+        ..value = ex.TextCellValue('TOTAL ADVANCES')
+        ..cellStyle = totalsRowStyle;
+      sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIdx))
+        ..value = ex.TextCellValue('Rs. ${totalAdvAmount.toStringAsFixed(0)}')
+        ..cellStyle = totalsRowStyle;
+
+      for (int col = 2; col < 5; col++) {
+        sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIdx))
+          ..value = ex.TextCellValue('')
+          ..cellStyle = totalsRowStyle;
+      }
+      rowIdx += 3;
+    }
+
+    // 4. Attendance History Section
     sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIdx))
       ..value = ex.TextCellValue('ATTENDANCE SUMMARY & LOGS')
       ..cellStyle = sectionHeaderStyle;
@@ -1398,6 +1537,7 @@ class ExportHelper {
     // Build statement MultiPage
     pdf.addPage(
       pw.MultiPage(
+        maxPages: 10000,
         pageTheme: pw.PageTheme(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -2017,6 +2157,7 @@ class ExportHelper {
 
     pdf.addPage(
       pw.MultiPage(
+        maxPages: 10000,
         pageTheme: pw.PageTheme(
           pageFormat: PdfPageFormat.letter.landscape,
           margin: const pw.EdgeInsets.all(32),

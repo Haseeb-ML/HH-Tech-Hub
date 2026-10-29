@@ -3,6 +3,7 @@ import 'package:software_house_erp/core/services/database_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
 import '../../domain/entities/project.dart';
 import '../../domain/repositories/projects_repository.dart';
 import '../../data/repositories/projects_repository_impl.dart';
@@ -124,6 +125,17 @@ class ProjectsNotifier extends Notifier<ProjectsState> {
     }
     final found = state.projects.where((p) => p.id == id).firstOrNull;
     final projName = found != null ? found.name : 'ID $id';
+
+    if (found != null) {
+      await ref.read(recoveryProvider.notifier).addDeletedItem(
+        id: found.id,
+        itemType: 'Project',
+        title: found.name,
+        subtitle: '${found.clientName} • Status: ${found.status}',
+        jsonData: found.toMap(),
+        deletedBy: adminState.currentUser?.name ?? 'Admin',
+      );
+    }
 
     state = state.copyWith(isLoading: true);
     await _repository.deleteProject(id);

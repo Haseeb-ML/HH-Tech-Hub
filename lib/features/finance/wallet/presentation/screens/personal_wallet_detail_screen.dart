@@ -125,7 +125,7 @@ class _PersonalWalletDetailScreenState
     final pureIncomeTotal =
         personalIncomes.fold<double>(0.0, (s, i) => s + i.amount) + directInflow;
     final loansInflowTotal = loansReceivedInflow + repaymentsReceivedInflow;
-    final totalInflow = pureIncomeTotal + loansInflowTotal;
+    final totalInflow = account.openingBalance + pureIncomeTotal + loansInflowTotal;
 
     final pureExpenseTotal =
         personalExpenses.fold<double>(0.0, (s, e) => s + e.amount) + directOutflow;
@@ -618,7 +618,7 @@ class _PersonalWalletDetailScreenState
                       title: 'Total Inflow (All Time)',
                       value: 'Rs. ${totalInflow.toStringAsFixed(0)}',
                       subtext:
-                          'Income: Rs. ${pureIncomeTotal.toStringAsFixed(0)} • Loans: Rs. ${loansInflowTotal.toStringAsFixed(0)}',
+                          '${account.openingBalance > 0 ? "Opening: Rs. ${account.openingBalance.toStringAsFixed(0)} • " : ""}Income: Rs. ${pureIncomeTotal.toStringAsFixed(0)} • Loans: Rs. ${loansInflowTotal.toStringAsFixed(0)}',
                       accentColor: context.isDarkMode
                           ? const Color(0xFF4ADE80)
                           : const Color(0xFF16A34A),

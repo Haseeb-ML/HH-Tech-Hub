@@ -5,7 +5,6 @@ import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/features/inventory/shared/widgets/inventory_sub_nav.dart';
-import 'package:software_house_erp/features/hr/employees/presentation/providers/employees_provider.dart';
 import '../providers/assets_provider.dart';
 import '../../../../finance/accounts/presentation/providers/accounts_provider.dart';
 import '../../../../finance/expenses/domain/entities/expense_record.dart';
@@ -28,7 +27,6 @@ class AssetsScreen extends ConsumerWidget {
 
     // Calculate metrics
     final totalAssets = state.assets.length;
-    final assignedAssets = state.assets.where((a) => a.status == 'Assigned').length;
     final availableAssets = state.assets.where((a) => a.status == 'Available').length;
     final maintenanceAssets = state.assets.where((a) => a.status == 'Under Maintenance').length;
 
@@ -65,7 +63,7 @@ class AssetsScreen extends ConsumerWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Track software licenses and hardware devices assigned to employees.',
+                                  'Track software licenses and hardware devices.',
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color: context.textSecondary,
                                   ),
@@ -149,7 +147,7 @@ class AssetsScreen extends ConsumerWidget {
                         // Stats Row
                         LayoutBuilder(
                           builder: (context, constraints) {
-                            final crossAxisCount = constraints.maxWidth >= 1100 ? 4 : 2;
+                            final crossAxisCount = constraints.maxWidth >= 900 ? 3 : 1;
                             final isMobile = constraints.maxWidth < 600;
                             return GridView.count(
                               shrinkWrap: true,
@@ -157,7 +155,7 @@ class AssetsScreen extends ConsumerWidget {
                               crossAxisCount: crossAxisCount,
                               crossAxisSpacing: isMobile ? 12 : 16,
                               mainAxisSpacing: isMobile ? 12 : 16,
-                              childAspectRatio: crossAxisCount == 4 ? 1.8 : (isMobile ? 0.85 : 2.1),
+                              childAspectRatio: crossAxisCount == 3 ? 2.0 : (isMobile ? 1.0 : 2.5),
                               children: [
                                 StatCard(
                                   title: 'Total Assets',
@@ -167,15 +165,6 @@ class AssetsScreen extends ConsumerWidget {
                                   iconColor: context.primaryColor,
                                   iconBgColor: context.infoLight,
                                   trendText: tr('Devices & Licenses'),
-                                ),
-                                StatCard(
-                                  title: tr('Assigned'),
-                                  tooltipMessage: "Detailed statistics and information regarding ${tr('Assigned')}.",
-                                  value: '$assignedAssets',
-                                  icon: Icons.person_pin_outlined,
-                                  iconColor: context.success,
-                                  iconBgColor: context.successLight,
-                                  trendText: tr('In active use'),
                                 ),
                                 StatCard(
                                   title: 'Available',
@@ -214,7 +203,7 @@ class AssetsScreen extends ConsumerWidget {
                                   onChanged: (val) => ref.read(assetsProvider.notifier).setSearchQuery(val),
                                   style: TextStyle(color: context.textPrimary, fontSize: 13),
                                   decoration: InputDecoration(
-                                    hintText: tr('Search by name, serial, or employee...'),
+                                    hintText: tr('Search by name, serial, or type...'),
                                     hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
                                     prefixIcon: Icon(Icons.search, size: 18, color: context.textMuted),
                                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -387,7 +376,6 @@ class AssetsScreen extends ConsumerWidget {
                                   items: [
                                     DropdownMenuItem(value: 'All', child: Text(tr('All Statuses'))),
                                     DropdownMenuItem(value: 'Available', child: Text('Available')),
-                                    DropdownMenuItem(value: 'Assigned', child: Text(tr('Assigned'))),
                                     DropdownMenuItem(value: 'Under Maintenance', child: Text('In Maintenance')),
                                     DropdownMenuItem(value: 'Retired', child: Text('Retired')),
                                   ],
@@ -474,7 +462,7 @@ class AssetsScreen extends ConsumerWidget {
                                 crossAxisCount: crossAxisCount,
                                 crossAxisSpacing: 16,
                                 mainAxisSpacing: 16,
-                                mainAxisExtent: 280,
+                                mainAxisExtent: 220,
                               ),
                               itemCount: state.filteredAssets.length,
                               itemBuilder: (context, index) {
@@ -518,10 +506,7 @@ class _AssetCard extends ConsumerWidget {
     // Status colors
     Color statusColor = context.info;
     Color statusBg = context.infoLight;
-    if (asset.status == 'Assigned') {
-      statusColor = context.success;
-      statusBg = context.successLight;
-    } else if (asset.status == 'Under Maintenance') {
+    if (asset.status == 'Under Maintenance') {
       statusColor = context.warning;
       statusBg = context.warningLight;
     } else if (asset.status == 'Retired') {
@@ -633,56 +618,33 @@ class _AssetCard extends ConsumerWidget {
                           if (!canDelete) return;
                           final messenger = ScaffoldMessenger.of(context);
                           final errorColor = context.error;
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: Text(tr('Delete Asset')),
-                              content: Text('${tr("Are you sure you want to delete asset")} "${asset.name}"? ${tr("This action cannot be undone.")}'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await ref.read(assetsProvider.notifier).deleteAsset(asset.id);
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('${tr("Asset")} "${asset.name}" ${tr("deleted.")}'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: errorColor,
-                                ),
-                              );
-                            } catch (e) {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to delete asset: $e'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: errorColor,
-                                ),
-                              );
-                            }
+                          try {
+                            await ref.read(assetsProvider.notifier).deleteAsset(asset.id);
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('${tr("Asset")} "${asset.name}" ${tr("deleted.")}'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: errorColor,
+                              ),
+                            );
+                          } catch (e) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to delete asset: $e'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: errorColor,
+                              ),
+                            );
                           }
                         } else if (val == 'maintenance') {
                           if (!canEdit) return;
                           ref.read(assetsProvider.notifier).updateAsset(asset.copyWith(
                                 status: 'Under Maintenance',
-                                assignedToId: null,
-                                assignedToName: null,
                               ));
                         } else if (val == 'retire') {
                           if (!canEdit) return;
                           ref.read(assetsProvider.notifier).updateAsset(asset.copyWith(
                                 status: 'Retired',
-                                assignedToId: null,
-                                assignedToName: null,
                               ));
                         }
                       },
@@ -807,81 +769,6 @@ class _AssetCard extends ConsumerWidget {
 
               const Spacer(),
 
-              // Assignment Footer
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  color: context.scaffoldBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: asset.status == 'Assigned'
-                          ? Row(
-                              children: [
-                                Icon(Icons.person_outline, size: 14, color: context.textSecondary),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    asset.assignedToName ?? 'Employee',
-                                    style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.w500),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Text(
-                              asset.status == 'Available' ? 'Unassigned' : 'Not Deployable',
-                              style: TextStyle(color: context.textMuted, fontSize: 12, fontStyle: FontStyle.italic),
-                            ),
-                    ),
-                    if (asset.status == 'Assigned' && canEdit)
-                      TextButton(
-                        onPressed: () {
-                          ref.read(assetsProvider.notifier).updateAsset(asset.copyWith(
-                                status: 'Available',
-                                assignedToId: null,
-                                assignedToName: null,
-                              ));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Asset returned successfully.'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: const Text('Return', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                      )
-                    else if (asset.status == 'Available' && canEdit)
-                      ElevatedButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => _AssignAssetDialog(asset: asset),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                          backgroundColor: context.primaryColor,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Assign', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -1286,8 +1173,12 @@ class _EditAssetDialogState extends ConsumerState<_EditAssetDialog> {
     _serialController = TextEditingController(text: widget.asset.serialNumber);
     _costController = TextEditingController(text: widget.asset.cost.toStringAsFixed(0));
     _type = widget.asset.type;
-    _condition = widget.asset.condition;
-    _status = widget.asset.status;
+    
+    final validConditions = ['None', 'New', 'Good', 'Fair', 'Damaged'];
+    _condition = validConditions.contains(widget.asset.condition) ? widget.asset.condition : 'None';
+
+    final validStatuses = ['Available', 'Under Maintenance', 'Retired'];
+    _status = validStatuses.contains(widget.asset.status) ? widget.asset.status : 'Available';
   }
 
   @override
@@ -1524,6 +1415,7 @@ class _EditAssetDialogState extends ConsumerState<_EditAssetDialog> {
                     style: TextStyle(color: context.textPrimary, fontSize: 13),
                     decoration: _buildInputDecoration(context, ''),
                     items: [
+                      DropdownMenuItem(value: 'None', child: Text('None')),
                       DropdownMenuItem(value: 'New', child: Text(tr('New'))),
                       DropdownMenuItem(value: 'Good', child: Text('Good')),
                       DropdownMenuItem(value: 'Fair', child: Text('Fair')),
@@ -1542,7 +1434,6 @@ class _EditAssetDialogState extends ConsumerState<_EditAssetDialog> {
                     decoration: _buildInputDecoration(context, ''),
                     items: [
                       DropdownMenuItem(value: 'Available', child: Text('Available')),
-                      DropdownMenuItem(value: 'Assigned', child: Text(tr('Assigned'))),
                       DropdownMenuItem(value: 'Under Maintenance', child: Text('Maintenance')),
                       DropdownMenuItem(value: 'Retired', child: Text('Retired')),
                     ],
@@ -1568,6 +1459,7 @@ class _EditAssetDialogState extends ConsumerState<_EditAssetDialog> {
                               style: TextStyle(color: context.textPrimary, fontSize: 13),
                               decoration: _buildInputDecoration(context, ''),
                               items: [
+                                DropdownMenuItem(value: 'None', child: Text('None')),
                                 DropdownMenuItem(value: 'New', child: Text(tr('New'))),
                                 DropdownMenuItem(value: 'Good', child: Text('Good')),
                                 DropdownMenuItem(value: 'Fair', child: Text('Fair')),
@@ -1593,7 +1485,6 @@ class _EditAssetDialogState extends ConsumerState<_EditAssetDialog> {
                               decoration: _buildInputDecoration(context, ''),
                               items: [
                                 DropdownMenuItem(value: 'Available', child: Text('Available')),
-                                DropdownMenuItem(value: 'Assigned', child: Text(tr('Assigned'))),
                                 DropdownMenuItem(value: 'Under Maintenance', child: Text('Maintenance')),
                                 DropdownMenuItem(value: 'Retired', child: Text('Retired')),
                               ],
@@ -1711,8 +1602,6 @@ class _EditAssetDialogState extends ConsumerState<_EditAssetDialog> {
                                       cost: double.tryParse(_costController.text) ?? 0.0,
                                       condition: _condition,
                                       status: _status,
-                                      assignedToId: _status == 'Assigned' ? widget.asset.assignedToId : null,
-                                      assignedToName: _status == 'Assigned' ? widget.asset.assignedToName : null,
                                     );
 
                                     final linkedExpense = ref.read(expensesProvider).expenses.where((e) => e.id == 'AST-EXP-${widget.asset.id}').firstOrNull;
@@ -1764,44 +1653,25 @@ class _EditAssetDialogState extends ConsumerState<_EditAssetDialog> {
                               onPressed: () async {
                                 final messenger = ScaffoldMessenger.of(context);
                                 final errorColor = context.error;
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: Text(tr('Delete Asset')),
-                                    content: Text('${tr("Are you sure you want to delete asset")} "${widget.asset.name}"? ${tr("This action cannot be undone.")}'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context, false),
-                                        child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context, true),
-                                        child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  try {
-                                    await ref.read(assetsProvider.notifier).deleteAsset(widget.asset.id);
-                                    if (!context.mounted) return;
-                                    Navigator.pop(context);
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text('${tr("Asset")} "${widget.asset.name}" ${tr("deleted.")}'),
-                                        behavior: SnackBarBehavior.floating,
-                                        backgroundColor: errorColor,
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text('Failed to delete asset: $e'),
-                                        behavior: SnackBarBehavior.floating,
-                                        backgroundColor: errorColor,
-                                      ),
-                                    );
-                                  }
+                                try {
+                                  await ref.read(assetsProvider.notifier).deleteAsset(widget.asset.id);
+                                  if (!context.mounted) return;
+                                  Navigator.pop(context);
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('${tr("Asset")} "${widget.asset.name}" ${tr("deleted.")}'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: errorColor,
+                                    ),
+                                  );
+                                } catch (e) {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to delete asset: $e'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: errorColor,
+                                    ),
+                                  );
                                 }
                               },
                               icon: Icon(Icons.delete_outline, size: 16, color: context.error),
@@ -1919,143 +1789,7 @@ class _EditAssetDialogState extends ConsumerState<_EditAssetDialog> {
   }
 }
 
-class _AssignAssetDialog extends ConsumerStatefulWidget {
-  final Asset asset;
-  const _AssignAssetDialog({required this.asset});
 
-  @override
-  ConsumerState<_AssignAssetDialog> createState() => _AssignAssetDialogState();
-}
-
-class _AssignAssetDialogState extends ConsumerState<_AssignAssetDialog> {
-  String? _selectedEmployeeId;
-
-  @override
-  Widget build(BuildContext context) {
-    final tr = ref.watch(translationProvider);
-    final employeesState = ref.watch(employeesProvider);
-    final activeEmployees = employeesState.employees.where((e) => e.status == 'Active').toList();
-    final theme = Theme.of(context);
-
-    final isMobile = MediaQuery.of(context).size.width < 450;
-
-    return Dialog(
-      backgroundColor: context.cardBg,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: isMobile ? double.infinity : 400,
-        constraints: const BoxConstraints(maxWidth: 400),
-        padding: EdgeInsets.all(isMobile ? 16 : 24),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-            Text(
-              'Assign Asset',
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: context.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Select an employee to assign "${widget.asset.name}" to.',
-              style: TextStyle(color: context.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-
-            _buildLabel(context, 'Active Employee'),
-            employeesState.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : DropdownButtonFormField<String>(
-                    value: _selectedEmployeeId,
-                    dropdownColor: context.cardBg,
-                    style: TextStyle(color: context.textPrimary, fontSize: 13),
-                    decoration: _buildInputDecoration(context, tr('Select Employee')),
-                    items: activeEmployees.map((emp) {
-                      return DropdownMenuItem<String>(
-                        value: emp.id,
-                        child: Text('${emp.name} (${emp.designation})'),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      setState(() => _selectedEmployeeId = val);
-                    },
-                  ),
-            const SizedBox(height: 24),
-
-            // Actions
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _selectedEmployeeId == null
-                      ? null
-                      : () {
-                          if (!ref.read(adminProvider).hasPermission(AppModule.assets, PermissionAction.edit)) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Access Denied: You do not have permission to assign assets.')),
-                            );
-                            return;
-                          }
-                          final selectedEmp = activeEmployees.firstWhere((e) => e.id == _selectedEmployeeId);
-                          ref.read(assetsProvider.notifier).updateAsset(widget.asset.copyWith(
-                                status: 'Assigned',
-                                assignedToId: selectedEmp.id,
-                                assignedToName: selectedEmp.name,
-                              ));
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${tr("Asset successfully assigned to")} ${selectedEmp.name}.'),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: context.success,
-                            ),
-                          );
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: context.primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Assign Asset'),
-                ),
-              ],
-            ),
-          ],
-        ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLabel(BuildContext context, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: TextStyle(color: context.textSecondary, fontSize: 12, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  InputDecoration _buildInputDecoration(BuildContext context, String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      filled: true,
-      fillColor: context.scaffoldBg,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
-    );
-  }
-}
 
 class _AssetDetailsDialog extends ConsumerWidget {
   final Asset asset;
@@ -2073,10 +1807,7 @@ class _AssetDetailsDialog extends ConsumerWidget {
     // Status colors
     Color statusColor = context.info;
     Color statusBg = context.infoLight;
-    if (liveAsset.status == 'Assigned') {
-      statusColor = context.success;
-      statusBg = context.successLight;
-    } else if (liveAsset.status == 'Under Maintenance') {
+    if (liveAsset.status == 'Under Maintenance') {
       statusColor = context.warning;
       statusBg = context.warningLight;
     } else if (liveAsset.status == 'Retired') {
@@ -2233,169 +1964,7 @@ class _AssetDetailsDialog extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
 
-              // Custody / Assignment Card
-              Text(
-                'Deployment & Custody',
-                style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.scaffoldBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.border),
-                ),
-                child: isMobile
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: (liveAsset.status == 'Assigned' ? context.success : context.primaryColor).withValues(alpha: 0.1),
-                                child: Icon(
-                                  liveAsset.status == 'Assigned' ? Icons.person : Icons.inventory_2_outlined,
-                                  size: 18,
-                                  color: liveAsset.status == 'Assigned' ? context.success : context.primaryColor,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      liveAsset.status == 'Assigned'
-                                          ? 'Assigned to: ${liveAsset.assignedToName ?? 'Employee'}'
-                                          : (liveAsset.status == 'Available' ? 'Available for Deployment' : liveAsset.status),
-                                      style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Text(
-                                      liveAsset.status == 'Assigned'
-                                          ? 'Employee ID: ${liveAsset.assignedToId ?? 'N/A'}'
-                                          : (liveAsset.status == 'Available' ? 'Ready to assign' : 'Not in service'),
-                                      style: TextStyle(color: context.textSecondary, fontSize: 11),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          if ((liveAsset.status == 'Assigned' || liveAsset.status == 'Available') && canEdit) ...[
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              child: liveAsset.status == 'Assigned'
-                                  ? ElevatedButton(
-                                      onPressed: () {
-                                        ref.read(assetsProvider.notifier).updateAsset(liveAsset.copyWith(
-                                          status: 'Available',
-                                          assignedToId: null,
-                                          assignedToName: null,
-                                        ));
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Asset returned successfully.'), behavior: SnackBarBehavior.floating),
-                                        );
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: context.warning,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                      ),
-                                      child: const Text('Return Asset', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                    )
-                                  : ElevatedButton(
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => _AssignAssetDialog(asset: liveAsset),
-                                        );
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: context.primaryColor,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                      ),
-                                      child: const Text('Assign Asset', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                    ),
-                            ),
-                          ],
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: (liveAsset.status == 'Assigned' ? context.success : context.primaryColor).withValues(alpha: 0.1),
-                            child: Icon(
-                              liveAsset.status == 'Assigned' ? Icons.person : Icons.inventory_2_outlined,
-                              size: 20,
-                              color: liveAsset.status == 'Assigned' ? context.success : context.primaryColor,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  liveAsset.status == 'Assigned'
-                                      ? 'Assigned to: ${liveAsset.assignedToName ?? 'Employee'}'
-                                      : (liveAsset.status == 'Available' ? 'Available for Deployment' : liveAsset.status),
-                                  style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  liveAsset.status == 'Assigned'
-                                      ? 'Employee ID: ${liveAsset.assignedToId ?? 'N/A'}'
-                                      : (liveAsset.status == 'Available' ? 'Ready to be assigned to any staff member' : 'Not currently in service'),
-                                  style: TextStyle(color: context.textSecondary, fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (liveAsset.status == 'Assigned' && canEdit)
-                            ElevatedButton(
-                              onPressed: () {
-                                ref.read(assetsProvider.notifier).updateAsset(liveAsset.copyWith(
-                                  status: 'Available',
-                                  assignedToId: null,
-                                  assignedToName: null,
-                                ));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Asset returned successfully.'), behavior: SnackBarBehavior.floating),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: context.warning,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              ),
-                              child: const Text('Return', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
-                          if (liveAsset.status == 'Available' && canEdit)
-                            ElevatedButton(
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => _AssignAssetDialog(asset: liveAsset),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: context.primaryColor,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              ),
-                              child: const Text('Assign', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            ),
-                        ],
-                      ),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               const Divider(),
               const SizedBox(height: 12),
 
@@ -2505,25 +2074,12 @@ class _AssetDetailsDialog extends ConsumerWidget {
 
   Future<void> _handleDelete(BuildContext context, WidgetRef ref, Asset liveAsset) async {
     if (!ref.read(adminProvider).hasPermission(AppModule.assets, PermissionAction.delete)) return;
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Asset'),
-        content: Text('Are you sure you want to delete asset "${liveAsset.name}"? This action cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: context.error))),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await ref.read(assetsProvider.notifier).deleteAsset(liveAsset.id);
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Asset "${liveAsset.name}" deleted.'), backgroundColor: context.error),
-        );
-      }
+    await ref.read(assetsProvider.notifier).deleteAsset(liveAsset.id);
+    if (context.mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Asset "${liveAsset.name}" deleted.'), backgroundColor: context.error),
+      );
     }
   }
 

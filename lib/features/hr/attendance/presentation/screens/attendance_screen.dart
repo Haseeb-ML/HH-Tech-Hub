@@ -6,6 +6,7 @@ import 'package:software_house_erp/core/widgets/explain_tooltip.dart';
 import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/localization/app_localization.dart';
 import '../providers/attendance_provider.dart';
 import '../../domain/entities/attendance_record.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
@@ -110,6 +111,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tr = ref.watch(translationProvider);
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -133,7 +135,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Attendance',
+                            tr('Attendance'),
                             style: theme.textTheme.displaySmall?.copyWith(
                               fontWeight: FontWeight.w800,
                               color: context.textPrimary,
@@ -142,7 +144,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen>
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Track daily check-in/out and view monthly attendance summaries.',
+                            tr('Track daily check-in/out and view monthly attendance summaries.'),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: context.textSecondary,
                             ),
@@ -179,10 +181,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen>
                       fontSize: 13,
                     ),
                     dividerColor: Colors.transparent,
-                    tabs: const [
-                      Tab(text: '📅  Daily Roster'),
-                      Tab(text: '📊  Monthly Summary'),
-                      Tab(text: '📋  Attendance List'),
+                    tabs: [
+                      Tab(text: '📅  ${tr('Daily Attendance')}'),
+                      Tab(text: '📊  ${tr('Monthly Summary')}'),
+                      Tab(text: '📋  ${tr('Attendance')}'),
                     ],
                   ),
                 ),
@@ -206,7 +208,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen>
                   monthLabel: _monthLabel,
                   onMonthChanged: (m) {
                     setState(() => _selectedMonth = m);
-                    ref.read(attendanceProvider.notifier).loadMonthlyAttendance(m);
+                    ref.read(attendanceProvider.notifier).loadMonthlyAttendance(m, force: true);
                   },
                 ),
                 const _AttendanceListView(),
@@ -282,7 +284,12 @@ class _DailyViewState extends ConsumerState<_DailyView> {
     return state.isLoading && state.records.isEmpty
         ? const Center(child: CircularProgressIndicator())
         : SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            padding: EdgeInsets.fromLTRB(
+              MediaQuery.of(context).size.width < 600 ? 14 : 24,
+              0,
+              MediaQuery.of(context).size.width < 600 ? 14 : 24,
+              24,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -527,7 +534,7 @@ class _DailyViewState extends ConsumerState<_DailyView> {
                         shrinkWrap: true,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
-                        childAspectRatio: 1.35,
+                        childAspectRatio: 1.15,
                         physics: const NeverScrollableScrollPhysics(),
                         children: cardWidgets,
                       );
@@ -909,7 +916,10 @@ class _MonthlyViewState extends ConsumerState<_MonthlyView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(attendanceProvider.notifier).loadMonthlyAttendance(widget.selectedMonth);
+      if (ref.read(attendanceProvider).selectedYearMonth != widget.selectedMonth ||
+          ref.read(attendanceProvider).monthlySummaries.isEmpty) {
+        ref.read(attendanceProvider.notifier).loadMonthlyAttendance(widget.selectedMonth);
+      }
     });
   }
 
@@ -917,7 +927,9 @@ class _MonthlyViewState extends ConsumerState<_MonthlyView> {
   void didUpdateWidget(covariant _MonthlyView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedMonth != widget.selectedMonth) {
-      ref.read(attendanceProvider.notifier).loadMonthlyAttendance(widget.selectedMonth);
+      if (ref.read(attendanceProvider).selectedYearMonth != widget.selectedMonth) {
+        ref.read(attendanceProvider.notifier).loadMonthlyAttendance(widget.selectedMonth, force: true);
+      }
     }
   }
 
@@ -962,7 +974,12 @@ class _MonthlyViewState extends ConsumerState<_MonthlyView> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: EdgeInsets.fromLTRB(
+        MediaQuery.of(context).size.width < 600 ? 14 : 24,
+        0,
+        MediaQuery.of(context).size.width < 600 ? 14 : 24,
+        24,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1141,13 +1158,24 @@ class _MonthlyViewState extends ConsumerState<_MonthlyView> {
                   ),
                 ];
 
-                if (constraints.maxWidth < 900) {
+                if (constraints.maxWidth < 650) {
                   return GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 1.35,
+                    childAspectRatio: 1.15,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: statWidgets,
+                  );
+                }
+                if (constraints.maxWidth < 950) {
+                  return GridView.count(
+                    crossAxisCount: 3,
+                    shrinkWrap: true,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1.5,
                     physics: const NeverScrollableScrollPhysics(),
                     children: statWidgets,
                   );
@@ -1351,45 +1379,56 @@ class _MonthStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 650;
+
     Widget card = GlassCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 20),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 16,
+        vertical: isMobile ? 10 : 14,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: EdgeInsets.all(isMobile ? 7 : 9),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(height: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
+            child: Icon(icon, color: color, size: isMobile ? 18 : 20),
+          ),
+          const SizedBox(height: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
                   value.toString(),
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
+                    fontSize: isMobile ? 20 : 24,
                     color: context.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: TextStyle(color: context.textSecondary, fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  color: context.textSecondary,
+                  fontSize: isMobile ? 11 : 12,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
-            ),
-          ],
-        ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
+        ],
       ),
     );
 
@@ -2163,6 +2202,23 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
     }
   }
 
+  String _getActorName() {
+    final user = ref.read(adminProvider).currentUser;
+    if (user == null) return 'Admin';
+    final name = user.name.trim();
+    final role = user.role.trim();
+    final uname = user.username.trim();
+    if (name.isNotEmpty) {
+      if (role.isNotEmpty && role.toLowerCase() != name.toLowerCase()) {
+        return '$name ($role)';
+      }
+      return name;
+    }
+    if (role.isNotEmpty) return role;
+    if (uname.isNotEmpty) return uname;
+    return 'Admin';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -2299,6 +2355,19 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                       ),
                       const SizedBox(width: 6),
                       ActionChip(
+                        avatar: const Icon(Icons.schedule, size: 14, color: Colors.blueAccent),
+                        label: const Text('10:15 AM - 07:10 PM', style: TextStyle(fontSize: 11)),
+                        backgroundColor: context.primaryColor.withValues(alpha: 0.1),
+                        side: BorderSide(color: context.primaryColor.withValues(alpha: 0.3)),
+                        onPressed: () {
+                          setState(() {
+                            _checkInController.text = '10:15 AM';
+                            _checkOutController.text = '07:10 PM';
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 6),
+                      ActionChip(
                         avatar: const Icon(Icons.login, size: 14, color: Colors.green),
                         label: const Text('In: Now', style: TextStyle(fontSize: 11)),
                         onPressed: () {
@@ -2380,7 +2449,7 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                         ),
                       );
                       if (confirm == true) {
-                        final auditNote = '[Reset on ${DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' ')} by Admin]';
+                        final auditNote = '[Reset on ${DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' ')} by ${_getActorName()}]';
                         final reset = widget.record.copyWith(
                           status: AttendanceStatus.notMarked,
                           checkIn: null,
@@ -2428,7 +2497,7 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                           : null;
                       // Append audit trail stamp
                       final nowStr = DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' ');
-                      final auditStamp = '[Admin Edit: $nowStr]';
+                      final auditStamp = '[${_getActorName()} Edit: $nowStr]';
                       if (notes == null || notes.isEmpty) {
                         notes = auditStamp;
                       } else if (!notes.contains(nowStr)) {
@@ -2637,16 +2706,39 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
       ...employeesState.employees.map((e) => e.department).where((d) => d.trim().isNotEmpty),
     }.toList();
 
-    // Build employee dropdown items
+    // Build employee dropdown items (active employees + former/deleted employees with attendance logs)
+    final Map<String, String> empNameMap = {};
+    for (final e in employeesState.employees) {
+      empNameMap[e.id] = e.name;
+    }
+    for (final r in state.rangeRecords) {
+      if (!empNameMap.containsKey(r.employeeId)) {
+        final name = r.employeeName.isNotEmpty ? r.employeeName : 'Former Employee';
+        empNameMap[r.employeeId] = name.contains('(Deleted)') ? name : '$name (Deleted)';
+      }
+    }
+    for (final s in state.monthlySummaries) {
+      if (!empNameMap.containsKey(s.employeeId)) {
+        final name = s.employeeName.isNotEmpty ? s.employeeName : 'Former Employee';
+        empNameMap[s.employeeId] = name.contains('(Deleted)') ? name : '$name (Deleted)';
+      }
+    }
+    for (final log in state.records) {
+      if (!empNameMap.containsKey(log.employeeId)) {
+        final name = log.employeeName.isNotEmpty ? log.employeeName : 'Former Employee';
+        empNameMap[log.employeeId] = name.contains('(Deleted)') ? name : '$name (Deleted)';
+      }
+    }
+
     final empItems = [
       const DropdownMenuItem(
         value: 'All',
         child: Text('All Employees', overflow: TextOverflow.ellipsis),
       ),
-      ...employeesState.employees.map(
-        (e) => DropdownMenuItem(
-          value: e.id,
-          child: Text(e.name, overflow: TextOverflow.ellipsis),
+      ...empNameMap.entries.map(
+        (entry) => DropdownMenuItem(
+          value: entry.key,
+          child: Text(entry.value, overflow: TextOverflow.ellipsis),
         ),
       ),
     ];
@@ -2665,7 +2757,12 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
     ];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: EdgeInsets.fromLTRB(
+        MediaQuery.of(context).size.width < 600 ? 14 : 24,
+        0,
+        MediaQuery.of(context).size.width < 600 ? 14 : 24,
+        24,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2824,7 +2921,9 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
                             isExpanded: true,
-                            value: _selectedEmployeeId,
+                            value: (empNameMap.containsKey(_selectedEmployeeId) || _selectedEmployeeId == 'All')
+                                ? _selectedEmployeeId
+                                : 'All',
                             decoration: InputDecoration(
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 10,
@@ -3081,9 +3180,9 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                   return GridView.count(
                     crossAxisCount: constraints.maxWidth < 600 ? 2 : 3,
                     shrinkWrap: true,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: constraints.maxWidth < 600 ? 1.35 : 1.7,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: constraints.maxWidth < 600 ? 1.15 : 1.6,
                     physics: const NeverScrollableScrollPhysics(),
                     children: statCards,
                   );

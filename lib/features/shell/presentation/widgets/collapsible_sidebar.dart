@@ -41,6 +41,7 @@ class CollapsibleSidebar extends ConsumerWidget {
       _SidebarItem(6, 'Finance Reports', Icons.analytics_outlined, true),
       _SidebarItem(7, 'Reports & Analytics', Icons.bar_chart_outlined, true),
       _SidebarItem(8, 'Administration', Icons.security_outlined, true),
+      _SidebarItem(9, 'Data Recovery', Icons.restore_from_trash_outlined, true),
     ];
 
     final canViewFinance = adminState.hasPermission(AppModule.finance, PermissionAction.view) ||
@@ -102,6 +103,8 @@ class CollapsibleSidebar extends ConsumerWidget {
           return canViewReports;
         case 8: // Administration
           return canViewAdmin;
+        case 9: // Data Recovery
+          return isSuper;
         default:
           return true;
       }
@@ -110,7 +113,9 @@ class CollapsibleSidebar extends ConsumerWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeInOut,
-      width: isDrawer ? 280 : (isCollapsed ? 76 : 260),
+      width: isDrawer
+          ? (MediaQuery.of(context).size.width * 0.78).clamp(240, 300).toDouble()
+          : (isCollapsed ? 76 : 260),
       decoration: BoxDecoration(
         color: context.sidebarBg,
         border: Border(
@@ -121,7 +126,7 @@ class CollapsibleSidebar extends ConsumerWidget {
         children: [
           // Logo Area
           Container(
-            height: 70,
+            height: 80,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               border: Border(
@@ -130,51 +135,21 @@ class CollapsibleSidebar extends ConsumerWidget {
             ),
             child: isCollapsed
                 ? Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: context.isDarkMode ? Colors.white.withValues(alpha: 0.85) : Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: context.border),
-                      ),
-                      child: ClipRect(
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          heightFactor: 0.6,
-                          child: Image.asset(
-                            'assets/logo.png',
-                            width: 28,
-                            fit: BoxFit.fitWidth,
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.hub, color: Color(0xFFFF6B00), size: 24),
-                          ),
-                        ),
-                      ),
+                    child: Image.asset(
+                      'assets/app_icon_foreground.png',
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.hub, color: Color(0xFFFF6B00), size: 28),
                     ),
                   )
                 : ClipRect(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: context.isDarkMode
-                                ? Colors.white.withValues(alpha: 0.92)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: context.border),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: const AppLogo(
-                            height: 32,
-                            fit: BoxFit.contain,
-                          ),
+                        const AppLogo(
+                          height: 64,
+                          fit: BoxFit.contain,
                         ),
                         if (isDrawer)
                           IconButton(
@@ -297,49 +272,51 @@ class CollapsibleSidebar extends ConsumerWidget {
             ),
           ],
           
-          // Collapse / Expand Toggle Button
-          const Divider(),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            child: Tooltip(
-              message: isCollapsed ? tr('Expand Sidebar') : tr('Collapse Sidebar'),
-              child: InkWell(
-                onTap: () => ref.read(sidebarCollapsedProvider.notifier).toggle(),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.transparent,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
-                    children: [
-                      Icon(
-                        isCollapsed ? Icons.arrow_forward_ios : Icons.arrow_back_ios,
-                        size: 16,
-                        color: context.textSecondary,
-                      ),
-                      if (!isCollapsed) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            tr('Collapse Sidebar'),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: context.textSecondary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+          // Collapse / Expand Toggle Button (desktop only, hidden on mobile drawer)
+          if (!isDrawer) ...[
+            const Divider(),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+              child: Tooltip(
+                message: isCollapsed ? tr('Expand Sidebar') : tr('Collapse Sidebar'),
+                child: InkWell(
+                  onTap: () => ref.read(sidebarCollapsedProvider.notifier).toggle(),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.transparent,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+                      children: [
+                        Icon(
+                          isCollapsed ? Icons.arrow_forward_ios : Icons.arrow_back_ios,
+                          size: 16,
+                          color: context.textSecondary,
                         ),
+                        if (!isCollapsed) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              tr('Collapse Sidebar'),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: context.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:go_router/go_router.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
+import 'package:software_house_erp/core/auth/models/app_permissions.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
 /// A sub-navigation bar for the Inventory & Assets module.
 /// Place this at the top of every Inventory/Assets screen body.
@@ -15,18 +17,21 @@ class InventorySubNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
+    final adminState = ref.watch(adminProvider);
 
     final tabs = [
-      _InventoryTab(
-        label: tr('Assets Management'),
-        icon: Icons.computer_outlined,
-        route: '/inventory/assets',
-      ),
-      _InventoryTab(
-        label: tr('Office Inventory'),
-        icon: Icons.inventory_2_outlined,
-        route: '/inventory/list',
-      ),
+      if (adminState.hasPermission(AppModule.assets, PermissionAction.view))
+        _InventoryTab(
+          label: tr('Assets Management'),
+          icon: Icons.computer_outlined,
+          route: '/inventory/assets',
+        ),
+      if (adminState.hasPermission(AppModule.officeInventory, PermissionAction.view))
+        _InventoryTab(
+          label: tr('Office Inventory'),
+          icon: Icons.inventory_2_outlined,
+          route: '/inventory/list',
+        ),
     ];
 
     final isMobile = MediaQuery.of(context).size.width < 600;

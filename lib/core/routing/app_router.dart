@@ -34,12 +34,14 @@ import '../../features/administration/backup/presentation/screens/backup_screen.
 import '../../features/administration/audit_logs/presentation/screens/audit_logs_screen.dart';
 import '../../features/administration/roles/presentation/screens/roles_screen.dart';
 import '../../features/administration/users/presentation/screens/users_screen.dart';
+import '../../features/administration/recovery/presentation/screens/data_recovery_screen.dart';
 import '../widgets/access_denied_screen.dart';
 import '../auth/models/app_permissions.dart';
+import '../theme/app_colors.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
-String _getDefaultAllowedPath(AdminState adminState) {
+String getDefaultAllowedPath(AdminState adminState) {
   if (adminState.hasPermission(AppModule.dashboard, PermissionAction.view)) {
     return '/dashboard';
   }
@@ -119,6 +121,43 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     refreshListenable: notifier,
     debugLogDiagnostics: true,
+    errorBuilder: (context, state) {
+      final adminState = ref.read(adminProvider);
+      final fallback = adminState.isAuthenticated
+          ? getDefaultAllowedPath(adminState)
+          : '/login';
+      return Scaffold(
+        backgroundColor: context.scaffoldBg,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.broken_image_outlined, size: 64, color: context.warning),
+              const SizedBox(height: 16),
+              Text(
+                'Page Not Found',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: context.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'The requested page does not exist or has been moved.',
+                style: TextStyle(color: context.textSecondary),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => context.go(fallback),
+                icon: const Icon(Icons.home),
+                label: const Text('Return to Home'),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
     redirect: (context, state) {
       final adminState = ref.read(adminProvider);
       final isAuthenticated = adminState.isAuthenticated;
@@ -130,8 +169,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!isAuthenticated && !isLoggingIn) {
         return '/login';
       }
+      if (loc == '/') {
+        return isAuthenticated ? getDefaultAllowedPath(adminState) : '/login';
+      }
       if (isAuthenticated && isLoggingIn) {
-        return _getDefaultAllowedPath(adminState);
+        return getDefaultAllowedPath(adminState);
       }
       if (!isAuthenticated || isAccessDenied) {
         return null;
@@ -161,7 +203,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // 2. Dashboard
       if (loc == '/dashboard') {
         if (!adminState.hasPermission(AppModule.dashboard, PermissionAction.view)) {
-          final fallback = _getDefaultAllowedPath(adminState);
+          final fallback = getDefaultAllowedPath(adminState);
           if (fallback != '/dashboard') {
             return fallback;
           }
@@ -171,40 +213,44 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // 3. Finance & Accounts sub-routes
       else if (loc.startsWith('/finance/ledger')) {
-        if (!adminState.hasPermission(AppModule.ledger, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.finance, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.ledger, PermissionAction.view)) {
+          if (adminState.hasPermission(AppModule.accounts, PermissionAction.view)) {
+            return '/finance/accounts';
+          } else if (adminState.hasPermission(AppModule.income, PermissionAction.view)) {
+            return '/finance/income';
+          } else if (adminState.hasPermission(AppModule.expenses, PermissionAction.view)) {
+            return '/finance/expenses';
+          } else if (adminState.hasPermission(AppModule.loans, PermissionAction.view)) {
+            return '/finance/loans';
+          } else if (adminState.hasPermission(AppModule.personalAccounts, PermissionAction.view)) {
+            return '/finance/wallet';
+          } else if (adminState.hasPermission(AppModule.financeReports, PermissionAction.view)) {
+            return '/finance/reports';
+          }
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/finance/wallet')) {
-        if (!adminState.hasPermission(AppModule.personalAccounts, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.accounts, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.finance, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.personalAccounts, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/finance/income')) {
-        if (!adminState.hasPermission(AppModule.income, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.finance, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.income, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/finance/expenses')) {
-        if (!adminState.hasPermission(AppModule.expenses, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.finance, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.expenses, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/finance/loans')) {
-        if (!adminState.hasPermission(AppModule.loans, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.finance, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.loans, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/finance/accounts')) {
-        if (!adminState.hasPermission(AppModule.accounts, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.finance, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.accounts, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/finance/reports')) {
-        if (!adminState.hasPermission(AppModule.financeReports, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.reports, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.finance, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.financeReports, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/finance')) {
@@ -221,13 +267,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             return '/finance/loans';
           } else if (adminState.hasPermission(AppModule.personalAccounts, PermissionAction.view)) {
             return '/finance/wallet';
+          } else if (adminState.hasPermission(AppModule.financeReports, PermissionAction.view)) {
+            return '/finance/reports';
           }
           return '/access-denied?from=$loc';
         }
       }
 
       // 4. Clients
-      else if (loc.startsWith('/clients')) {
+      else if (loc.startsWith('/clients/list') || loc == '/clients') {
         if (!adminState.hasPermission(AppModule.clients, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
@@ -235,13 +283,11 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // 5. Projects Sub-routes
       else if (loc.startsWith('/projects/tasks')) {
-        if (!adminState.hasPermission(AppModule.tasks, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.projects, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.tasks, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/projects/timesheets')) {
-        if (!adminState.hasPermission(AppModule.timesheets, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.projects, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.timesheets, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/projects/list') || loc == '/projects') {
@@ -258,15 +304,11 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // 6. HR Sub-routes
       else if (loc.startsWith('/hr/advances')) {
-        if (!adminState.hasPermission(AppModule.advances, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.payroll, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.hr, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.advances, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/hr/history')) {
-        if (!adminState.hasPermission(AppModule.employeeHistory, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.employees, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.hr, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.employeeHistory, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/hr/employees')) {
@@ -276,17 +318,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             return '/hr/attendance';
           } else if (adminState.hasPermission(AppModule.payroll, PermissionAction.view)) {
             return '/hr/salaries';
+          } else if (adminState.hasPermission(AppModule.advances, PermissionAction.view)) {
+            return '/hr/advances';
           }
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/hr/attendance')) {
-        if (!adminState.hasPermission(AppModule.attendance, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.hr, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.attendance, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/hr/salaries')) {
-        if (!adminState.hasPermission(AppModule.payroll, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.hr, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.payroll, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
       } else if (loc.startsWith('/hr')) {
@@ -306,13 +348,15 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // 7. Inventory & Assets
       else if (loc.startsWith('/inventory/assets')) {
-        if (!adminState.hasPermission(AppModule.assets, PermissionAction.view) &&
-            !adminState.hasPermission(AppModule.inventory, PermissionAction.view)) {
+        if (!adminState.hasPermission(AppModule.assets, PermissionAction.view)) {
           return '/access-denied?from=$loc';
         }
-      } else if (loc.startsWith('/inventory')) {
+      } else if (loc.startsWith('/inventory/list') || loc == '/inventory') {
         if (!adminState.hasPermission(AppModule.officeInventory, PermissionAction.view) &&
             !adminState.hasPermission(AppModule.inventory, PermissionAction.view)) {
+          if (adminState.hasPermission(AppModule.assets, PermissionAction.view)) {
+            return '/inventory/assets';
+          }
           return '/access-denied?from=$loc';
         }
       }
@@ -349,6 +393,39 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/',
+        redirect: (context, state) {
+          final adminState = ref.read(adminProvider);
+          return adminState.isAuthenticated
+              ? getDefaultAllowedPath(adminState)
+              : '/login';
+        },
+      ),
+      GoRoute(
+        path: '/clients',
+        redirect: (context, state) => '/clients/list',
+      ),
+      GoRoute(
+        path: '/projects',
+        redirect: (context, state) => '/projects/list',
+      ),
+      GoRoute(
+        path: '/inventory',
+        redirect: (context, state) => '/inventory/list',
+      ),
+      GoRoute(
+        path: '/finance',
+        redirect: (context, state) => '/finance/ledger',
+      ),
+      GoRoute(
+        path: '/hr',
+        redirect: (context, state) => '/hr/employees',
+      ),
+      GoRoute(
+        path: '/administration',
+        redirect: (context, state) => '/administration/settings',
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -533,6 +610,20 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/administration/audit_logs',
                 builder: (context, state) => const AuditlogsScreen(),
+              ),
+              GoRoute(
+                path: '/administration/recovery',
+                builder: (context, state) => const DataRecoveryScreen(),
+              ),
+            ],
+          ),
+
+          // 10. Data Recovery Branch (Recycle Bin)
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/recovery',
+                builder: (context, state) => const DataRecoveryScreen(),
               ),
             ],
           ),

@@ -7,6 +7,7 @@ import '../../domain/entities/attendance_record.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../../data/repositories/attendance_repository_impl.dart';
 import '../../../employees/domain/repositories/employees_repository.dart';
+import '../../../employees/domain/entities/employee.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 
 // ─────────────────────────────────────────────
@@ -277,6 +278,15 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
         updatedLogs.add(normalizedRecord);
       }
 
+      // Include logs for deleted/former employees who have a saved attendance record on dateStr
+      final processedIds = updatedLogs.map((r) => r.employeeId).toSet();
+      for (final log in logs) {
+        if (!processedIds.contains(log.employeeId)) {
+          final normalizedStatus = AttendanceStatus.normalize(log.status);
+          updatedLogs.add(log.copyWith(status: normalizedStatus));
+        }
+      }
+
       state = state.copyWith(records: updatedLogs, isLoading: false);
     } catch (_) {
       state = state.copyWith(isLoading: false);
@@ -328,8 +338,8 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
             record.status != AttendanceStatus.leave)
         .map((record) => record.copyWith(
               status: AttendanceStatus.present,
-              checkIn: record.checkIn,
-              checkOut: record.checkOut,
+              checkIn: (record.checkIn != null && record.checkIn!.trim().isNotEmpty) ? record.checkIn : '10:15 AM',
+              checkOut: (record.checkOut != null && record.checkOut!.trim().isNotEmpty) ? record.checkOut : '07:10 PM',
               notes: record.notes,
             ))
         .toList();
@@ -416,7 +426,12 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
   // ── Monthly ──────────────────────────────────
   Future<void> loadMonthlySummary(String yearMonth) => loadMonthlyAttendance(yearMonth);
 
-  Future<void> loadMonthlyAttendance(String yearMonth) async {
+  bool _isMonthlyFetching = false;
+
+  Future<void> loadMonthlyAttendance(String yearMonth, {bool force = false}) async {
+    if (_isMonthlyFetching && state.selectedYearMonth == yearMonth && !force) return;
+    _isMonthlyFetching = true;
+
     state = state.copyWith(
       isMonthlyLoading: true,
       selectedYearMonth: yearMonth,
@@ -435,12 +450,25 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
         empLogs.putIfAbsent(log.employeeId, () => []).add(log);
       }
 
+      final Map<String, Employee> empMap = {for (final e in employees) e.id: e};
+
+      // Collect all employee IDs (active employees + any deleted/former employee with logs this month)
+      final allEmpIds = <String>{
+        ...empMap.keys,
+        ...empLogs.keys,
+      };
+
       final totalWorkingDays = _workingDaysInMonth(yearMonth, settings);
 
       final List<EmployeeMonthSummary> summaries = [];
-      for (final emp in employees) {
-        if (emp.status == 'Terminated') continue;
-        final list = empLogs[emp.id] ?? [];
+      for (final empId in allEmpIds) {
+        final emp = empMap[empId];
+        final list = empLogs[empId] ?? [];
+
+        if (emp != null && emp.status == 'Terminated' && list.isEmpty) continue;
+        if (emp == null && list.isEmpty) continue;
+
+        final empName = emp?.name ?? (list.isNotEmpty ? list.first.employeeName : 'Deleted Employee');
 
         int present = 0, absent = 0, leave = 0, halfDay = 0, workFromHome = 0, officialVisit = 0, lateCount = 0;
         double totalHours = 0.0;
@@ -470,8 +498,8 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
 
         summaries.add(
           EmployeeMonthSummary(
-            employeeId: emp.id,
-            employeeName: emp.name,
+            employeeId: empId,
+            employeeName: empName,
             workingDays: totalWorkingDays,
             presentDays: present,
             absentDays: absent,
@@ -491,6 +519,8 @@ class AttendanceNotifier extends Notifier<AttendanceState> {
       );
     } catch (_) {
       state = state.copyWith(isMonthlyLoading: false);
+    } finally {
+      _isMonthlyFetching = false;
     }
   }
 

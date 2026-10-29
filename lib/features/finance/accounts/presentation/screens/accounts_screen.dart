@@ -19,12 +19,23 @@ import '../../../../../../core/utils/export_helper.dart';
 import 'package:intl/intl.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/services/cloud_sync_service.dart';
 
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<SyncState>(cloudSyncStateProvider, (previous, next) {
+      if ((next.status == SyncStatus.success || next.status == SyncStatus.offline) &&
+          previous?.status == SyncStatus.syncing) {
+        ref.invalidate(accountsProvider);
+        ref.invalidate(ledgerProvider);
+        ref.invalidate(incomeProvider);
+        ref.invalidate(expensesProvider);
+        ref.invalidate(loansProvider);
+      }
+    });
     final tr = ref.watch(translationProvider);
     final state = ref.watch(accountsProvider);
     final adminState = ref.watch(adminProvider);
@@ -868,10 +879,6 @@ class _AccountCard extends ConsumerWidget {
                       if (val == 'details') {
                         context.push('/finance/accounts/details/${account.id}');
                       } else if (val == 'delete' && canDeleteAccount) {
-                        final isPermanent = account.id == 'acc_personal_hassan' ||
-                          account.id == 'acc_personal_huzaifa';
-                        if (isPermanent) return;
-
                         final confirm = await showDialog<bool>(
                           context: context,
                           builder: (context) => AlertDialog(
@@ -915,9 +922,6 @@ class _AccountCard extends ConsumerWidget {
                       }
                     },
                     itemBuilder: (context) {
-                        final isPermanent = account.id == 'acc_personal_hassan' ||
-                          account.id == 'acc_personal_huzaifa';
-
                       return [
                         PopupMenuItem(
                           value: 'details',
@@ -928,7 +932,7 @@ class _AccountCard extends ConsumerWidget {
                             value: 'edit',
                             child: Text(tr('Edit Details'), style: TextStyle(color: context.textPrimary, fontSize: 13)),
                           ),
-                        if (!isPermanent && canDeleteAccount)
+                        if (canDeleteAccount)
                           PopupMenuItem(
                             value: 'delete',
                             child: Text('Delete Account', style: TextStyle(color: context.error, fontSize: 13)),
@@ -1522,7 +1526,7 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
         .expand((l) => l.repayments)
         .where((r) => r.accountId == currentAccount.id)
         .fold<double>(0.0, (sum, r) => sum + r.amount);
-    final realTotalInflow = incomeInflow + borrowedLoanInflow + lentRepaymentsInflow;
+    final realTotalInflow = currentAccount.openingBalance + incomeInflow + borrowedLoanInflow + lentRepaymentsInflow;
     final transferInflow = accountTransferEntries
       .where((entry) => entry.type == 'Debit')
       .fold<double>(0.0, (sum, entry) => sum + entry.amount);
@@ -1543,7 +1547,7 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
       .fold<double>(0.0, (sum, entry) => sum + entry.amount);
 
     // Real Authoritative Balance
-    final realBalance = currentAccount.openingBalance + realTotalInflow + transferInflow - realTotalOutflow - transferOutflow;
+    final realBalance = realTotalInflow + transferInflow - realTotalOutflow - transferOutflow;
 
     // Today's summary calculations
     final todayStr = DateTime.now().toIso8601String().split('T').first;
@@ -1765,7 +1769,7 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Income: Rs. ${incomeInflow.toStringAsFixed(0)} • Transfers: Rs. ${transferInflow.toStringAsFixed(0)} • Loans: Rs. ${borrowedLoanInflow.toStringAsFixed(0)}',
+                                  '${currentAccount.openingBalance > 0 ? "Opening: Rs. ${currentAccount.openingBalance.toStringAsFixed(0)} • " : ""}Income: Rs. ${incomeInflow.toStringAsFixed(0)} • Transfers: Rs. ${transferInflow.toStringAsFixed(0)} • Loans: Rs. ${borrowedLoanInflow.toStringAsFixed(0)}',
                                   style: TextStyle(color: context.textMuted, fontSize: 10),
                                 ),
                               ],

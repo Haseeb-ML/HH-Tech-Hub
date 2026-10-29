@@ -213,7 +213,7 @@ Future<void> showCloudSyncOptions(BuildContext context, WidgetRef ref) async {
           ),
           const SizedBox(height: 6),
 
-          // Option 2: Force Push All (Upload to Cloud)
+          // Option 2: Upload Data into Supabase
           Material(
             color: Colors.transparent,
             child: ListTile(
@@ -227,7 +227,7 @@ Future<void> showCloudSyncOptions(BuildContext context, WidgetRef ref) async {
                 child: const Icon(Icons.cloud_upload_rounded, color: Colors.amber, size: 22),
               ),
               title: Text(
-                'Force Push All (Upload to Cloud)',
+                'Upload Data into Supabase',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: context.textPrimary),
               ),
               subtitle: Text(
@@ -238,36 +238,6 @@ Future<void> showCloudSyncOptions(BuildContext context, WidgetRef ref) async {
               onTap: () {
                 Navigator.pop(ctx);
                 triggerSyncAction(force: true);
-              },
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          // Option 3: Push Local Changes Only
-          Material(
-            color: Colors.transparent,
-            child: ListTile(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.upload_file_rounded, color: Colors.green, size: 22),
-              ),
-              title: Text(
-                'Push Local Changes Only',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: context.textPrimary),
-              ),
-              subtitle: Text(
-                'Quickly push only pending/modified local records',
-                style: TextStyle(fontSize: 12, color: context.textSecondary),
-              ),
-              enabled: !isSyncing,
-              onTap: () {
-                Navigator.pop(ctx);
-                triggerSyncAction(pushOnly: true);
               },
             ),
           ),

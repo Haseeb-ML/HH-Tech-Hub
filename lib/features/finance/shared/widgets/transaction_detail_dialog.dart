@@ -15,6 +15,7 @@ class TransactionDetailDialog extends StatelessWidget {
   final String? accountScope; // 'Company', 'Personal'
   final String reference;
   final String? clientOrVendor;
+  final VoidCallback? onDelete;
 
   const TransactionDetailDialog({
     super.key,
@@ -29,6 +30,7 @@ class TransactionDetailDialog extends StatelessWidget {
     this.accountScope,
     required this.reference,
     this.clientOrVendor,
+    this.onDelete,
   });
 
   static Future<void> show(
@@ -44,6 +46,7 @@ class TransactionDetailDialog extends StatelessWidget {
     String? accountScope,
     String? reference,
     String? clientOrVendor,
+    VoidCallback? onDelete,
     Map<String, dynamic>? data,
   }) {
     final map = data ?? {};
@@ -61,6 +64,7 @@ class TransactionDetailDialog extends StatelessWidget {
         accountScope: accountScope ?? map['accountScope']?.toString(),
         reference: reference ?? map['reference']?.toString() ?? map['invoiceNumber']?.toString() ?? map['id']?.toString() ?? '',
         clientOrVendor: clientOrVendor ?? map['clientOrVendor']?.toString() ?? map['clientName']?.toString() ?? map['vendorName']?.toString(),
+        onDelete: onDelete,
       ),
     );
   }
@@ -80,6 +84,40 @@ class TransactionDetailDialog extends StatelessWidget {
       final dt = DateTime.parse(date);
       formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(dt);
     } catch (_) {}
+
+    final isOutflow = !isInflow;
+    final prefix = isOutflow ? 'exp_' : 'inv_';
+    String formattedId = id;
+    final idUpper = id.toUpperCase();
+    final refUpper = reference.toUpperCase();
+
+    if (idUpper.startsWith('EXP_') ||
+        idUpper.startsWith('INV_') ||
+        idUpper.startsWith('SAL_') ||
+        idUpper.startsWith('REC_') ||
+        idUpper.startsWith('INV-') ||
+        id.startsWith('exp_') ||
+        id.startsWith('inv_') ||
+        id.startsWith('sal_') ||
+        id.startsWith('rec_')) {
+      formattedId = id;
+    } else if (refUpper.startsWith('EXP_') ||
+        refUpper.startsWith('INV_') ||
+        refUpper.startsWith('SAL_') ||
+        refUpper.startsWith('REC_') ||
+        refUpper.startsWith('INV-') ||
+        reference.startsWith('exp_') ||
+        reference.startsWith('inv_') ||
+        reference.startsWith('sal_') ||
+        reference.startsWith('rec_')) {
+      formattedId = reference;
+    } else {
+      final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.isNotEmpty) {
+        final numVal = int.tryParse(digits.length > 4 ? digits.substring(digits.length - 4) : digits) ?? 1;
+        formattedId = '$prefix${numVal.toString().padLeft(4, '0')}';
+      }
+    }
 
     final isMobile = MediaQuery.of(context).size.width < 600;
 
@@ -202,6 +240,7 @@ class TransactionDetailDialog extends StatelessWidget {
                     const SizedBox(height: 16),
 
                     // Detail Fields
+                    _buildDetailRow(context, tr('Invoice / Ref ID'), formattedId, Icons.receipt_long_outlined, isMobile: isMobile),
                     _buildDetailRow(context, tr('Date & Time'), formattedDate, Icons.calendar_today_outlined, isMobile: isMobile),
                     _buildDetailRow(context, tr('Account'), accountName + (accountScope != null ? ' ($accountScope)' : ''), Icons.account_balance_wallet_outlined, isMobile: isMobile),
                     _buildDetailRow(context, tr('Reference'), reference.isNotEmpty ? reference : id, Icons.tag, isMobile: isMobile),
@@ -216,8 +255,26 @@ class TransactionDetailDialog extends StatelessWidget {
 
             const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: onDelete != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.end,
               children: [
+                if (onDelete != null)
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      onDelete!();
+                    },
+                    icon: Icon(Icons.delete_outline, size: 16, color: context.error),
+                    label: Text(
+                      tr('Delete'),
+                      style: TextStyle(color: context.error, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: context.error,
+                      side: BorderSide(color: context.error.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
                 ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: ElevatedButton.styleFrom(

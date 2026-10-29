@@ -8,7 +8,10 @@ import '../../../ledger/presentation/providers/ledger_provider.dart';
 import '../../../ledger/domain/entities/ledger_entry.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
 
+
+import 'package:software_house_erp/core/utils/transaction_id_helper.dart';
 
 class LoansState {
   final List<LoanRecord> loans;
@@ -50,8 +53,14 @@ class LoansState {
         return false;
       }
 
-      final matchesSearch = l.borrowerName.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          l.description.toLowerCase().contains(searchQuery.toLowerCase());
+      final q = searchQuery.trim().toLowerCase();
+      final cleanLoanId = TransactionIdHelper.getLoanId(l, list);
+
+      final matchesSearch = q.isEmpty ||
+          l.borrowerName.toLowerCase().contains(q) ||
+          l.description.toLowerCase().contains(q) ||
+          l.id.toLowerCase().contains(q) ||
+          cleanLoanId.toLowerCase().contains(q);
 
       final matchesType = typeFilter == 'All' || l.type == typeFilter;
 
@@ -496,18 +505,107 @@ class LoansNotifier extends Notifier<LoansState> {
     state = state.copyWith(loans: _enrichLoansWithAccounts(updatedList), isLoading: false);
   }
 
+  Future<void> deleteRepayment(String loanId, String repaymentId) async {
+    final adminState = ref.read(adminProvider);
+    if (!adminState.hasPermission(AppModule.loans, PermissionAction.edit)) {
+      throw Exception('Access Denied: You do not have permission to delete repayments.');
+    }
+
+    final list = List<LoanRecord>.from(state.loans);
+    final index = list.indexWhere((l) => l.id == loanId);
+    if (index == -1) return;
+
+    state = state.copyWith(isLoading: true);
+    final loan = list[index];
+
+    final repIndex = loan.repayments.indexWhere((r) => r.id == repaymentId);
+    if (repIndex == -1) {
+      state = state.copyWith(isLoading: false);
+      return;
+    }
+
+    final repayment = loan.repayments[repIndex];
+    final updatedRepayments = List<LoanRepayment>.from(loan.repayments)..removeAt(repIndex);
+    final double newRemaining = loan.remainingBalance + repayment.amount;
+    final String newStatus = newRemaining > 0 ? 'Active' : 'Repaid';
+
+    final updatedLoan = loan.copyWith(
+      repayments: updatedRepayments,
+      remainingBalance: newRemaining > loan.amount ? loan.amount : newRemaining,
+      status: newStatus,
+    );
+
+    await _repository.updateLoan(updatedLoan);
+
+    // Rollback account balance & delete matching ledger entry
+    if (loan.isPersonalExternalLoan) {
+      if (loan.type == 'Lent') {
+        await ref.read(accountsProvider.notifier).adjustBalance(repayment.accountId, -repayment.amount);
+      } else {
+        await ref.read(accountsProvider.notifier).adjustBalance(repayment.accountId, repayment.amount);
+      }
+    } else if (loan.isInternalLoan) {
+      if (loan.type == 'Lent') {
+        await ref.read(accountsProvider.notifier).adjustBalance(repayment.accountId, -repayment.amount);
+        if (loan.personalAccountId.isNotEmpty) {
+          await ref.read(accountsProvider.notifier).adjustBalance(loan.personalAccountId, repayment.amount);
+        }
+      } else {
+        await ref.read(accountsProvider.notifier).adjustBalance(repayment.accountId, repayment.amount);
+        if (loan.personalAccountId.isNotEmpty) {
+          await ref.read(accountsProvider.notifier).adjustBalance(loan.personalAccountId, -repayment.amount);
+        }
+      }
+    } else {
+      if (loan.type == 'Lent') {
+        await ref.read(accountsProvider.notifier).adjustBalance(repayment.accountId, -repayment.amount);
+      } else {
+        await ref.read(accountsProvider.notifier).adjustBalance(repayment.accountId, repayment.amount);
+      }
+    }
+
+    await ref.read(ledgerProvider.notifier).deleteLedgerEntry('led_loan_rep_${repayment.id}');
+
+    ref.read(adminProvider.notifier).logAction(
+      action: 'Deleted repayment of ${repayment.amount} for loan ${loan.borrowerName}',
+      module: 'Finance',
+    );
+
+    await ref.read(accountsProvider.notifier).loadAccounts();
+    await ref.read(ledgerProvider.notifier).loadEntries();
+
+    final updatedList = await _repository.getLoans();
+    state = state.copyWith(loans: _enrichLoansWithAccounts(updatedList), isLoading: false);
+  }
+
   Future<void> deleteLoan(String id) async {
     final adminState = ref.read(adminProvider);
     if (!adminState.hasPermission(AppModule.loans, PermissionAction.delete)) {
       throw Exception('Access Denied: You do not have permission to delete loans.');
     }
 
-    final list = List<LoanRecord>.from(state.loans);
-    final index = list.indexWhere((l) => l.id == id);
+    var list = List<LoanRecord>.from(state.loans);
+    var index = list.indexWhere((l) => l.id == id);
+    if (index == -1) {
+      final dbLoans = await _repository.getLoans();
+      final enriched = _enrichLoansWithAccounts(dbLoans);
+      state = state.copyWith(loans: enriched);
+      list = List<LoanRecord>.from(enriched);
+      index = list.indexWhere((l) => l.id == id);
+    }
     if (index == -1) return;
 
     state = state.copyWith(isLoading: true);
     final loan = list[index];
+
+    await ref.read(recoveryProvider.notifier).addDeletedItem(
+      id: loan.id,
+      itemType: 'Loan',
+      title: '${loan.type}: ${loan.borrowerName} (Rs. ${loan.amount.toStringAsFixed(0)})',
+      subtitle: '${loan.cleanDescription} • Status: ${loan.status}',
+      jsonData: loan.toMap(),
+      deletedBy: adminState.currentUser?.name ?? 'Admin',
+    );
 
     final ledgerEntries = ref.read(ledgerProvider).entries;
     final initLedger = ledgerEntries.where((e) => e.id == 'led_loan_init_${loan.id}').firstOrNull;

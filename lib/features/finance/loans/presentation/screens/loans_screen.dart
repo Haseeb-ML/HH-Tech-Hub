@@ -10,6 +10,8 @@ import '../../../accounts/presentation/providers/accounts_provider.dart';
 import '../../domain/entities/loan_record.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/utils/transaction_id_helper.dart';
+import 'package:software_house_erp/core/utils/export_helper.dart';
 
 class LoansScreen extends ConsumerWidget {
   const LoansScreen({super.key});
@@ -573,15 +575,44 @@ class _LoanCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          loan.borrowerName,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: context.textPrimary,
-                            fontSize: 15,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        Builder(
+                          builder: (context) {
+                            final allLoans = ref.watch(loansProvider).loans;
+                            final cleanLoanId = TransactionIdHelper.getLoanId(loan, allLoans);
+                            return Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: context.primaryColor.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: context.primaryColor.withValues(alpha: 0.2), width: 0.5),
+                                  ),
+                                  child: Text(
+                                    cleanLoanId,
+                                    style: TextStyle(
+                                      color: context.primaryColor,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    loan.borrowerName,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: context.textPrimary,
+                                      fontSize: 15,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 2),
                         Wrap(
@@ -702,34 +733,15 @@ class _LoanCard extends ConsumerWidget {
                           builder: (context) => _LoanDetailsDialog(loan: loan),
                         );
                       } else if (val == 'delete' && canDeleteLoan) {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Delete Loan Record'),
-                            content: Text('${tr("Are you sure you want to delete this loan for")} "${loan.borrowerName}"? ${tr("This will rollback bank account principal, repayments, and all matching ledger records.")}'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                              ),
-                            ],
+                        ref.read(loansProvider.notifier).deleteLoan(loan.id);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Loan record deleted and balances rolled back.'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: context.error,
                           ),
                         );
-                        if (confirm == true) {
-                          ref.read(loansProvider.notifier).deleteLoan(loan.id);
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Loan record deleted and balances rolled back.'),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: context.error,
-                            ),
-                          );
-                        }
                       } else if (val == 'repayments') {
                         _showRepaymentsBottomSheet(context, ref, loan);
                       }
@@ -910,246 +922,456 @@ class _LoanCard extends ConsumerWidget {
   }
 }
 
-void _showRepaymentsBottomSheet(BuildContext context, WidgetRef ref, LoanRecord loan) {
+void _showRepaymentsBottomSheet(BuildContext context, WidgetRef ref, LoanRecord initialLoan) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: context.cardBg,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (context) {
-        final tr = ref.watch(translationProvider);
-        final canEditLoan = ref.watch(adminProvider).hasPermission(AppModule.loans, PermissionAction.edit);
-        final allAccounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
-        final accounts = loan.isPersonalExternalLoan
-            ? allAccounts.where((a) => a.isPersonal).toList()
-            : (allAccounts.where((a) => a.isCompany).toList().isNotEmpty
-                ? allAccounts.where((a) => a.isCompany).toList()
-                : allAccounts);
-        final TextEditingController amountCtrl = TextEditingController();
-        String? selectedAccId = accounts.where((a) => a.id == loan.resolvedAccountId || a.id == loan.personalAccountId).firstOrNull?.id ??
-            (accounts.isNotEmpty ? accounts.first.id : null);
-        DateTime repDate = DateTime.now();
+      final TextEditingController amountCtrl = TextEditingController();
+      DateTime repDate = DateTime.now();
 
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-              child: Container(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      return Consumer(
+        builder: (context, ref, child) {
+          final tr = ref.watch(translationProvider);
+          final loansState = ref.watch(loansProvider);
+          final liveLoan = loansState.loans.where((l) => l.id == initialLoan.id).firstOrNull ?? initialLoan;
+          final cleanLoanId = TransactionIdHelper.getLoanId(liveLoan, loansState.loans);
+
+          final adminState = ref.watch(adminProvider);
+          final canEditLoan = adminState.hasPermission(AppModule.loans, PermissionAction.edit);
+
+          final allAccounts = ref.watch(accountsProvider).accounts.where((a) => a.status == 'Active').toList();
+          final accounts = liveLoan.isPersonalExternalLoan
+              ? allAccounts.where((a) => a.isPersonal).toList()
+              : (allAccounts.where((a) => a.isCompany).toList().isNotEmpty
+                  ? allAccounts.where((a) => a.isCompany).toList()
+                  : allAccounts);
+
+          String? selectedAccId = accounts.where((a) => a.id == liveLoan.resolvedAccountId || a.id == liveLoan.personalAccountId).firstOrNull?.id ??
+              (accounts.isNotEmpty ? accounts.first.id : null);
+
+          final repaidAmount = liveLoan.amount - liveLoan.remainingBalance;
+
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return Padding(
+                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+                child: Container(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Repayments Log - ${loan.borrowerName}',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.textPrimary),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const Divider(),
-                  if (loan.isPersonalExternalLoan) ...[
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.purple.withValues(alpha: 0.25)),
-                      ),
-                      child: Row(
+                      // Header with Title & Export Buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Icon(Icons.person, color: Colors.purple, size: 20),
-                          const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              loan.type == 'Borrowed'
-                                  ? 'Installment repayment will be deducted from ${loan.personalAccountName.isNotEmpty ? loan.personalAccountName : loan.resolvedAccountName}\'s Personal Account and paid to ${loan.borrowerName}.'
-                                  : 'Installment repayment will be received from ${loan.borrowerName} and deposited into ${loan.personalAccountName.isNotEmpty ? loan.personalAccountName : loan.resolvedAccountName}\'s Personal Account.',
-                              style: TextStyle(color: context.textPrimary, fontSize: 11, fontWeight: FontWeight.w600),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: context.primaryColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        cleanLoanId,
+                                        style: TextStyle(color: context.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Repayment Statement',
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: context.textPrimary),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Party: ${liveLoan.borrowerName} • ${liveLoan.type}',
+                                  style: TextStyle(fontSize: 12, color: context.textSecondary),
+                                ),
+                              ],
                             ),
+                          ),
+                          Row(
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: liveLoan.repayments.isEmpty
+                                    ? null
+                                    : () async {
+                                        final headers = ['Sr #', 'Date', 'Repayment ID', 'Account', 'Amount (Rs.)', 'Remaining Balance (Rs.)'];
+                                        double running = liveLoan.amount;
+                                        final rows = <List<dynamic>>[];
+                                        for (int i = 0; i < liveLoan.repayments.length; i++) {
+                                          final rep = liveLoan.repayments[i];
+                                          running -= rep.amount;
+                                          if (running < 0) running = 0;
+                                          final repId = TransactionIdHelper.getRepaymentId(rep, liveLoan.repayments);
+                                          rows.add([
+                                            i + 1,
+                                            rep.date,
+                                            repId,
+                                            rep.accountName,
+                                            'Rs. ${rep.amount.toStringAsFixed(0)}',
+                                            'Rs. ${running.toStringAsFixed(0)}',
+                                          ]);
+                                        }
+                                        final filePath = await ExportHelper.exportToExcel(
+                                          fileName: '${cleanLoanId}_${liveLoan.borrowerName}_statement',
+                                          headers: headers,
+                                          rows: rows,
+                                        );
+                                        if (filePath.isNotEmpty) {
+                                          await ExportHelper.openFile(filePath);
+                                        }
+                                      },
+                                icon: const Icon(Icons.table_chart_outlined, size: 14),
+                                label: const Text('Excel', style: TextStyle(fontSize: 11)),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              ElevatedButton.icon(
+                                onPressed: liveLoan.repayments.isEmpty
+                                    ? null
+                                    : () async {
+                                        final headers = ['Sr #', 'Date', 'Repayment ID', 'Account', 'Amount (Rs.)', 'Remaining Balance (Rs.)'];
+                                        double running = liveLoan.amount;
+                                        final rows = <List<dynamic>>[];
+                                        for (int i = 0; i < liveLoan.repayments.length; i++) {
+                                          final rep = liveLoan.repayments[i];
+                                          running -= rep.amount;
+                                          if (running < 0) running = 0;
+                                          final repId = TransactionIdHelper.getRepaymentId(rep, liveLoan.repayments);
+                                          rows.add([
+                                            i + 1,
+                                            rep.date,
+                                            repId,
+                                            rep.accountName,
+                                            'Rs. ${rep.amount.toStringAsFixed(0)}',
+                                            'Rs. ${running.toStringAsFixed(0)}',
+                                          ]);
+                                        }
+                                        final filePath = await ExportHelper.exportToPdf(
+                                          title: 'LOAN REPAYMENT STATEMENT - $cleanLoanId (${liveLoan.borrowerName})',
+                                          fileName: '${cleanLoanId}_${liveLoan.borrowerName}_statement',
+                                          headers: headers,
+                                          rows: rows,
+                                        );
+                                        if (filePath.isNotEmpty) {
+                                          await ExportHelper.openFile(filePath);
+                                        }
+                                      },
+                                icon: const Icon(Icons.picture_as_pdf_outlined, size: 14),
+                                label: const Text('PDF', style: TextStyle(fontSize: 11)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: context.primaryColor,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.close, size: 20),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ),
-                  ] else if (loan.isInternalLoan) ...[
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.indigo.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.indigo.withValues(alpha: 0.25)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.swap_horiz, color: Colors.indigo, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              loan.type == 'Borrowed'
-                                  ? 'Company repayment will be deducted from selected Company Account and credited to ${loan.personalAccountName}\'s Personal Account.'
-                                  : 'Repayment installment will be deducted from ${loan.personalAccountName}\'s Personal Account and deposited into the selected Company Account.',
-                              style: TextStyle(color: context.textPrimary, fontSize: 11, fontWeight: FontWeight.w600),
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+
+                      // Metrics Row Summary
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: context.scaffoldBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: context.border),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Column(
+                              children: [
+                                Text('Principal Amount', style: TextStyle(fontSize: 10, color: context.textMuted, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 2),
+                                Text('Rs. ${liveLoan.amount.toStringAsFixed(0)}', style: TextStyle(fontSize: 13, color: context.textPrimary, fontWeight: FontWeight.w800)),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 10),
-
-                  // Repayments List
-                  Expanded(
-                    child: loan.repayments.isEmpty
-                        ? Center(
-                            child: Text(
-                              'No repayments recorded yet.',
-                              style: TextStyle(color: context.textSecondary),
+                            Container(width: 1, height: 24, color: context.border),
+                            Column(
+                              children: [
+                                Text('Total Repaid', style: TextStyle(fontSize: 10, color: context.textMuted, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 2),
+                                Text('Rs. ${repaidAmount.toStringAsFixed(0)}', style: TextStyle(fontSize: 13, color: context.success, fontWeight: FontWeight.w800)),
+                              ],
                             ),
-                          )
-                        : ListView.separated(
-                            itemCount: loan.repayments.length,
-                            separatorBuilder: (context, index) => const Divider(),
-                            itemBuilder: (context, index) {
-                              final rep = loan.repayments[index];
-                              return ListTile(
-                                dense: true,
-                                leading: Icon(Icons.check_circle_outline, color: context.success),
-                                title: Text('Installment Repayment', style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.bold)),
-                                subtitle: Text('${rep.date} • Paid via: ${rep.accountName}', style: TextStyle(color: context.textSecondary)),
-                                trailing: Text('Rs. ${rep.amount.toStringAsFixed(0)}', style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.w800)),
-                              );
-                            },
-                          ),
-                  ),
-                  const Divider(),
-                  const SizedBox(height: 10),
-                  if (canEditLoan && loan.remainingBalance > 0) ...[
-                    // Add Repayment Form
-                    Text('Record New Installment Repayment', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: context.textPrimary)),
-                    const SizedBox(height: 10),
-                    Builder(
-                      builder: (context) {
-                        final isMob = MediaQuery.of(context).size.width < 600;
-                        final amountField = TextFormField(
-                          controller: amountCtrl,
-                          keyboardType: TextInputType.number,
-                          style: TextStyle(color: context.textPrimary),
-                          decoration: InputDecoration(
-                            hintText: 'Installment Amount',
-                            hintStyle: TextStyle(color: context.textMuted, fontSize: 13),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            filled: true,
-                            fillColor: context.scaffoldBg,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
-                          ),
-                        );
+                            Container(width: 1, height: 24, color: context.border),
+                            Column(
+                              children: [
+                                Text('Remaining Balance', style: TextStyle(fontSize: 10, color: context.textMuted, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Rs. ${liveLoan.remainingBalance.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: liveLoan.remainingBalance > 0 ? context.warning : context.success,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
 
-                        final accountDropdown = DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          initialValue: selectedAccId,
-                          dropdownColor: context.cardBg,
-                          style: TextStyle(color: context.textPrimary, fontSize: 13),
-                          decoration: InputDecoration(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            filled: true,
-                            fillColor: context.scaffoldBg,
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
-                          ),
-                          items: accounts.map((a) {
-                            return DropdownMenuItem(value: a.id, child: Text(a.name));
-                          }).toList(),
-                          onChanged: (val) {
-                            setState(() => selectedAccId = val);
-                          },
-                        );
+                      // Repayments Table / List
+                      Expanded(
+                        child: liveLoan.repayments.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.history_toggle_off, size: 36, color: context.textMuted),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No repayment installments recorded yet.',
+                                      style: TextStyle(color: context.textSecondary, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: liveLoan.repayments.length,
+                                separatorBuilder: (context, index) => const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final rep = liveLoan.repayments[index];
+                                  final cleanRepId = TransactionIdHelper.getRepaymentId(rep, liveLoan.repayments);
 
-                        final recordButton = ElevatedButton(
-                          onPressed: () {
-                            final val = double.tryParse(amountCtrl.text);
-                            if (val == null || val <= 0 || selectedAccId == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(tr('Please enter a valid amount')), behavior: SnackBarBehavior.floating),
-                              );
-                              return;
-                            }
-                            if (val > loan.remainingBalance) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Amount exceeds remaining loan balance'), behavior: SnackBarBehavior.floating),
-                              );
-                              return;
-                            }
+                                  double repRem = liveLoan.amount;
+                                  for (int i = 0; i <= index; i++) {
+                                    repRem -= liveLoan.repayments[i].amount;
+                                  }
+                                  if (repRem < 0) repRem = 0;
 
-                            final acc = accounts.firstWhere((a) => a.id == selectedAccId);
-                            final repayment = LoanRepayment(
-                              id: 'rep_${DateTime.now().millisecondsSinceEpoch}',
-                              date: repDate.toIso8601String().substring(0, 10),
-                              amount: val,
-                              accountId: selectedAccId!,
-                              accountName: acc.name,
-                            );
+                                  return ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                    dense: true,
+                                    leading: CircleAvatar(
+                                      radius: 14,
+                                      backgroundColor: context.successLight,
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: context.success),
+                                      ),
+                                    ),
+                                    title: Row(
+                                      children: [
+                                        Text(
+                                          cleanRepId,
+                                          style: TextStyle(color: context.primaryColor, fontWeight: FontWeight.bold, fontSize: 12),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Paid via: ${rep.accountName}',
+                                            style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.w600, fontSize: 12),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    subtitle: Text(
+                                      '${rep.date} • Remaining Bal: Rs. ${repRem.toStringAsFixed(0)}',
+                                      style: TextStyle(color: context.textSecondary, fontSize: 11),
+                                    ),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Rs. ${rep.amount.toStringAsFixed(0)}',
+                                          style: TextStyle(color: context.success, fontWeight: FontWeight.w800, fontSize: 13),
+                                        ),
+                                        if (canEditLoan) ...[
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: Icon(Icons.delete_outline, size: 16, color: context.error),
+                                            tooltip: 'Delete Installment',
+                                            onPressed: () async {
+                                              final confirm = await showDialog<bool>(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: const Text('Delete Installment'),
+                                                  content: Text('Are you sure you want to delete repayment $cleanRepId of Rs. ${rep.amount.toStringAsFixed(0)}? Balance will be rolled back.'),
+                                                  actions: [
+                                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: context.error))),
+                                                  ],
+                                                ),
+                                              );
+                                              if (confirm == true) {
+                                                await ref.read(loansProvider.notifier).deleteRepayment(liveLoan.id, rep.id);
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(content: const Text('Installment deleted and balance rolled back.'), backgroundColor: context.error),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Divider(height: 1),
+                      const SizedBox(height: 10),
 
-                            ref.read(loansProvider.notifier).recordRepayment(loan.id, repayment);
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Repayment logged successfully.'),
-                                behavior: SnackBarBehavior.floating,
-                                backgroundColor: context.success,
+                      // Record Installment Form
+                      if (canEditLoan && liveLoan.remainingBalance > 0) ...[
+                        Text('Record New Installment Repayment', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: context.textPrimary)),
+                        const SizedBox(height: 8),
+                        Builder(
+                          builder: (context) {
+                            final isMob = MediaQuery.of(context).size.width < 600;
+                            final amountField = TextFormField(
+                              controller: amountCtrl,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(color: context.textPrimary, fontSize: 13),
+                              decoration: InputDecoration(
+                                hintText: 'Installment Amount (Max: Rs. ${liveLoan.remainingBalance.toStringAsFixed(0)})',
+                                hintStyle: TextStyle(color: context.textMuted, fontSize: 12),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                filled: true,
+                                fillColor: context.scaffoldBg,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
                               ),
                             );
+
+                            final accountDropdown = DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: selectedAccId,
+                              dropdownColor: context.cardBg,
+                              style: TextStyle(color: context.textPrimary, fontSize: 13),
+                              decoration: InputDecoration(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                filled: true,
+                                fillColor: context.scaffoldBg,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: context.border)),
+                              ),
+                              items: accounts.map((a) {
+                                return DropdownMenuItem(value: a.id, child: Text(a.name));
+                              }).toList(),
+                              onChanged: (val) {
+                                setState(() => selectedAccId = val);
+                              },
+                            );
+
+                            final recordButton = ElevatedButton(
+                              onPressed: () async {
+                                final val = double.tryParse(amountCtrl.text);
+                                if (val == null || val <= 0 || selectedAccId == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(tr('Please enter a valid amount')), behavior: SnackBarBehavior.floating),
+                                  );
+                                  return;
+                                }
+                                if (val > liveLoan.remainingBalance) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Amount exceeds remaining loan balance'), behavior: SnackBarBehavior.floating),
+                                  );
+                                  return;
+                                }
+
+                                final acc = accounts.firstWhere((a) => a.id == selectedAccId);
+                                final repayment = LoanRepayment(
+                                  id: 'rep_${DateTime.now().millisecondsSinceEpoch}',
+                                  date: repDate.toIso8601String().substring(0, 10),
+                                  amount: val,
+                                  accountId: selectedAccId!,
+                                  accountName: acc.name,
+                                );
+
+                                await ref.read(loansProvider.notifier).recordRepayment(liveLoan.id, repayment);
+                                amountCtrl.clear();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text('Repayment logged successfully.'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: context.success,
+                                    ),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: context.primaryColor,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                              child: Text(tr('Record Installment')),
+                            );
+
+                            if (isMob) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  amountField,
+                                  const SizedBox(height: 8),
+                                  accountDropdown,
+                                  const SizedBox(height: 10),
+                                  recordButton,
+                                ],
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                Expanded(child: amountField),
+                                const SizedBox(width: 12),
+                                Expanded(child: accountDropdown),
+                                const SizedBox(width: 12),
+                                recordButton,
+                              ],
+                            );
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: context.primaryColor,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                          child: Text(tr('Record')),
-                        );
-
-                        if (isMob) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              amountField,
-                              const SizedBox(height: 8),
-                              accountDropdown,
-                              const SizedBox(height: 10),
-                              recordButton,
-                            ],
-                          );
-                        }
-
-                        return Row(
-                          children: [
-                            Expanded(child: amountField),
-                            const SizedBox(width: 12),
-                            Expanded(child: accountDropdown),
-                            const SizedBox(width: 12),
-                            recordButton,
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ],
-              ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    },
+  );
+}
 
 class _AddLoanDialog extends ConsumerStatefulWidget {
   const _AddLoanDialog();
@@ -2305,26 +2527,13 @@ class _LoanDetailsDialog extends ConsumerWidget {
                     children: [
                       if (canDeleteLoan)
                         OutlinedButton.icon(
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Delete Loan Record'),
-                              content: Text('Are you sure you want to delete loan for "${liveLoan.borrowerName}"? This will rollback balances and ledger records.'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: context.error))),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            ref.read(loansProvider.notifier).deleteLoan(liveLoan.id);
-                            if (context.mounted) {
-                              Navigator.of(context).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: const Text('Loan record deleted and balances rolled back.'), backgroundColor: context.error),
-                              );
-                            }
+                        onPressed: () {
+                          ref.read(loansProvider.notifier).deleteLoan(liveLoan.id);
+                          if (context.mounted) {
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: const Text('Loan record deleted and balances rolled back.'), backgroundColor: context.error),
+                            );
                           }
                         },
                         icon: const Icon(Icons.delete_outline, size: 16),
@@ -2350,26 +2559,13 @@ class _LoanDetailsDialog extends ConsumerWidget {
                 children: [
                   if (canDeleteLoan)
                     OutlinedButton.icon(
-                    onPressed: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Delete Loan Record'),
-                          content: Text('Are you sure you want to delete loan for "${liveLoan.borrowerName}"? This will rollback balances and ledger records.'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Delete', style: TextStyle(color: context.error))),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
-                        ref.read(loansProvider.notifier).deleteLoan(liveLoan.id);
-                        if (context.mounted) {
-                          Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: const Text('Loan record deleted and balances rolled back.'), backgroundColor: context.error),
-                          );
-                        }
+                    onPressed: () {
+                      ref.read(loansProvider.notifier).deleteLoan(liveLoan.id);
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: const Text('Loan record deleted and balances rolled back.'), backgroundColor: context.error),
+                        );
                       }
                     },
                     icon: const Icon(Icons.delete_outline, size: 16),

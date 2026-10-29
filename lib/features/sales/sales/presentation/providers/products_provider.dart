@@ -4,6 +4,7 @@ import '../../domain/entities/product.dart';
 import '../../domain/repositories/products_repository.dart';
 import '../../data/repositories/products_repository_impl.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
 
 // ─── State Definition ───────────────────────────
 
@@ -73,6 +74,18 @@ class ProductsNotifier extends Notifier<ProductsState> {
   }
 
   Future<void> deleteProduct(String id) async {
+    final prod = state.products.where((p) => p.id == id).firstOrNull;
+    if (prod != null) {
+      final adminState = ref.read(adminProvider);
+      await ref.read(recoveryProvider.notifier).addDeletedItem(
+        id: prod.id,
+        itemType: 'Product',
+        title: prod.name,
+        subtitle: 'Price: Rs. ${prod.price.toStringAsFixed(0)}',
+        jsonData: prod.toMap(),
+        deletedBy: adminState.currentUser?.name ?? 'Admin',
+      );
+    }
     await _repository.deleteProduct(id);
     ref.read(adminProvider.notifier).logAction(
       action: 'Deleted product: $id',

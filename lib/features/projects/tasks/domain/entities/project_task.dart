@@ -48,4 +48,30 @@ class ProjectTask {
       status: status ?? this.status,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'projectId': projectId,
+        'projectName': projectName,
+        'title': title,
+        'description': description,
+        'assigneeId': assigneeId,
+        'assigneeName': assigneeName,
+        'dueDate': dueDate,
+        'priority': priority,
+        'status': status,
+      };
+
+  factory ProjectTask.fromMap(Map<String, dynamic> map) => ProjectTask(
+        id: map['id'] ?? '',
+        projectId: map['projectId'] ?? '',
+        projectName: map['projectName'] ?? '',
+        title: map['title'] ?? '',
+        description: map['description'] ?? '',
+        assigneeId: map['assigneeId'] ?? '',
+        assigneeName: map['assigneeName'] ?? '',
+        dueDate: map['dueDate'] ?? '',
+        priority: map['priority'] ?? 'Low',
+        status: map['status'] ?? 'To Do',
+      );
 }

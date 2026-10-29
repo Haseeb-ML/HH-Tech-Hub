@@ -11,6 +11,7 @@ import '../../../employees/presentation/providers/employees_provider.dart';
 import '../../../salaries/presentation/providers/salaries_provider.dart';
 import '../../../attendance/presentation/providers/attendance_provider.dart';
 import '../../../attendance/domain/entities/attendance_record.dart';
+import '../../../advances/presentation/providers/advances_provider.dart';
 
 class EmployeeHistoryScreen extends ConsumerStatefulWidget {
   const EmployeeHistoryScreen({super.key});
@@ -91,6 +92,7 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
     final tr = ref.watch(translationProvider);
     final employeesState = ref.watch(employeesProvider);
     final salariesState = ref.watch(salariesProvider);
+    final advancesState = ref.watch(advancesProvider);
 
     final employees = employeesState.employees;
 
@@ -104,10 +106,21 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
       }
     }
 
+    final emp = selectedEmployee;
+
     // Filter salary records for this employee
-    final employeeSalaries = selectedEmployee != null
-        ? salariesState.salaries.where((s) => s.employeeId == selectedEmployee!.id).toList()
+    final employeeSalaries = emp != null
+        ? salariesState.salaries.where((s) => s.employeeId == emp.id).toList()
         : <dynamic>[];
+
+    // Filter advance records for this employee
+    final employeeAdvances = emp != null
+        ? advancesState.advances.where((a) => a.employeeId == emp.id || a.employeeName.toLowerCase().trim() == emp.name.toLowerCase().trim()).toList()
+        : <dynamic>[];
+
+    final double empRemainingAdvance = employeeAdvances
+        .where((a) => a.status == 'Approved')
+        .fold<double>(0.0, (sum, a) => sum + a.remainingAmount);
 
     final settings = ref.watch(attendanceSettingsProvider).value;
     final workStart = settings?.workStartMinutes ?? 540;
@@ -177,6 +190,7 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                               fileName: '${selectedEmployee!.name.toLowerCase().replaceAll(' ', '_')}_history',
                                               employee: selectedEmployee,
                                               salaries: employeeSalaries.cast(),
+                                               advances: employeeAdvances.cast(),
                                               attendance: _attendanceLogs,
                                               attendanceStats: {
                                                 'present': totalPresents,
@@ -185,7 +199,7 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                                 'percentage': attendancePercent,
                                               },
                                             );
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
                                                 content: Text(tr('Excel report exported successfully! Click to open.')),
                                                 backgroundColor: context.success,
@@ -198,7 +212,7 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                               ),
                                             );
                                           } catch (e) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
+                                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
                                                 content: Text('${tr("Failed to export Excel report:")} $e'),
                                                 backgroundColor: context.error,
@@ -511,11 +525,21 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                           final isMobile = constraints.maxWidth < 700;
                                           final emp = selectedEmployee!;
 
+                                          final latestSalary = employeeSalaries.isNotEmpty
+                                              ? (List.from(employeeSalaries)..sort((a, b) => b.paymentDate.compareTo(a.paymentDate))).first
+                                              : null;
+                                          final latestPaymentMethod = (latestSalary != null && latestSalary.paymentMethod.trim().isNotEmpty)
+                                              ? latestSalary.paymentMethod.trim()
+                                              : (emp.paymentMethod.trim().isNotEmpty ? emp.paymentMethod.trim() : 'N/A (No Payment Issued)');
+
                                           final emailPhoneSection = Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               _buildInfoLabel(tr('Email Address')),
                                               _buildInfoValue(emp.email),
+                                              const SizedBox(height: 16),
+                                              _buildInfoLabel(tr('CNIC Number')),
+                                              _buildInfoValue(emp.cnic.trim().isNotEmpty ? emp.cnic.trim() : 'N/A'),
                                               const SizedBox(height: 16),
                                               _buildInfoLabel(tr('Phone Numbers')),
                                               const SizedBox(height: 4),
@@ -579,7 +603,12 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                               _buildInfoValue('Rs. ${emp.baseSalary.toStringAsFixed(0)}'),
                                               const SizedBox(height: 16),
                                               _buildInfoLabel(tr('Payment Method')),
-                                              _buildInfoValue(emp.paymentMethod),
+                                              _buildInfoValue(latestPaymentMethod),
+                                              const SizedBox(height: 16),
+                                              _buildInfoLabel(tr('Active Salary Advance')),
+                                              _buildInfoValue(empRemainingAdvance > 0
+                                                  ? 'Rs. ${empRemainingAdvance.toStringAsFixed(0)}'
+                                                  : tr('No Active Advance')),
                                             ],
                                           );
 
@@ -869,6 +898,116 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                     ],
                                   );
                                 },
+                              ),
+                              const SizedBox(height: 24),
+
+                              // Salary Advances History Log
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tr('Salary Advances Log'),
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: context.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  GlassCard(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: employeeAdvances.isEmpty
+                                          ? Padding(
+                                              padding: const EdgeInsets.all(24),
+                                              child: Center(
+                                                child: Text(tr('No salary advance records found for this employee.')),
+                                              ),
+                                            )
+                                          : SingleChildScrollView(
+                                              scrollDirection: Axis.horizontal,
+                                              child: ConstrainedBox(
+                                                constraints: const BoxConstraints(minWidth: 700),
+                                                child: Table(
+                                                  columnWidths: const {
+                                                    0: FlexColumnWidth(1.8),
+                                                    1: FlexColumnWidth(2.0),
+                                                    2: FlexColumnWidth(2.0),
+                                                    3: FlexColumnWidth(2.0),
+                                                    4: FlexColumnWidth(1.5),
+                                                    5: FlexColumnWidth(2.0),
+                                                    6: FlexColumnWidth(1.8),
+                                                  },
+                                                  children: [
+                                                    TableRow(
+                                                      decoration: BoxDecoration(
+                                                        border: Border(bottom: BorderSide(color: context.border, width: 1.5)),
+                                                      ),
+                                                      children: [
+                                                        _buildTableHeaderCell(tr('Request Date')),
+                                                        _buildTableHeaderCell(tr('Total Advance')),
+                                                        _buildTableHeaderCell(tr('Monthly Deduction')),
+                                                        _buildTableHeaderCell(tr('Status')),
+                                                      ],
+                                                    ),
+                                                    ...employeeAdvances.map((adv) {
+                                                      Color statusColor;
+                                                      switch (adv.status) {
+                                                        case 'Approved':
+                                                          statusColor = context.success;
+                                                          break;
+                                                        case 'Fully Paid':
+                                                          statusColor = context.info;
+                                                          break;
+                                                        case 'Rejected':
+                                                          statusColor = context.error;
+                                                          break;
+                                                        default:
+                                                          statusColor = context.warning;
+                                                      }
+
+                                                      return TableRow(
+                                                        decoration: BoxDecoration(
+                                                          border: Border(bottom: BorderSide(color: context.divider, width: 1)),
+                                                        ),
+                                                        children: [
+                                                          _buildTableCell(adv.requestDate),
+                                                          _buildTableCell('Rs. ${adv.amount.toStringAsFixed(0)}'),
+                                                          _buildTableCell('Rs. ${adv.amountRepaid.toStringAsFixed(0)}'),
+                                                          _buildTableCell('Rs. ${adv.remainingAmount.toStringAsFixed(0)}'),
+                                                          _buildTableCell('${adv.repaymentMonths} Months'),
+                                                          _buildTableCell('Rs. ${adv.monthlyDeduction.toStringAsFixed(0)}/mo'),
+                                                          Padding(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                                            child: Align(
+                                                              alignment: Alignment.centerLeft,
+                                                              child: Container(
+                                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                                decoration: BoxDecoration(
+                                                                  color: statusColor.withValues(alpha: 0.1),
+                                                                  borderRadius: BorderRadius.circular(10),
+                                                                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                                                                ),
+                                                                child: Text(
+                                                                  adv.status,
+                                                                  style: TextStyle(
+                                                                    color: statusColor,
+                                                                    fontWeight: FontWeight.bold,
+                                                                    fontSize: 11,
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    }),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ],

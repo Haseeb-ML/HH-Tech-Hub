@@ -143,7 +143,9 @@ class ProjectsScreen extends ConsumerWidget {
     final width = MediaQuery.of(context).size.width;
     int crossAxisCount = width >= 1400
         ? 4
-        : (width >= 900 ? 3 : 2);
+        : (width >= 900
+            ? 3
+            : (width >= 600 ? 2 : 1));
 
     return Scaffold(
       backgroundColor: context.scaffoldBg,
@@ -514,7 +516,11 @@ class ProjectsScreen extends ConsumerWidget {
                                       crossAxisCount: crossAxisCount,
                                       crossAxisSpacing: width < 600 ? 10 : 16,
                                       mainAxisSpacing: width < 600 ? 10 : 16,
-                                      childAspectRatio: width < 600 ? 0.62 : 1.02,
+                                      childAspectRatio: width < 600
+                                          ? (width - 24) / 215
+                                          : (crossAxisCount == 2
+                                              ? 1.45
+                                              : (crossAxisCount == 3 ? 1.25 : 1.05)),
                                     ),
                                 itemCount: state.filteredProjects.length,
                                 itemBuilder: (context, index) {
@@ -702,45 +708,18 @@ class _ProjectCard extends ConsumerWidget {
                     padding: EdgeInsets.zero,
                     onSelected: (val) async {
                       if (val == 'delete' && canDelete) {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Delete Project'),
+                        ref
+                            .read(projectsProvider.notifier)
+                            .deleteProject(project.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
                             content: Text(
-                              '${tr("Are you sure you want to delete project")} "${project.name}"? ${tr("This action cannot be undone.")}',
+                              '${tr("Project")} "${project.name}" ${tr("deleted.")}',
                             ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: Text(
-                                  tr('Cancel'),
-                                  style: TextStyle(color: context.textSecondary),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                child: Text(
-                                  tr('Delete'),
-                                  style: TextStyle(color: context.error),
-                                ),
-                              ),
-                            ],
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: context.error,
                           ),
                         );
-                        if (confirm == true) {
-                          ref
-                              .read(projectsProvider.notifier)
-                              .deleteProject(project.id);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                '${tr("Project")} "${project.name}" ${tr("deleted.")}',
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: context.error,
-                            ),
-                          );
-                        }
                       } else if (val == 'addons') {
                         showDialog(
                           context: context,
@@ -1071,62 +1050,65 @@ class _ProjectCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
+                if (project.teamMembers.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  // Team member overlapping avatars
+                  SizedBox(
+                    height: 28,
+                    width: isMobile
+                        ? ((project.teamMembers.length > 3 ? 3 : project.teamMembers.length) * 16.0 + 12.0)
+                        : ((project.teamMembers.length > 3 ? 3 : project.teamMembers.length) * 18.0 + 14.0),
+                    child: Stack(
+                      alignment: Alignment.centerRight,
+                      children: List.generate(
+                        project.teamMembers.length > 3
+                            ? 3
+                            : project.teamMembers.length,
+                        (index) {
+                          final empId = project.teamMembers[index];
+                          final emp = allEmployees
+                              .where((e) => e.id == empId)
+                              .firstOrNull;
+                          final initials = emp != null
+                              ? emp.name
+                                    .split(' ')
+                                    .map((e) => e[0])
+                                    .take(2)
+                                    .join()
+                                    .toUpperCase()
+                              : '?';
 
-                // Team member overlapping avatars
-                SizedBox(
-                  height: 28,
-                  width: isMobile ? 55 : 90,
-                  child: Stack(
-                    alignment: Alignment.centerRight,
-                    children: List.generate(
-                      project.teamMembers.length > 3
-                          ? 3
-                          : project.teamMembers.length,
-                      (index) {
-                        final empId = project.teamMembers[index];
-                        final emp = allEmployees
-                            .where((e) => e.id == empId)
-                            .firstOrNull;
-                        final initials = emp != null
-                            ? emp.name
-                                  .split(' ')
-                                  .map((e) => e[0])
-                                  .take(2)
-                                  .join()
-                                  .toUpperCase()
-                            : '?';
-
-                        return Positioned(
-                          right: index * 18.0,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: context.cardBg,
-                                width: 1.5,
+                          return Positioned(
+                            right: index * (isMobile ? 15.0 : 18.0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: context.cardBg,
+                                  width: 1.5,
+                                ),
                               ),
-                            ),
-                            child: CircleAvatar(
-                              radius: 12,
-                              backgroundColor: context.isDarkMode
-                                  ? const Color(0xFF374151)
-                                  : const Color(0xFFDBEAFE),
-                              child: Text(
-                                initials,
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                  color: context.primaryColor,
+                              child: CircleAvatar(
+                                radius: isMobile ? 11 : 12,
+                                backgroundColor: context.isDarkMode
+                                    ? const Color(0xFF374151)
+                                    : const Color(0xFFDBEAFE),
+                                child: Text(
+                                  initials,
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.bold,
+                                    color: context.primaryColor,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -1177,29 +1159,35 @@ class _ProjectCard extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.extension_rounded,
-                              size: 13,
-                              color: totalAddons > 0
-                                  ? Colors.purple
-                                  : context.primaryColor,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              totalAddons > 0
-                                  ? '$totalAddons Add-On${totalAddons > 1 ? 's' : ''} (+Rs. ${totalAddonAmount.toStringAsFixed(0)})'
-                                  : '+ Add-On / Scope Change',
-                              style: TextStyle(
-                                fontSize: isMobile ? 9.5 : 10.5,
-                                fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.extension_rounded,
+                                size: 13,
                                 color: totalAddons > 0
                                     ? Colors.purple
                                     : context.primaryColor,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  totalAddons > 0
+                                      ? '$totalAddons Add-On${totalAddons > 1 ? 's' : ''} (+Rs. ${totalAddonAmount.toStringAsFixed(0)})'
+                                      : '+ Add-On / Scope Change',
+                                  style: TextStyle(
+                                    fontSize: isMobile ? 9.5 : 10.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: totalAddons > 0
+                                        ? Colors.purple
+                                        : context.primaryColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         if (totalAddons > 0 && totalAddonPending > 0)
                           Container(
@@ -3182,18 +3170,18 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // Payment History Table
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isMobileNarrow = constraints.maxWidth < 460;
+                  final title = Text(
                     'Payment Details',
                     style: TextStyle(
                       color: context.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
-                  ),
-                  Wrap(
+                  );
+                  final actionButtons = Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
@@ -3257,18 +3245,41 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                           ),
                         ),
                     ],
-                  ),
-                ],
+                  );
+
+                  if (isMobileNarrow) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        title,
+                        const SizedBox(height: 8),
+                        actionButtons,
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      title,
+                      actionButtons,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: context.cardBg,
-                  border: Border.all(color: context.border),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 560;
+                  final tableWidget = Container(
+                    width: isCompact ? 560 : double.infinity,
+                    decoration: BoxDecoration(
+                      color: context.cardBg,
+                      border: Border.all(color: context.border),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
                     // Table Header
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -3517,8 +3528,19 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 24),
+              );
+
+              if (isCompact) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: tableWidget,
+                );
+              }
+              return tableWidget;
+            },
+          ),
+          const SizedBox(height: 24),
 
               // Client Bank Details Section
               Text(
@@ -3548,43 +3570,45 @@ class _ViewProjectDetailsDialog extends ConsumerWidget {
                         color: context.primaryColor,
                       ),
                       const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            clientAccount.name,
-                            style: TextStyle(
-                              color: context.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            '${tr("Payment Method")}: ${clientAccount.paymentMethod}',
-                            style: TextStyle(
-                              color: context.textPrimary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (clientAccount.paymentMethod != 'Cash') ...[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              '${clientAccount.bankName}',
+                              clientAccount.name,
                               style: TextStyle(
-                                color: context.textSecondary,
-                                fontSize: 12,
+                                color: context.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
-                              '${tr("Account Number")}: ${clientAccount.accountNumber}',
+                              '${tr("Payment Method")}: ${clientAccount.paymentMethod}',
                               style: TextStyle(
-                                color: context.textSecondary,
+                                color: context.textPrimary,
                                 fontSize: 12,
-                                fontFamily: 'monospace',
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                            if (clientAccount.paymentMethod != 'Cash') ...[
+                              Text(
+                                '${clientAccount.bankName}',
+                                style: TextStyle(
+                                  color: context.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                '${tr("Account Number")}: ${clientAccount.accountNumber}',
+                                style: TextStyle(
+                                  color: context.textSecondary,
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ],
                   );
@@ -5084,95 +5108,162 @@ class _ProjectAddonsDialogState extends ConsumerState<_ProjectAddonsDialog> {
               const SizedBox(height: 16),
 
               // Metrics Financial Summary Row
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.isDarkMode
-                      ? const Color(0xFF1E293B)
-                      : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: context.border),
-                ),
-                child: Row(
-                  children: [
-                    _buildSummaryMetric(
-                      context,
-                      label: 'Base Budget',
-                      value: 'Rs. ${widget.project.budget.toStringAsFixed(0)}',
-                      color: context.textPrimary,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact = constraints.maxWidth < 450;
+                  if (isCompact) {
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: context.isDarkMode
+                            ? const Color(0xFF1E293B)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: context.border),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              _buildSummaryMetric(
+                                context,
+                                label: 'Base Budget',
+                                value: 'Rs. ${widget.project.budget.toStringAsFixed(0)}',
+                                color: context.textPrimary,
+                              ),
+                              _buildSummaryDivider(context),
+                              _buildSummaryMetric(
+                                context,
+                                label: 'Add-Ons (${projectAddons.length})',
+                                value: 'Rs. ${totalAddonsAmount.toStringAsFixed(0)}',
+                                color: Colors.purple,
+                              ),
+                            ],
+                          ),
+                          Divider(
+                            height: 16,
+                            color: context.border.withOpacity(0.5),
+                          ),
+                          Row(
+                            children: [
+                              _buildSummaryMetric(
+                                context,
+                                label: 'Revised Total',
+                                value: 'Rs. ${totalRevisedBudget.toStringAsFixed(0)}',
+                                color: context.primaryColor,
+                              ),
+                              _buildSummaryDivider(context),
+                              _buildSummaryMetric(
+                                context,
+                                label: 'Add-Ons Due',
+                                value: totalAddonsPending <= 0
+                                    ? 'All Paid'
+                                    : 'Rs. ${totalAddonsPending.toStringAsFixed(0)}',
+                                color: totalAddonsPending <= 0
+                                    ? context.success
+                                    : context.error,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: context.isDarkMode
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: context.border),
                     ),
-                    _buildSummaryDivider(context),
-                    _buildSummaryMetric(
-                      context,
-                      label: 'Add-Ons (${projectAddons.length})',
-                      value: 'Rs. ${totalAddonsAmount.toStringAsFixed(0)}',
-                      color: Colors.purple,
+                    child: Row(
+                      children: [
+                        _buildSummaryMetric(
+                          context,
+                          label: 'Base Budget',
+                          value: 'Rs. ${widget.project.budget.toStringAsFixed(0)}',
+                          color: context.textPrimary,
+                        ),
+                        _buildSummaryDivider(context),
+                        _buildSummaryMetric(
+                          context,
+                          label: 'Add-Ons (${projectAddons.length})',
+                          value: 'Rs. ${totalAddonsAmount.toStringAsFixed(0)}',
+                          color: Colors.purple,
+                        ),
+                        _buildSummaryDivider(context),
+                        _buildSummaryMetric(
+                          context,
+                          label: 'Revised Total',
+                          value: 'Rs. ${totalRevisedBudget.toStringAsFixed(0)}',
+                          color: context.primaryColor,
+                        ),
+                        _buildSummaryDivider(context),
+                        _buildSummaryMetric(
+                          context,
+                          label: 'Add-Ons Due',
+                          value: totalAddonsPending <= 0
+                              ? 'All Paid'
+                              : 'Rs. ${totalAddonsPending.toStringAsFixed(0)}',
+                          color: totalAddonsPending <= 0
+                              ? context.success
+                              : context.error,
+                        ),
+                      ],
                     ),
-                    _buildSummaryDivider(context),
-                    _buildSummaryMetric(
-                      context,
-                      label: 'Revised Total',
-                      value: 'Rs. ${totalRevisedBudget.toStringAsFixed(0)}',
-                      color: context.primaryColor,
-                    ),
-                    _buildSummaryDivider(context),
-                    _buildSummaryMetric(
-                      context,
-                      label: 'Add-Ons Due',
-                      value: totalAddonsPending <= 0
-                          ? 'All Paid'
-                          : 'Rs. ${totalAddonsPending.toStringAsFixed(0)}',
-                      color: totalAddonsPending <= 0
-                          ? context.success
-                          : context.error,
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
               // Filter Tabs
-              Row(
-                children: [
-                  Text(
-                    'Filter:',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: context.textMuted,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  for (final tab in ['All', 'Pending', 'In Progress', 'Completed'])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: ChoiceChip(
-                        label: Text(
-                          tab,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: _selectedFilter == tab
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            color: _selectedFilter == tab
-                                ? Colors.purple
-                                : context.textSecondary,
-                          ),
-                        ),
-                        selected: _selectedFilter == tab,
-                        selectedColor: Colors.purple.withOpacity(0.15),
-                        backgroundColor: context.cardBg,
-                        side: BorderSide(
-                          color: _selectedFilter == tab
-                              ? Colors.purple
-                              : context.border,
-                        ),
-                        onSelected: (selected) {
-                          if (selected) setState(() => _selectedFilter = tab);
-                        },
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    Text(
+                      'Filter:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: context.textMuted,
                       ),
                     ),
-                ],
+                    const SizedBox(width: 8),
+                    for (final tab in ['All', 'Pending', 'In Progress', 'Completed'])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(
+                            tab,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: _selectedFilter == tab
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              color: _selectedFilter == tab
+                                  ? Colors.purple
+                                  : context.textSecondary,
+                            ),
+                          ),
+                          selected: _selectedFilter == tab,
+                          selectedColor: Colors.purple.withOpacity(0.15),
+                          backgroundColor: context.cardBg,
+                          side: BorderSide(
+                            color: _selectedFilter == tab
+                                ? Colors.purple
+                                : context.border,
+                          ),
+                          onSelected: (selected) {
+                            if (selected) setState(() => _selectedFilter = tab);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -5692,7 +5783,9 @@ class _AddAddonModalDialogState extends ConsumerState<_AddAddonModalDialog> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(
+            MediaQuery.of(context).size.width < 600 ? 16 : 24,
+          ),
           child: Form(
             key: _formKey,
             child: SingleChildScrollView(
@@ -5830,17 +5923,21 @@ class _AddAddonModalDialogState extends ConsumerState<_AddAddonModalDialog> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            _estimatedDeliveryDate == null
-                                ? 'Select estimated delivery date'
-                                : '${_estimatedDeliveryDate!.day}/${_estimatedDeliveryDate!.month}/${_estimatedDeliveryDate!.year}',
-                            style: TextStyle(
-                              color: _estimatedDeliveryDate == null
-                                  ? context.textMuted
-                                  : context.textPrimary,
-                              fontSize: 13,
+                          Expanded(
+                            child: Text(
+                              _estimatedDeliveryDate == null
+                                  ? 'Select estimated delivery date'
+                                  : '${_estimatedDeliveryDate!.day}/${_estimatedDeliveryDate!.month}/${_estimatedDeliveryDate!.year}',
+                              style: TextStyle(
+                                color: _estimatedDeliveryDate == null
+                                    ? context.textMuted
+                                    : context.textPrimary,
+                                fontSize: 13,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Icon(
                             Icons.calendar_today_outlined,
                             size: 16,
@@ -5855,9 +5952,7 @@ class _AddAddonModalDialogState extends ConsumerState<_AddAddonModalDialog> {
                   // Receive payment switch
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
+                        horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: _receivePaymentNow
                           ? Colors.purple.withValues(alpha: 0.08)
@@ -5872,26 +5967,31 @@ class _AddAddonModalDialogState extends ConsumerState<_AddAddonModalDialog> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.payments_outlined,
-                              size: 18,
-                              color: _receivePaymentNow
-                                  ? Colors.purple
-                                  : context.textSecondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Receive Advance / Payment Now',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: context.textPrimary,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.payments_outlined,
+                                size: 18,
+                                color: _receivePaymentNow
+                                    ? Colors.purple
+                                    : context.textSecondary,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Receive Advance / Payment Now',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: context.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Switch(
                           value: _receivePaymentNow,
                           activeThumbColor: Colors.purple,
@@ -5938,12 +6038,16 @@ class _AddAddonModalDialogState extends ConsumerState<_AddAddonModalDialog> {
                     DropdownButtonFormField<String>(
                       initialValue: _selectedAccountId,
                       dropdownColor: context.cardBg,
+                      isExpanded: true,
                       style: TextStyle(color: context.textPrimary, fontSize: 13),
                       decoration: _buildInputDeco(context, 'Select account'),
                       items: accounts.map((a) {
                         return DropdownMenuItem(
                           value: a.id,
-                          child: Text('${a.name} (${a.bankName})'),
+                          child: Text(
+                            '${a.name} (${a.bankName})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         );
                       }).toList(),
                       validator: (val) {

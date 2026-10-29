@@ -9,6 +9,11 @@ import '../../../ledger/domain/entities/ledger_entry.dart';
 import '../../../loans/presentation/providers/loans_provider.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
+
+import 'package:software_house_erp/core/utils/transaction_id_helper.dart';
+
+import 'package:software_house_erp/core/services/cloud_sync_service.dart';
 
 class ExpensesState {
   final List<ExpenseRecord> expenses;
@@ -87,10 +92,16 @@ class ExpensesState {
     final sorted = ExpenseRecord.sortExpensesNewestFirst(expenses);
 
     return sorted.where((e) {
+      final q = searchQuery.trim().toLowerCase();
+      final cleanExp = TransactionIdHelper.getExpenseId(e, sorted);
+
       final matchesSearch = searchQuery.isEmpty ||
-          e.description.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          e.vendorName.toLowerCase().contains(searchQuery.toLowerCase()) ||
-          e.category.toLowerCase().contains(searchQuery.toLowerCase());
+          e.description.toLowerCase().contains(q) ||
+          e.vendorName.toLowerCase().contains(q) ||
+          e.category.toLowerCase().contains(q) ||
+          e.expenseId.toLowerCase().contains(q) ||
+          e.id.toLowerCase().contains(q) ||
+          cleanExp.toLowerCase().contains(q);
 
       final matchesCategory = _isCategoryMatch(e.category, categoryFilter);
 
@@ -130,6 +141,12 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
   @override
   ExpensesState build() {
     _loadExpenses();
+    ref.listen<SyncState>(cloudSyncStateProvider, (previous, next) {
+      if ((next.status == SyncStatus.success || next.status == SyncStatus.offline) &&
+          previous?.status == SyncStatus.syncing) {
+        _loadExpenses();
+      }
+    });
     return const ExpensesState(
       expenses: [],
       isLoading: true,
@@ -234,6 +251,27 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
           
           // Adjust bank account balance (Deduct inventory cost)
           await ref.read(accountsProvider.notifier).adjustBalance(defaultAccountId, -totalCost);
+        }
+      }
+
+      // 4. Sync Approved Salary Advances
+      final advances = await dbService.db.getAll(dbService.db.advanceRecordsTable);
+      for (final adv in advances) {
+        if (adv.status == 'Approved' || adv.status == 'Fully Paid') {
+          final expId = 'ADV-EXP-${adv.id}';
+          if (!existingExpenseIds.contains(expId) && !existingExpenseIds.contains('exp_adv_${adv.id}') && adv.amount > 0) {
+            final expRecord = ExpenseRecord(
+              id: expId,
+              date: adv.requestDate.length > 10 ? adv.requestDate : (adv.requestDate.isNotEmpty ? '${adv.requestDate}T00:00:00.000' : DateTime.now().toIso8601String()),
+              amount: adv.amount,
+              accountId: defaultAccountId,
+              category: 'Salary Advances',
+              vendorName: adv.employeeName,
+              description: 'Salary Advance disbursed to ${adv.employeeName}',
+            );
+            await _repository.addExpense(expRecord);
+            existingExpenseIds.add(expId);
+          }
         }
       }
 
@@ -431,6 +469,15 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
     state = state.copyWith(isLoading: true);
 
     if (record != null) {
+      await ref.read(recoveryProvider.notifier).addDeletedItem(
+        id: record.id,
+        itemType: 'Expense',
+        title: '${record.category} (Rs. ${record.amount.toStringAsFixed(0)})',
+        subtitle: '${record.description} • Date: ${record.date}',
+        jsonData: record.toMap(),
+        deletedBy: adminState.currentUser?.name ?? 'Admin',
+      );
+
       // 1. Rollback bank account balance (Add back expense amount)
       await ref.read(accountsProvider.notifier).adjustBalance(record.accountId, record.amount);
 

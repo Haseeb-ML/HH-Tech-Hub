@@ -17,6 +17,7 @@ import '../../../ledger/presentation/providers/ledger_provider.dart';
 import '../../domain/entities/income_record.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/utils/transaction_id_helper.dart';
 
 class IncomeScreen extends ConsumerStatefulWidget {
   const IncomeScreen({super.key});
@@ -427,16 +428,20 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                       title: 'Income Registry',
                                       fileName: 'income_registry_export',
                                       headers: ['Receipt ID', tr('Date'), 'Client Name', 'Amount', 'Account ID', 'Invoice Number', tr('Description'), tr('Status')],
-                                      rows: state.filteredIncomes.map((i) => [
-                                        i.id,
-                                        i.date,
-                                        i.clientName,
-                                        'Rs. ${i.amount.toStringAsFixed(2)}',
-                                        i.accountId,
-                                        i.invoiceNumber,
-                                        i.description,
-                                        i.status,
-                                      ]).toList(),
+                                      rows: state.filteredIncomes.map((i) {
+                                         final rcpId = TransactionIdHelper.getReceiptId(i, state.incomes);
+                                         final invId = TransactionIdHelper.getIncomeId(i, state.incomes);
+                                        return [
+                                           rcpId,
+                                          i.date,
+                                          i.clientName,
+                                          'Rs. ${i.amount.toStringAsFixed(0)}',
+                                          i.accountId,
+                                          invId,
+                                          i.description,
+                                          i.status,
+                                        ];
+                                      }).toList(),
                                     ),
                                 ],
                               ),
@@ -845,7 +850,7 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                           controller: _horizontalScrollController,
                                           scrollDirection: Axis.horizontal,
                                           child: ConstrainedBox(
-                                            constraints: const BoxConstraints(minWidth: 1060),
+                                            constraints: const BoxConstraints(minWidth: 1180),
                                             child: DataTable(
                                               showCheckboxColumn: false,
                                               columnSpacing: 14,
@@ -855,9 +860,10 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                                 context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                                               ),
                                               columns: const [
-                                                DataColumn(label: SizedBox(width: 160, child: Text('Client & Project', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                DataColumn(label: SizedBox(width: 105, child: Text('Invoice', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                 DataColumn(label: SizedBox(width: 160, child: Text('Client & Project', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                 DataColumn(label: SizedBox(width: 130, child: Text('Income Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
-                                                DataColumn(label: SizedBox(width: 160, child: Text('Description & Invoice', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                DataColumn(label: SizedBox(width: 160, child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                 DataColumn(label: SizedBox(width: 120, child: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                 DataColumn(label: SizedBox(width: 130, child: Text('Deposit Account', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                 DataColumn(label: SizedBox(width: 95, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
@@ -876,7 +882,33 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                                     _showIncomeDetails(context, inc, accountName, accountScope, projectName);
                                                   },
                                                   cells: [
-                                                    // 1. Client & Project
+                                                    // 0. Invoice / ID (Unique)
+                                                     DataCell(
+                                                       SizedBox(
+                                                         width: 105,
+                                                         child: Align(
+                                                           alignment: Alignment.centerLeft,
+                                                           child: Container(
+                                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                             decoration: BoxDecoration(
+                                                               color: context.isDarkMode ? const Color(0xFF111827) : Colors.grey.shade100,
+                                                               borderRadius: BorderRadius.circular(6),
+                                                               border: Border.all(color: context.border),
+                                                             ),
+                                                             child: Text(
+                                                               TransactionIdHelper.getIncomeId(inc, state.incomes),
+                                                               style: TextStyle(
+                                                                 color: context.textPrimary,
+                                                                 fontSize: 11.5,
+                                                                 fontWeight: FontWeight.bold,
+                                                               ),
+                                                             ),
+                                                           ),
+                                                         ),
+                                                       ),
+                                                     ),
+
+                                                     // 1. Client & Project
                                                     DataCell(
                                                       SizedBox(
                                                         width: 160,
@@ -938,46 +970,27 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                                       ),
                                                     ),
 
-                                                    // 3. Description & Invoice #
-                                                    DataCell(
-                                                      SizedBox(
-                                                        width: 160,
-                                                        child: Column(
-                                                          mainAxisAlignment: MainAxisAlignment.center,
-                                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                                          children: [
-                                                            Tooltip(
-                                                              message: inc.description.isNotEmpty ? inc.description : 'No description',
-                                                              waitDuration: const Duration(milliseconds: 250),
-                                                              child: Text(
-                                                                inc.description.isEmpty ? '—' : inc.description,
-                                                                style: TextStyle(fontSize: 12, color: context.textPrimary),
-                                                                maxLines: 1,
-                                                                overflow: TextOverflow.ellipsis,
-                                                              ),
-                                                            ),
-                                                            if (inc.invoiceNumber.isNotEmpty) ...[
-                                                              const SizedBox(height: 2),
-                                                              Container(
-                                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                                                decoration: BoxDecoration(
-                                                                  color: context.infoLight,
-                                                                  borderRadius: BorderRadius.circular(4),
-                                                                ),
-                                                                child: Text(
-                                                                  inc.invoiceNumber,
-                                                                  style: TextStyle(fontSize: 9, color: context.info, fontWeight: FontWeight.bold),
-                                                                  maxLines: 1,
-                                                                  overflow: TextOverflow.ellipsis,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ],
-                                                        ),
-                                                      ),
-                                                    ),
+                                                    // 3. Description
+                                                     DataCell(
+                                                       SizedBox(
+                                                         width: 160,
+                                                         child: Align(
+                                                           alignment: Alignment.centerLeft,
+                                                           child: Tooltip(
+                                                             message: inc.description.isNotEmpty ? inc.description : 'No description',
+                                                             waitDuration: const Duration(milliseconds: 250),
+                                                             child: Text(
+                                                               inc.description.isEmpty ? '—' : inc.description,
+                                                               style: TextStyle(fontSize: 12, color: context.textPrimary),
+                                                               maxLines: 1,
+                                                               overflow: TextOverflow.ellipsis,
+                                                             ),
+                                                           ),
+                                                         ),
+                                                       ),
+                                                     ),
 
-                                                    // 4. Date & Time
+                                                     // 4. Date & Time
                                                     DataCell(
                                                       SizedBox(
                                                         width: 120,
@@ -1259,6 +1272,8 @@ class _IncomeDetailsDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final adminState = ref.watch(adminProvider);
+    final incomes = ref.watch(incomeProvider).incomes;
+    final displayInvoiceId = TransactionIdHelper.getIncomeId(income, incomes);
     final canDelete = adminState.hasPermission(AppModule.income, PermissionAction.delete);
     final isReceived = income.status.toLowerCase() == 'received';
     final isMobile = MediaQuery.of(context).size.width < 600;
@@ -1306,7 +1321,7 @@ class _IncomeDetailsDialog extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            'Transaction ID: ${income.id}',
+                            'Invoice #: $displayInvoiceId',
                             style: TextStyle(color: context.textMuted, fontSize: 11),
                           ),
                         ],
@@ -1413,7 +1428,7 @@ class _IncomeDetailsDialog extends ConsumerWidget {
                       isMobile: isMobile,
                       icon: Icons.tag,
                       label: 'Invoice #',
-                      value: income.invoiceNumber.isNotEmpty ? income.invoiceNumber : '—',
+                      value: displayInvoiceId,
                     ),
                     const Divider(height: 1),
                     _buildDetailRow(
@@ -1451,37 +1466,19 @@ class _IncomeDetailsDialog extends ConsumerWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              backgroundColor: context.cardBg,
-                              title: const Text('Delete Income Record'),
-                              content: Text('Are you sure you want to delete receipt "${income.id}" of Rs. ${income.amount}?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  style: ElevatedButton.styleFrom(backgroundColor: context.error, foregroundColor: Colors.white),
-                                  child: const Text('Delete'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await ref.read(incomeProvider.notifier).deleteIncome(income.id);
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Income receipt "${income.id}" deleted.'), backgroundColor: context.success),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e'), backgroundColor: context.error),
-                                );
-                              }
+                          try {
+                            await ref.read(incomeProvider.notifier).deleteIncome(income.id);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Income receipt "${income.id}" deleted.'), backgroundColor: context.success),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e'), backgroundColor: context.error),
+                              );
                             }
                           }
                         },

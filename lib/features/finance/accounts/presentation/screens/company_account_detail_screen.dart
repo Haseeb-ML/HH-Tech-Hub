@@ -116,14 +116,20 @@ class _CompanyAccountDetailScreenState
     final pureIncomeTotal =
         companyIncomes.fold<double>(0.0, (s, i) => s + i.amount) + directInflow;
     final loansInflowTotal = loansReceivedInflow + repaymentsReceivedInflow;
-    final totalInflow = pureIncomeTotal + loansInflowTotal;
 
     final pureExpenseTotal =
         companyExpenses.fold<double>(0.0, (s, e) => s + e.amount) + directOutflow;
     final loansOutflowTotal = loansGivenOutflow + repaymentsPaidOutflow;
     final totalExpense = pureExpenseTotal + loansOutflowTotal;
 
-    final availableBalance = account.openingBalance + totalInflow - totalExpense;
+    final initialBal = account.openingBalance > 0
+        ? account.openingBalance
+        : ((pureIncomeTotal == 0 && pureExpenseTotal == 0 && loansInflowTotal == 0 && loansOutflowTotal == 0)
+            ? account.balance
+            : 0.0);
+    final totalInflow = initialBal + pureIncomeTotal + loansInflowTotal;
+
+    final availableBalance = totalInflow - totalExpense;
 
     final todayStr = DateTime.now().toIso8601String().split('T').first;
     final todayInflow = companyIncomes
@@ -219,6 +225,32 @@ class _CompanyAccountDetailScreenState
             description: 'Advance / Loan lent out from account: ${l.cleanDescription}',
             reference: 'Loan #${l.id.length > 4 ? l.id.substring(l.id.length - 4) : l.id}',
           )),
+      ...loansState.loans
+          .where((l) => l.type == 'Lent')
+          .expand((l) => l.repayments.map((r) => MapEntry(l, r)))
+          .where((e) => e.value.accountId == account.id)
+          .map((e) => _CompanyTx(
+                id: e.value.id,
+                date: e.value.date,
+                amount: e.value.amount,
+                type: 'Income',
+                category: 'Loan Repayment Inflow',
+                description: 'Received loan repayment / return from ${e.key.borrowerName}',
+                reference: e.key.borrowerName,
+              )),
+      ...loansState.loans
+          .where((l) => l.type == 'Borrowed')
+          .expand((l) => l.repayments.map((r) => MapEntry(l, r)))
+          .where((e) => e.value.accountId == account.id)
+          .map((e) => _CompanyTx(
+                id: e.value.id,
+                date: e.value.date,
+                amount: e.value.amount,
+                type: 'Expense',
+                category: 'Loan Repayment Outflow',
+                description: 'Paid loan repayment to ${e.key.borrowerName}',
+                reference: e.key.borrowerName,
+              )),
     ];
 
     allTransactions.sort(_compareTransactionsNewestFirst);
@@ -352,8 +384,8 @@ class _CompanyAccountDetailScreenState
                   account: account,
                   transactions: transactions,
                   openingBalance: account.openingBalance,
-                  totalInflow: pureIncomeTotal + loansInflowTotal,
-                  totalOutflow: pureExpenseTotal + loansOutflowTotal,
+                  totalInflow: totalInflow,
+                  totalOutflow: totalExpense,
                   closingBalance: availableBalance,
                   totalIncomeTx: transactions.where((t) => (t['inflow'] as double) > 0).length,
                   totalExpenseTx: transactions.where((t) => (t['outflow'] as double) > 0).length,
@@ -521,7 +553,7 @@ class _CompanyAccountDetailScreenState
                       title: 'Total Inflow (All Time)',
                       value: 'Rs. ${totalInflow.toStringAsFixed(0)}',
                       subtext:
-                          'Income: Rs. ${(pureIncomeTotal - directInflow).toStringAsFixed(0)} • Transfers: Rs. ${directInflow.toStringAsFixed(0)} • Loans: Rs. ${loansInflowTotal.toStringAsFixed(0)}',
+                          '${account.openingBalance > 0 ? "Opening: Rs. ${account.openingBalance.toStringAsFixed(0)} • " : ""}Income: Rs. ${(pureIncomeTotal - directInflow).toStringAsFixed(0)} • Transfers: Rs. ${directInflow.toStringAsFixed(0)} • Loans: Rs. ${loansInflowTotal.toStringAsFixed(0)}',
                       accentColor: context.isDarkMode
                           ? const Color(0xFF4ADE80)
                           : const Color(0xFF16A34A),

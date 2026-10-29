@@ -523,33 +523,14 @@ class ClientsScreen extends ConsumerWidget {
                         padding: EdgeInsets.zero,
                         onSelected: (val) async {
                           if (val == 'delete' && canDelete) {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Delete Client'),
-                                content: Text('${tr("Are you sure you want to delete client")} "${client.name}"? ${tr("This action cannot be undone.")}'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                                  ),
-                                ],
+                            ref.read(clientsProvider.notifier).deleteClient(client.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${tr("Client")} "${client.name}" ${tr("removed.")}'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: context.error,
                               ),
                             );
-                            if (confirm == true) {
-                              ref.read(clientsProvider.notifier).deleteClient(client.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('${tr("Client")} "${client.name}" ${tr("removed.")}'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: context.error,
-                                ),
-                              );
-                            }
                           } else if (val == 'toggle_status' && canEdit) {
                             final nextStatus = client.status == 'Active' ? 'Inactive' : (client.status == 'Inactive' ? 'Lead' : tr('Active'));
                             ref.read(clientsProvider.notifier).updateClient(client.copyWith(status: nextStatus));

@@ -40,6 +40,14 @@ class LoanRepaymentListConverter extends TypeConverter<List<Map<String, dynamic>
   String toSql(List<Map<String, dynamic>> value) => jsonEncode(value);
 }
 
+class JsonMapConverter extends TypeConverter<Map<String, dynamic>, String> {
+  const JsonMapConverter();
+  @override
+  Map<String, dynamic> fromSql(String fromDb) => jsonDecode(fromDb) as Map<String, dynamic>;
+  @override
+  String toSql(Map<String, dynamic> value) => jsonEncode(value);
+}
+
 // --- OLD TABLES (For Dashboard etc.) ---
 class TransactionsTable extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -98,6 +106,10 @@ class BankAccountsTable extends Table {
   TextColumn get bankName => text()();
   RealColumn get balance => real()();
   TextColumn get status => text()();
+  RealColumn get openingBalance => real().withDefault(const Constant(0.0))();
+  TextColumn get openingBalanceDate => text().withDefault(const Constant(''))();
+  TextColumn get accountScope => text().withDefault(const Constant('Company'))();
+  TextColumn get ownerName => text().withDefault(const Constant(''))();
   @override Set<Column> get primaryKey => {id};
 }
 
@@ -185,6 +197,7 @@ class EmployeesTable extends Table {
   TextColumn get name => text()();
   TextColumn get email => text()();
   TextColumn get phones => text().map(const StringListConverter())();
+  TextColumn get cnic => text().withDefault(const Constant(''))();
   TextColumn get designation => text()();
   TextColumn get department => text()();
   TextColumn get joiningDate => text()();
@@ -325,6 +338,17 @@ class SalesInvoicesTable extends Table {
   @override Set<Column> get primaryKey => {id};
 }
 
+class RecycleBinTable extends Table {
+  TextColumn get id => text()();
+  TextColumn get itemType => text()();
+  TextColumn get title => text()();
+  TextColumn get subtitle => text()();
+  TextColumn get deletedAt => text()();
+  TextColumn get deletedBy => text()();
+  TextColumn get jsonData => text().map(const JsonMapConverter())();
+  @override Set<Column> get primaryKey => {id};
+}
+
 abstract class DatabaseService {
   Future<void> initialize();
   // Transactions
@@ -345,16 +369,21 @@ abstract class DatabaseService {
   ClientsTable, BankAccountsTable, ExpenseRecordsTable, IncomeRecordsTable, LedgerEntriesTable,
   LoanRecordsTable, AdvanceRecordsTable, AttendanceRecordsTable, EmployeesTable, SalaryRecordsTable,
   AssetsTable, InventoryItemsTable, ProjectsTable, ProjectTasksTable, TimesheetEntriesTable,
-  PurchaseOrdersTable, ProductsTable, SalesInvoicesTable
+  PurchaseOrdersTable, ProductsTable, SalesInvoicesTable, RecycleBinTable
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? openConnection());
-  @override int get schemaVersion => 2; // Bump version!
+  @override int get schemaVersion => 4;
   
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) => m.createAll(),
         onUpgrade: (Migrator m, int from, int to) async {
+          if (from < 3) {
+            try {
+              await m.addColumn(employeesTable, employeesTable.cnic);
+            } catch (_) {}
+          }
           for (final table in allTables) {
             try {
               await m.createTable(table);
@@ -362,6 +391,23 @@ class AppDatabase extends _$AppDatabase {
               // Ignore if already exists
             }
           }
+        },
+        beforeOpen: (details) async {
+          try {
+            await customStatement('ALTER TABLE employees_table ADD COLUMN cnic TEXT NOT NULL DEFAULT ""');
+          } catch (_) {}
+          try {
+            await customStatement('ALTER TABLE bank_accounts_table ADD COLUMN opening_balance REAL NOT NULL DEFAULT 0.0');
+          } catch (_) {}
+          try {
+            await customStatement('ALTER TABLE bank_accounts_table ADD COLUMN opening_balance_date TEXT NOT NULL DEFAULT ""');
+          } catch (_) {}
+          try {
+            await customStatement('ALTER TABLE bank_accounts_table ADD COLUMN account_scope TEXT NOT NULL DEFAULT "Company"');
+          } catch (_) {}
+          try {
+            await customStatement('ALTER TABLE bank_accounts_table ADD COLUMN owner_name TEXT NOT NULL DEFAULT ""');
+          } catch (_) {}
         },
       );
   

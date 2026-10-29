@@ -35,13 +35,13 @@ class ProjectsSubNav extends ConsumerWidget {
         ),
       if (canTasks)
         _ProjectsTab(
-          label: 'Tasks',
+          label: tr('Tasks'),
           icon: Icons.task_alt_outlined,
           route: '/projects/tasks',
         ),
       if (canTimesheets)
         _ProjectsTab(
-          label: 'Timesheets',
+          label: tr('Timesheets'),
           icon: Icons.more_time_outlined,
           route: '/projects/timesheets',
         ),

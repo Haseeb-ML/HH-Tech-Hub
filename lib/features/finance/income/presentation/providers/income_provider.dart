@@ -10,6 +10,11 @@ import '../../../../projects/projects/presentation/providers/projects_provider.d
 import '../../../../clients/clients/presentation/providers/clients_provider.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
+
+import 'package:software_house_erp/core/utils/transaction_id_helper.dart';
+
+import 'package:software_house_erp/core/services/cloud_sync_service.dart';
 
 class IncomeState {
   final List<IncomeRecord> incomes;
@@ -69,11 +74,17 @@ class IncomeState {
 
     return list.where((i) {
       final q = searchQuery.trim().toLowerCase();
+      final cleanInv = TransactionIdHelper.getIncomeId(i, list);
+      final cleanRcp = TransactionIdHelper.getReceiptId(i, list);
+
       final matchesSearch = q.isEmpty ||
           i.description.toLowerCase().contains(q) ||
           i.clientName.toLowerCase().contains(q) ||
           i.invoiceNumber.toLowerCase().contains(q) ||
-          i.id.toLowerCase().contains(q);
+          i.receiptId.toLowerCase().contains(q) ||
+          i.id.toLowerCase().contains(q) ||
+          cleanInv.toLowerCase().contains(q) ||
+          cleanRcp.toLowerCase().contains(q);
 
       final matchesClient = clientFilter == 'All' || i.clientId == clientFilter;
       final matchesAccount = accountIdFilter == 'All' || i.accountId == accountIdFilter;
@@ -109,6 +120,12 @@ class IncomeNotifier extends Notifier<IncomeState> {
   @override
   IncomeState build() {
     _loadIncomes();
+    ref.listen<SyncState>(cloudSyncStateProvider, (previous, next) {
+      if ((next.status == SyncStatus.success || next.status == SyncStatus.offline) &&
+          previous?.status == SyncStatus.syncing) {
+        _loadIncomes();
+      }
+    });
     return const IncomeState(
       incomes: [],
       isLoading: true,
@@ -429,6 +446,15 @@ class IncomeNotifier extends Notifier<IncomeState> {
 
     final record = list[recordIndex];
     state = state.copyWith(isLoading: true);
+
+    await ref.read(recoveryProvider.notifier).addDeletedItem(
+      id: record.id,
+      itemType: 'Income',
+      title: '${record.clientName.isNotEmpty ? record.clientName : "Income"} (Rs. ${record.amount.toStringAsFixed(0)})',
+      subtitle: '${record.description} • Date: ${record.date}',
+      jsonData: record.toMap(),
+      deletedBy: adminState.currentUser?.name ?? 'Admin',
+    );
 
     // 1. Rollback bank account balance (Deduct income amount)
     await ref.read(accountsProvider.notifier).adjustBalance(record.accountId, -record.amount);

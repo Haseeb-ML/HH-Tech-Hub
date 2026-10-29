@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/ledger_entry.dart';
 import '../../domain/repositories/ledger_repository.dart';
 import '../../data/repositories/ledger_repository_impl.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
+import 'package:software_house_erp/core/services/cloud_sync_service.dart';
 
 
 class LedgerState {
@@ -56,7 +59,19 @@ class LedgerState {
           e.reference.toLowerCase().contains(searchQuery.toLowerCase());
 
       final matchesAccount = accountFilter == 'All' || e.accountId == accountFilter;
-      final matchesType = typeFilter == 'All' || e.type == typeFilter;
+
+      bool matchesType = true;
+      if (typeFilter == 'Debit') {
+        matchesType = e.type == 'Debit';
+      } else if (typeFilter == 'Credit') {
+        matchesType = e.type == 'Credit';
+      } else if (typeFilter == 'Loans') {
+        matchesType = e.id.startsWith('led_loan_') || e.category.toLowerCase().contains('loan');
+      } else if (typeFilter == 'Loans: Borrowed') {
+        matchesType = (e.id.startsWith('led_loan_') || e.category.toLowerCase().contains('loan')) && e.category.toLowerCase().contains('borrowed');
+      } else if (typeFilter == 'Loans: Lent') {
+        matchesType = (e.id.startsWith('led_loan_') || e.category.toLowerCase().contains('loan')) && e.category.toLowerCase().contains('lent');
+      }
 
       bool matchesDate = true;
       if (startDate != null && endDate != null) {
@@ -87,6 +102,12 @@ class LedgerNotifier extends Notifier<LedgerState> {
   @override
   LedgerState build() {
     loadEntries();
+    ref.listen<SyncState>(cloudSyncStateProvider, (previous, next) {
+      if ((next.status == SyncStatus.success || next.status == SyncStatus.offline) &&
+          previous?.status == SyncStatus.syncing) {
+        loadEntries();
+      }
+    });
     return const LedgerState(
       entries: [],
       isLoading: true,
@@ -153,6 +174,20 @@ class LedgerNotifier extends Notifier<LedgerState> {
   }
 
   Future<void> deleteLedgerEntry(String id) async {
+    final found = state.entries.where((e) => e.id == id).firstOrNull;
+    if (found != null) {
+      final adminState = ref.read(adminProvider);
+      final currentUser = adminState.currentUser?.name ?? 'Admin';
+      await ref.read(recoveryProvider.notifier).addDeletedItem(
+        id: found.id,
+        itemType: 'LedgerEntry',
+        title: '${found.type}: ${found.category} (Rs. ${found.amount.toStringAsFixed(0)})',
+        subtitle: '${found.description} • Account: ${found.accountName}',
+        jsonData: found.toMap(),
+        deletedBy: currentUser,
+      );
+    }
+
     state = state.copyWith(isLoading: true);
     await _repository.deleteLedgerEntry(id);
     final updated = await _repository.getLedgerEntries();

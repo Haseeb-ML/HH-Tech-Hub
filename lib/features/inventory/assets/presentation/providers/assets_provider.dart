@@ -7,6 +7,7 @@ import '../../../../finance/expenses/presentation/providers/expenses_provider.da
 import '../../../../finance/ledger/presentation/providers/ledger_provider.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
 
 
 class AssetsState {
@@ -129,6 +130,17 @@ class AssetsNotifier extends Notifier<AssetsState> {
     final adminState = ref.read(adminProvider);
     if (!adminState.hasPermission(AppModule.assets, PermissionAction.delete)) {
       return;
+    }
+    final asset = state.assets.where((a) => a.id == id).firstOrNull;
+    if (asset != null) {
+      await ref.read(recoveryProvider.notifier).addDeletedItem(
+        id: asset.id,
+        itemType: 'Asset',
+        title: asset.name,
+        subtitle: '${asset.type} • Serial: ${asset.serialNumber}',
+        jsonData: asset.toMap(),
+        deletedBy: adminState.currentUser?.name ?? 'Admin',
+      );
     }
     state = state.copyWith(isLoading: true);
 

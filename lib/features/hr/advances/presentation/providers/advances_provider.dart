@@ -8,6 +8,8 @@ import '../../data/repositories/advances_repository_impl.dart';
 import '../../../../finance/accounts/presentation/providers/accounts_provider.dart';
 import '../../../../finance/ledger/presentation/providers/ledger_provider.dart';
 import '../../../../finance/ledger/domain/entities/ledger_entry.dart';
+import '../../../../finance/expenses/domain/entities/expense_record.dart';
+import '../../../../finance/expenses/presentation/providers/expenses_provider.dart';
 
 
 class AdvancesState {
@@ -142,6 +144,19 @@ class AdvancesNotifier extends Notifier<AdvancesState> {
       description: 'Salary Advance disbursed to ${record.employeeName}',
     );
     await ref.read(ledgerProvider.notifier).addLedgerEntry(entry);
+
+    final expenseRecord = ExpenseRecord(
+      id: 'exp_adv_${record.id}',
+      date: DateTime.now().toIso8601String(),
+      category: 'Salary Advances',
+      amount: record.amount,
+      description: 'Salary Advance disbursed to ${record.employeeName}',
+      vendorName: record.employeeName,
+      accountId: accountId,
+      isPersonalExpense: false,
+    );
+    await ref.read(expensesProvider.notifier).addExpense(expenseRecord);
+
     await ref.read(accountsProvider.notifier).syncBalancesFromDb();
     await ref.read(accountsProvider.notifier).loadAccounts();
 

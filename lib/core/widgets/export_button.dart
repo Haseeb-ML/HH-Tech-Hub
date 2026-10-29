@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/utils/export_helper.dart';
 
@@ -7,6 +8,7 @@ class ExportButton extends StatefulWidget {
   final String fileName;
   final List<String> headers;
   final List<List<dynamic>> rows;
+  final Map<int, pw.TableColumnWidth>? columnWidths;
   final Future<String> Function()? customPdfExport;
   final Future<String> Function()? customExcelExport;
 
@@ -16,6 +18,7 @@ class ExportButton extends StatefulWidget {
     required this.fileName,
     required this.headers,
     required this.rows,
+    this.columnWidths,
     this.customPdfExport,
     this.customExcelExport,
   });
@@ -43,6 +46,7 @@ class _ExportButtonState extends State<ExportButton> {
             fileName: widget.fileName,
             headers: widget.headers,
             rows: widget.rows,
+            columnWidths: widget.columnWidths,
           );
         }
       } else {

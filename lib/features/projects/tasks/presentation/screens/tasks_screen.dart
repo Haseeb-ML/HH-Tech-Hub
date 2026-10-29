@@ -639,7 +639,13 @@ class _TaskCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
-    final initials = task.assigneeName.split(' ').map((e) => e[0]).take(2).join().toUpperCase();
+    final cleanName = task.assigneeName.trim();
+    final nameParts = cleanName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final initials = nameParts.isEmpty
+        ? 'TSK'
+        : (nameParts.length == 1
+            ? nameParts[0].substring(0, nameParts[0].length >= 2 ? 2 : 1).toUpperCase()
+            : (nameParts[0][0] + nameParts[1][0]).toUpperCase());
 
     // Priority color mapping
     Color priorityColor = context.success;
@@ -914,24 +920,25 @@ class _AddEditTaskDialogState extends ConsumerState<_AddEditTaskDialog> {
 
     return Dialog(
       backgroundColor: context.cardBg,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 40,
+        vertical: 24,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Consumer(
-        builder: (context, ref, child) {
-          final projects = ref.watch(projectsProvider).projects;
+      child: SizedBox(
+        width: isMobile ? double.infinity : 560,
+        child: Consumer(
+          builder: (context, ref, child) {
+            final projects = ref.watch(projectsProvider).projects;
 
-          return Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(isMobile ? 16 : 24),
-              child: Center(
-                child: Container(
-                  width: double.infinity,
-                  constraints: const BoxConstraints(maxWidth: 480),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+            return Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(isMobile ? 16 : 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                       Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -1202,10 +1209,9 @@ class _AddEditTaskDialogState extends ConsumerState<_AddEditTaskDialog> {
                   ],
                 ),
               ),
-             ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

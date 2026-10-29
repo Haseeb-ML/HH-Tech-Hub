@@ -34,15 +34,21 @@ class AdminSubNav extends ConsumerWidget {
           route: '/administration/roles',
         ),
       _AdminTab(
-        label: 'Database Backup',
+        label: tr('Database Backup'),
         icon: Icons.backup_outlined,
         route: '/administration/backup',
       ),
       if (isSuperAdmin)
         _AdminTab(
-          label: 'Audit Logs',
+          label: tr('Audit Logs'),
           icon: Icons.history_outlined,
           route: '/administration/audit_logs',
+        ),
+      if (isSuperAdmin)
+        _AdminTab(
+          label: tr('Data Recovery'),
+          icon: Icons.restore_from_trash_outlined,
+          route: '/administration/recovery',
         ),
     ];
 

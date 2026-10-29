@@ -4,6 +4,7 @@ import '../../domain/entities/sales_invoice.dart';
 import '../../domain/repositories/sales_invoices_repository.dart';
 import '../../data/repositories/sales_invoices_repository_impl.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
 
 // ─── State Definition ───────────────────────────
 
@@ -73,6 +74,18 @@ class SalesInvoicesNotifier extends Notifier<SalesInvoicesState> {
   }
 
   Future<void> deleteInvoice(String id) async {
+    final inv = state.invoices.where((i) => i.id == id).firstOrNull;
+    if (inv != null) {
+      final adminState = ref.read(adminProvider);
+      await ref.read(recoveryProvider.notifier).addDeletedItem(
+        id: inv.id,
+        itemType: 'Invoice',
+        title: 'Invoice #${inv.id} - ${inv.clientName}',
+        subtitle: 'Total: Rs. ${inv.total.toStringAsFixed(0)}',
+        jsonData: inv.toMap(),
+        deletedBy: adminState.currentUser?.name ?? 'Admin',
+      );
+    }
     await _repository.deleteInvoice(id);
     ref.read(adminProvider.notifier).logAction(
       action: 'Deleted sales invoice: $id',

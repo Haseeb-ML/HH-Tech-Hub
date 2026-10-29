@@ -189,8 +189,9 @@ class AuthLocalRepository {
     ).get();
 
     if (adminRows.isEmpty) {
-      final salt = PasswordHasher.generateSalt();
-      final hash = PasswordHasher.hashPassword('admin', salt);
+      final salt = PasswordHasher.generateSalt(32);
+      // Seed with strong default admin password (Admin@HHTech2026!) using PBKDF2 10,000 iterations
+      final hash = PasswordHasher.hashPassword('Admin@HHTech2026!', salt);
       final now = DateTime.now().toLocal().toString().substring(0, 16);
 
       await db.customStatement('''
@@ -207,7 +208,7 @@ class AuthLocalRepository {
         now,
         now,
       ]);
-      debugPrint('AuthLocalRepository: Seeded primary Super Admin account (admin / admin).');
+      debugPrint('AuthLocalRepository: Seeded primary Super Admin account (admin / Admin@HHTech2026!).');
     }
 
     // 3. Seed Super Admin role if app_roles is empty or missing Super Admin
@@ -461,6 +462,13 @@ class AuthLocalRepository {
     // Map permissions by role_name (lowercase trimmed key for 100% case-insensitive lookup)
     final Map<String, Map<AppModule, Set<PermissionAction>>> permsMap = {};
 
+    for (final rr in roleRows) {
+      final rName = (rr.data['role_name']?.toString() ?? '').trim().toLowerCase();
+      permsMap[rName] = {
+        for (final mod in AppModule.values) mod: <PermissionAction>{},
+      };
+    }
+
     for (final pr in permRows) {
       final rName = (pr.data['role_name']?.toString() ?? '').trim().toLowerCase();
       final mKey = pr.data['module']?.toString() ?? '';
@@ -471,9 +479,10 @@ class AuthLocalRepository {
       final action = PermissionActionExtension.fromString(aKey);
 
       if (module != null && action != null && isGranted) {
-        final rolePerms = permsMap.putIfAbsent(rName, () => {});
-        final modPerms = rolePerms.putIfAbsent(module, () => <PermissionAction>{});
-        modPerms.add(action);
+        final rolePerms = permsMap.putIfAbsent(rName, () => {
+          for (final mod in AppModule.values) mod: <PermissionAction>{},
+        });
+        rolePerms.putIfAbsent(module, () => <PermissionAction>{}).add(action);
       }
     }
 
@@ -490,7 +499,9 @@ class AuthLocalRepository {
             mod: PermissionAction.values.toSet(),
         };
       } else {
-        finalPerms = permsMap[rName.toLowerCase()] ?? {};
+        finalPerms = permsMap[rName.toLowerCase()] ?? {
+          for (final mod in AppModule.values) mod: <PermissionAction>{},
+        };
       }
 
       roles.add(UserRole(
@@ -763,6 +774,11 @@ class AuthLocalRepository {
   Future<List<Map<String, dynamic>>> getAllAuditLogs() async {
     final rows = await db.customSelect('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 500').get();
     return rows.map((r) => r.data).toList();
+  }
+
+  /// Deletes an audit log entry from SQLite
+  Future<void> deleteAuditLog(String id) async {
+    await db.customStatement('DELETE FROM audit_logs WHERE id = ?', [id]);
   }
 }
 

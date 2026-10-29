@@ -12,6 +12,7 @@ import '../../../accounts/presentation/providers/accounts_provider.dart';
 import '../../domain/entities/expense_record.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/utils/transaction_id_helper.dart';
 
 class ExpensesScreen extends ConsumerStatefulWidget {
   const ExpensesScreen({super.key});
@@ -123,6 +124,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                           items: [
                             'All',
                             'Salaries & Payroll',
+                            'Salary Advances',
                             'Electricity & Utilities',
                             'Internet & Telecom',
                             'Rent & Occupancy',
@@ -374,7 +376,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                       final accountName = account != null ? '${account.name} (${account.accountScope})' : 'Unknown Account';
                                       final paidBy = e.vendorName.isNotEmpty ? e.vendorName : 'Company';
                                       return [
-                                        e.id,
+                                        TransactionIdHelper.getExpenseId(e, state.expenses),
                                         e.category,
                                         e.description,
                                         _formatExpenseDateTime(e.date),
@@ -658,6 +660,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                         items: [
                                                           'All',
                                                           'Salaries & Payroll',
+                                                          'Salary Advances',
                                                           'Electricity & Utilities',
                                                           'Internet & Telecom',
                                                           'Rent & Occupancy',
@@ -829,7 +832,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                       controller: _horizontalScrollController,
                                                       scrollDirection: Axis.horizontal,
                                                       child: ConstrainedBox(
-                                                        constraints: const BoxConstraints(minWidth: 760),
+                                                        constraints: const BoxConstraints(minWidth: 970),
                                                         child: DataTable(
                                                           showCheckboxColumn: false,
                                                           columnSpacing: 14,
@@ -839,7 +842,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                             context.isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
                                                           ),
                                                           columns: const [
-                                                            DataColumn(label: SizedBox(width: 115, child: Text('Expense Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                            DataColumn(label: SizedBox(width: 100, child: Text('Expense ID', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
+                                                             DataColumn(label: SizedBox(width: 115, child: Text('Expense Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                             DataColumn(label: SizedBox(width: 125, child: Text('Comment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                             DataColumn(label: SizedBox(width: 110, child: Text('Date & Time', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
                                                             DataColumn(label: SizedBox(width: 90, child: Text('Paid By', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)))),
@@ -854,8 +858,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                             final paidBy = exp.vendorName.isNotEmpty ? exp.vendorName : 'Company';
 
                                                             return DataRow(
-                                                              onSelectChanged: (_) {
-                                                                showDialog<void>(
+                                                              onSelectChanged: (_) async {
+                                                                final action = await showDialog<String>(
                                                                   context: context,
                                                                   builder: (context) => _ExpenseDetailsDialog(
                                                                     expense: exp,
@@ -864,9 +868,64 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                                     ownerName: ownerName,
                                                                   ),
                                                                 );
+                                                                if (action == 'edit' && context.mounted) {
+                                                                  final updated = await showDialog<ExpenseRecord>(
+                                                                    context: context,
+                                                                    builder: (context) => _AddEditExpenseDialog(expense: exp),
+                                                                  );
+                                                                  if (updated != null && context.mounted) {
+                                                                    try {
+                                                                      await ref.read(expensesProvider.notifier).updateExpense(exp, updated);
+                                                                      if (context.mounted) {
+                                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                                          SnackBar(
+                                                                            content: const Text('Expense updated successfully'),
+                                                                            behavior: SnackBarBehavior.floating,
+                                                                            backgroundColor: context.success,
+                                                                          ),
+                                                                        );
+                                                                      }
+                                                                    } catch (e) {
+                                                                      if (context.mounted) {
+                                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                                          SnackBar(
+                                                                            content: Text('Error updating expense: $e'),
+                                                                            behavior: SnackBarBehavior.floating,
+                                                                            backgroundColor: context.error,
+                                                                          ),
+                                                                        );
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
                                                               },
                                                               cells: [
-                                                                // Expense Type
+                                                                // Expense ID
+                                                                 DataCell(
+                                                                   SizedBox(
+                                                                     width: 100,
+                                                                     child: Align(
+                                                                       alignment: Alignment.centerLeft,
+                                                                       child: Container(
+                                                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                                         decoration: BoxDecoration(
+                                                                           color: context.isDarkMode ? const Color(0xFF111827) : Colors.grey.shade100,
+                                                                           borderRadius: BorderRadius.circular(6),
+                                                                           border: Border.all(color: context.border),
+                                                                         ),
+                                                                         child: Text(
+                                                                           TransactionIdHelper.getExpenseId(exp, state.expenses),
+                                                                           style: TextStyle(
+                                                                             color: context.textPrimary,
+                                                                             fontSize: 11.5,
+                                                                             fontWeight: FontWeight.bold,
+                                                                           ),
+                                                                         ),
+                                                                       ),
+                                                                     ),
+                                                                   ),
+                                                                 ),
+                                                                 // Expense Type
                                                                 DataCell(
                                                                   SizedBox(
                                                                     width: 115,
@@ -1261,6 +1320,9 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final canDeleteExpense = ref.watch(adminProvider).hasPermission(AppModule.expenses, PermissionAction.delete);
+    final canEditExpense = ref.watch(adminProvider).hasPermission(AppModule.expenses, PermissionAction.edit);
+    final allExpenses = ref.watch(expensesProvider).expenses;
+    final uniqueExpenseId = TransactionIdHelper.getExpenseId(expense, allExpenses);
     final isMobile = MediaQuery.of(context).size.width < 600;
     final accountLabel = accountScope == 'Personal' && ownerName.isNotEmpty
         ? '$accountName • Personal ($ownerName)'
@@ -1305,7 +1367,7 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            'ID: ${expense.id}',
+                            'ID: $uniqueExpenseId',
                             style: TextStyle(color: context.textMuted, fontSize: 11),
                           ),
                         ],
@@ -1372,6 +1434,8 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
                 ),
                 child: Column(
                   children: [
+                    _detailRow(context, isMobile, 'Expense ID', uniqueExpenseId, Icons.receipt_long_outlined),
+                    const Divider(height: 1),
                     _detailRow(context, isMobile, 'Category', expense.category, Icons.category_outlined),
                     const Divider(height: 1),
                     _detailRow(context, isMobile, 'Vendor / Beneficiary', expense.vendorName.isEmpty ? 'Not provided' : expense.vendorName, Icons.person_outline),
@@ -1393,37 +1457,19 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              backgroundColor: context.cardBg,
-                              title: const Text('Delete Expense Record'),
-                              content: Text('Are you sure you want to delete expense "${expense.category}" of Rs. ${expense.amount}?'),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                ElevatedButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  style: ElevatedButton.styleFrom(backgroundColor: context.error, foregroundColor: Colors.white),
-                                  child: const Text('Delete'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await ref.read(expensesProvider.notifier).deleteExpense(expense.id);
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: const Text('Expense record deleted.'), backgroundColor: context.success),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e'), backgroundColor: context.error),
-                                );
-                              }
+                          try {
+                            await ref.read(expensesProvider.notifier).deleteExpense(expense.id);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: const Text('Expense record deleted.'), backgroundColor: context.success),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e'), backgroundColor: context.error),
+                              );
                             }
                           }
                         },
@@ -1438,16 +1484,31 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
                     ),
                     const SizedBox(width: 12),
                   ],
+                  if (canEditExpense) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.pop(context, 'edit'),
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: const Text('Edit / Update', style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: context.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
-                    child: ElevatedButton(
+                    child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: context.primaryColor,
-                        foregroundColor: Colors.white,
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: context.border),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: Text('Close', style: TextStyle(color: context.textSecondary, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -1691,6 +1752,8 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                       style: TextStyle(color: context.textPrimary, fontSize: 13),
                       decoration: _buildInputDecoration('Select Category'),
                       items: {
+                        'Salaries & Payroll',
+                        'Salary Advances',
                         'Electricity & Utilities',
                         'Internet & Telecom',
                         'Rent & Occupancy',
@@ -1698,15 +1761,17 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                         'Supplies',
                         'Refreshments',
                         'Travel & Transport',
+                        'Office Inventory',
+                        'Assets Management',
                         'Marketing & Advertising',
                         'Office & Admin Expenses',
                         'Repairs & Maintenance',
                         'Depreciation',
                         'Bank Charges & Fees',
                         'Other',
-                        if (_category.isNotEmpty && _category != 'Salaries' && _category != 'Salaries & Payroll' && _category != 'Office Inventory' && _category != 'Assets Management') _category,
+                        if (_category.isNotEmpty) _category,
                       }.map((c) {
-                        return DropdownMenuItem(value: c, child: Text(c));
+                        return DropdownMenuItem<String>(value: c, child: Text(c));
                       }).toList(),
                       onChanged: (val) {
                         if (val != null) {

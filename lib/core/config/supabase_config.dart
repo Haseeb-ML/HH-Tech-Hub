@@ -1,10 +1,19 @@
 class SupabaseConfig {
-  /// Supabase Project URL
-  static const String url = 'https://aynalwnbwjgpvsvcqxzi.supabase.co';
+  /// Supabase Project URL (configured via --dart-define=SUPABASE_URL=... or fallback)
+  static const String url = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://aynalwnbwjgpvsvcqxzi.supabase.co',
+  );
 
-  /// Supabase anon/public key
-  static const String anonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5bmFsd25id2pncHZzdmNxeHppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwNTc0MzQsImV4cCI6MjEwNTYzMzQzNH0.JeoPRli6YVB8ymGwdfFPzPHcFtNvftsdt6xeQMvQKTI';
+  /// Supabase anon/publishable key (configured via --dart-define=SUPABASE_ANON_KEY=... or fallback)
+  static const String anonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5bmFsd25id2pncHZzdmNxeHppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwNTc0MzQsImV4cCI6MjEwNTYzMzQzNH0.JeoPRli6YVB8ymGwdfFPzPHcFtNvftsdt6xeQMvQKTI',
+  );
+
+  /// Alias for Supabase 2.x publishableKey standard
+  static String get publishableKey => anonKey;
 
   /// Helper to check if credentials have been provided
   static bool get isConfigured =>
@@ -12,3 +21,4 @@ class SupabaseConfig {
       anonKey.isNotEmpty &&
       url.startsWith('https://');
 }
+

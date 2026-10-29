@@ -5,6 +5,7 @@ import '../../domain/repositories/clients_repository.dart';
 import '../../data/repositories/clients_repository_impl.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
 
 
 class ClientsState {
@@ -117,6 +118,17 @@ class ClientsNotifier extends Notifier<ClientsState> {
     final adminState = ref.read(adminProvider);
     if (!adminState.hasPermission(AppModule.clients, PermissionAction.delete)) {
       throw Exception('Access Denied: You do not have permission to delete clients.');
+    }
+    final client = state.clients.where((c) => c.id == id).firstOrNull;
+    if (client != null) {
+      await ref.read(recoveryProvider.notifier).addDeletedItem(
+        id: client.id,
+        itemType: 'Client',
+        title: client.name,
+        subtitle: '${client.contactPerson} • ${client.email}',
+        jsonData: client.toMap(),
+        deletedBy: adminState.currentUser?.name ?? 'Admin',
+      );
     }
     state = state.copyWith(isLoading: true);
     await _repository.deleteClient(id);

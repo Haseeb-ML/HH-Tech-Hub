@@ -44,6 +44,7 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
       case 7:
         return 'Reports & Analytics';
       case 8:
+      case 9:
         return 'Administration';
       default:
         return 'Dashboard';
@@ -68,7 +69,10 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final tr = ref.watch(translationProvider);
     final screenWidth = MediaQuery.of(context).size.width;
     final mobileMode = isMobile || screenWidth < 768;
-    final compactDesktop = !mobileMode && screenWidth < 1500;
+    final hideUserName = screenWidth < 1350;
+    final hideAutoExplainText = screenWidth < 1250;
+    final hideLangText = screenWidth < 1150;
+    final hideSyncText = screenWidth < 1050;
 
     return Container(
       height: mobileMode ? 60 : 70,
@@ -80,7 +84,7 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
       ),
       padding: EdgeInsets.symmetric(horizontal: mobileMode ? 12 : 24),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Left: Hamburger (if mobile) + Company Logo + Breadcrumbs / Title
           if (mobileMode)
@@ -100,26 +104,10 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     ),
                   ),
                   // Mobile HH Tech Hub Company Logo
-                  Container(
-                    height: 32,
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: context.isDarkMode
-                          ? Colors.white.withValues(alpha: 0.92)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: context.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: const AppLogo(
-                      height: 24,
+                  const Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: AppLogo(
+                      height: 28,
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -139,7 +127,7 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
             )
           else
             SizedBox(
-              width: 220,
+              width: screenWidth < 1200 ? 170 : 220,
               child: Row(
                 children: [
                   Text(
@@ -150,7 +138,7 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 6.0),
                     child: Icon(
                       Icons.chevron_right,
                       size: 16,
@@ -163,7 +151,7 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
                       style: theme.textTheme.titleMedium?.copyWith(
                         color: context.textPrimary,
                         fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                        fontSize: 15,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -323,379 +311,388 @@ class TopAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ],
             ),
           ] else ...[
-            const SizedBox(width: 16),
-            // Spotlight Search Interactive Trigger
-            GestureDetector(
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          barrierColor: Colors.transparent,
-                          builder: (context) => const SpotlightSearchDialog(),
-                        );
-                      },
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: Container(
-                          width: compactDesktop ? 280 : 360,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: context.border, width: 1),
-                          ),
-                          child: IgnorePointer(
-                            child: TextField(
-                              readOnly: true,
-                              decoration: InputDecoration(
-                                hintText: tr('Search ERP (e.g. Clients, Transactions)...'),
-                                hintStyle: TextStyle(
-                                  fontSize: 12,
-                                  color: context.textMuted,
-                                ),
-                                prefixIcon: Icon(
-                                  Icons.search,
-                                  size: 18,
-                                  color: context.textMuted,
-                                ),
-                                suffixIcon: Container(
-                                  margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: context.isDarkMode ? Colors.black.withValues(alpha: 0.3) : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: context.border),
-                                  ),
-                                  child: Text(
-                                    'Ctrl + K',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: context.textSecondary,
-                                    ),
-                                  ),
-                                ),
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Auto Explain Toggle Button
-              Consumer(
-                builder: (context, ref, child) {
-                  final isAutoExplain = ref.watch(autoExplainProvider);
-                  return Tooltip(
-                    message: isAutoExplain ? 'Disable Auto Explain' : 'Enable Auto Explain',
+            const SizedBox(width: 12),
+            // Spotlight Search Interactive Trigger (Flexible to scale with screen width)
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360, minWidth: 140),
+                child: GestureDetector(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      barrierColor: Colors.transparent,
+                      builder: (context) => const SpotlightSearchDialog(),
+                    );
+                  },
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isAutoExplain ? context.primaryColor.withValues(alpha: 0.1) : (context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isAutoExplain ? context.primaryColor : context.border,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isAutoExplain ? Icons.tips_and_updates : Icons.tips_and_updates_outlined,
-                            size: 16,
-                            color: isAutoExplain ? context.primaryColor : context.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          if (!compactDesktop)
-                            Text(
-                              'Auto Explain',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isAutoExplain ? context.primaryColor : context.textPrimary,
-                              ),
-                            ),
-                          const SizedBox(width: 4),
-                          Switch(
-                            value: isAutoExplain,
-                            onChanged: (val) => ref.read(autoExplainProvider.notifier).toggle(val),
-                            activeThumbColor: context.primaryColor,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 12),
-
-              // Theme Toggle Button
-              Consumer(
-                builder: (context, ref, child) {
-                  final themeMode = ref.watch(themeModeProvider);
-                  final isDark = themeMode.value == ThemeMode.dark;
-                  
-                  return Tooltip(
-                    message: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-                    child: InkWell(
-                      onTap: () => ref.read(themeModeProvider.notifier).toggleTheme(),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF111827) : context.scaffoldBg,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: context.border,
-                            width: 1,
-                          ),
-                        ),
-                        child: Icon(
-                          isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                          size: 20,
-                          color: isDark ? Colors.amber : context.textPrimary,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 12),
-
-              // Language Switcher Dropdown
-              Consumer(
-                builder: (context, ref, child) {
-                  final currentLang = ref.watch(languageProvider);
-                  
-                  String getLanguageLabel(String code) {
-                    switch (code) {
-                      case 'ur':
-                        return 'اردو (Asan)';
-                      case 'ru':
-                        return 'Roman Urdu';
-                      default:
-                        return 'English';
-                    }
-                  }
-                  
-                  return PopupMenuButton<String>(
-                    tooltip: 'Change Language / زبان تبدیل کریں',
-                    color: Theme.of(context).cardColor,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(color: context.border, width: 1),
-                    ),
-                    offset: const Offset(0, 50),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      height: 40,
                       decoration: BoxDecoration(
                         color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: context.border, width: 1),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.translate, size: 18, color: context.primaryColor),
-                          const SizedBox(width: 6),
-                          if (!compactDesktop) ...[
-                            Text(
-                              getLanguageLabel(currentLang),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: context.textPrimary,
-                              ),
+                      child: IgnorePointer(
+                        child: TextField(
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            hintText: tr('Search ERP (e.g. Clients, Transactions)...'),
+                            hintStyle: TextStyle(
+                              fontSize: 12,
+                              color: context.textMuted,
                             ),
-                            const SizedBox(width: 4),
-                            Icon(Icons.arrow_drop_down, size: 16, color: context.textSecondary),
-                          ],
-                        ],
+                            prefixIcon: Icon(
+                              Icons.search,
+                              size: 18,
+                              color: context.textMuted,
+                            ),
+                            suffixIcon: screenWidth < 1200
+                                ? null
+                                : Container(
+                                    margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: context.isDarkMode ? Colors.black.withValues(alpha: 0.3) : Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: context.border),
+                                    ),
+                                    child: Text(
+                                      'Ctrl + K',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        color: context.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
                       ),
                     ),
-                    onSelected: (langCode) {
-                      ref.read(languageProvider.notifier).setLanguage(langCode);
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'en',
-                        child: Row(
-                          children: [
-                            const Text('🇺🇸', style: TextStyle(fontSize: 16)),
-                            const SizedBox(width: 10),
-                            Text('English', style: TextStyle(color: context.textPrimary)),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'ur',
-                        child: Row(
-                          children: [
-                            const Text('🇵🇰', style: TextStyle(fontSize: 16)),
-                            const SizedBox(width: 10),
-                            Text('اردو (Asan)', style: TextStyle(color: context.textPrimary)),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'ru',
-                        child: Row(
-                          children: [
-                            const Text('✍️', style: TextStyle(fontSize: 16)),
-                            const SizedBox(width: 10),
-                            Text('Roman Urdu', style: TextStyle(color: context.textPrimary)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(width: 14),
-
-              // Manual Cloud Sync Button (Desktop)
-              const _TopBarSyncButton(isMobile: false),
-              const SizedBox(width: 14),
-              
-              // Vertical Divider
-              Container(
-                width: 1,
-                height: 36,
-                color: context.border,
-              ),
-              const SizedBox(width: 24),
-              
-              // User Profile Section (Interactive Sign Out menu)
-              PopupMenuButton<String>(
-                offset: const Offset(0, 50),
-                tooltip: 'Profile options',
-                color: theme.cardColor,
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: context.border, width: 1),
+                  ),
                 ),
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (!compactDesktop)
-                            Text(
+              ),
+            ),
+            const SizedBox(width: 10),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Auto Explain Toggle Button
+                Consumer(
+                  builder: (context, ref, child) {
+                    final isAutoExplain = ref.watch(autoExplainProvider);
+                    return Tooltip(
+                      message: isAutoExplain ? 'Disable Auto Explain' : 'Enable Auto Explain',
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isAutoExplain ? context.primaryColor.withValues(alpha: 0.1) : (context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isAutoExplain ? context.primaryColor : context.border,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isAutoExplain ? Icons.tips_and_updates : Icons.tips_and_updates_outlined,
+                              size: 16,
+                              color: isAutoExplain ? context.primaryColor : context.textSecondary,
+                            ),
+                            if (!hideAutoExplainText) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                'Auto Explain',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: isAutoExplain ? context.primaryColor : context.textPrimary,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 4),
+                            Switch(
+                              value: isAutoExplain,
+                              onChanged: (val) => ref.read(autoExplainProvider.notifier).toggle(val),
+                              activeThumbColor: context.primaryColor,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+
+                // Theme Toggle Button
+                Consumer(
+                  builder: (context, ref, child) {
+                    final themeMode = ref.watch(themeModeProvider);
+                    final isDark = themeMode.value == ThemeMode.dark;
+                    
+                    return Tooltip(
+                      message: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+                      child: InkWell(
+                        onTap: () => ref.read(themeModeProvider.notifier).toggleTheme(),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF111827) : context.scaffoldBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: context.border,
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                            size: 20,
+                            color: isDark ? Colors.amber : context.textPrimary,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+
+                // Language Switcher Dropdown
+                Consumer(
+                  builder: (context, ref, child) {
+                    final currentLang = ref.watch(languageProvider);
+                    
+                    String getLanguageLabel(String code) {
+                      switch (code) {
+                        case 'ur':
+                          return 'اردو (Asan)';
+                        case 'ru':
+                          return 'Roman Urdu';
+                        default:
+                          return 'English';
+                      }
+                    }
+                    
+                    return PopupMenuButton<String>(
+                      tooltip: 'Change Language / زبان تبدیل کریں',
+                      color: Theme.of(context).cardColor,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: context.border, width: 1),
+                      ),
+                      offset: const Offset(0, 50),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: context.border, width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.translate, size: 18, color: context.primaryColor),
+                            if (!hideLangText) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                getLanguageLabel(currentLang),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: context.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.arrow_drop_down, size: 16, color: context.textSecondary),
+                            ],
+                          ],
+                        ),
+                      ),
+                      onSelected: (langCode) {
+                        ref.read(languageProvider.notifier).setLanguage(langCode);
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'en',
+                          child: Row(
+                            children: [
+                              const Text('🇺🇸', style: TextStyle(fontSize: 16)),
+                              const SizedBox(width: 10),
+                              Text('English', style: TextStyle(color: context.textPrimary)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'ur',
+                          child: Row(
+                            children: [
+                              const Text('🇵🇰', style: TextStyle(fontSize: 16)),
+                              const SizedBox(width: 10),
+                              Text('اردو (Asan)', style: TextStyle(color: context.textPrimary)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'ru',
+                          child: Row(
+                            children: [
+                              const Text('✍️', style: TextStyle(fontSize: 16)),
+                              const SizedBox(width: 10),
+                              Text('Roman Urdu', style: TextStyle(color: context.textPrimary)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+
+                // Manual Cloud Sync Button (Desktop)
+                _TopBarSyncButton(isMobile: false, hideText: hideSyncText),
+                const SizedBox(width: 8),
+                
+                // Vertical Divider
+                Container(
+                  width: 1,
+                  height: 32,
+                  color: context.border,
+                ),
+                const SizedBox(width: 10),
+                
+                // User Profile Section (Interactive Sign Out menu)
+                PopupMenuButton<String>(
+                  offset: const Offset(0, 50),
+                  tooltip: 'Profile options',
+                  color: theme.cardColor,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(color: context.border, width: 1),
+                  ),
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!hideUserName) ...[
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 140),
+                            child: Text(
                               currentUser?.name ?? 'Admin',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: context.textPrimary,
                                 fontWeight: FontWeight.w700,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        // Avatar with initials
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: context.primaryColor,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: context.primaryColor.withValues(alpha: 0.2),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _getInitials(currentUser?.name ?? 'Admin'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  onSelected: (value) {
+                    if (value == 'logout') {
+                      ref.read(adminProvider.notifier).logout();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem<String>(
+                      value: 'profile_info',
+                      enabled: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            currentUser?.name ?? 'Admin',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: context.textPrimary,
+                            ),
+                          ),
+                          if (currentUser?.email != null &&
+                              currentUser!.email.isNotEmpty &&
+                              currentUser.email.toLowerCase() != (currentUser.name.toLowerCase()) &&
+                              currentUser.email.contains('@'))
+                            Text(
+                              currentUser.email,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: context.textSecondary,
+                              ),
+                            ),
+                          const Divider(),
                         ],
                       ),
-                      const SizedBox(width: 12),
-                      // Avatar with initials
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: context.primaryColor,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: context.primaryColor.withValues(alpha: 0.2),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          _getInitials(currentUser?.name ?? 'Admin'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                onSelected: (value) {
-                  if (value == 'logout') {
-                    ref.read(adminProvider.notifier).logout();
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem<String>(
-                    value: 'profile_info',
-                    enabled: false,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          currentUser?.name ?? 'Admin',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: context.textPrimary,
-                          ),
-                        ),
-                        if (currentUser?.email != null &&
-                            currentUser!.email.isNotEmpty &&
-                            currentUser.email.toLowerCase() != (currentUser.name.toLowerCase()) &&
-                            currentUser.email.contains('@'))
-                          Text(
-                            currentUser.email,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: context.textSecondary,
-                            ),
-                          ),
-                        const Divider(),
-                      ],
                     ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.logout,
-                          size: 18,
-                          color: context.error,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Sign Out',
-                          style: TextStyle(
+                    PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.logout,
+                            size: 18,
                             color: context.error,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Text(
+                            'Sign Out',
+                            style: TextStyle(
+                              color: context.error,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ],
-      ],
-    ),
+      ),
     );
   }
 }
 
 class _TopBarSyncButton extends ConsumerStatefulWidget {
   final bool isMobile;
-  const _TopBarSyncButton({required this.isMobile});
+  final bool hideText;
+  const _TopBarSyncButton({required this.isMobile, this.hideText = false});
 
   @override
   ConsumerState<_TopBarSyncButton> createState() => _TopBarSyncButtonState();
@@ -772,7 +769,26 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
     if (!mounted) return;
     final state = ref.read(cloudSyncStateProvider);
     messenger.clearSnackBars();
-    if (state.status == SyncStatus.error) {
+    if (state.status == SyncStatus.offline || !state.isOnline) {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red.shade700,
+          content: Row(
+            children: const [
+              Icon(Icons.wifi_off, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Internet Connection Available Nahi Hai! Baraye Meherbani Internet Connect Karein Aur Phir Sync Karein.',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } else if (state.status == SyncStatus.error) {
       messenger.showSnackBar(
         SnackBar(
           backgroundColor: Colors.red.shade700,
@@ -804,6 +820,7 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
   Widget build(BuildContext context) {
     final syncState = ref.watch(cloudSyncStateProvider);
     final isSyncing = syncState.status == SyncStatus.syncing;
+    final tr = ref.watch(translationProvider);
 
     if (isSyncing) {
       if (!_animController.isAnimating) {
@@ -831,7 +848,7 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
         ? Tooltip(
             message: isSyncing
                 ? 'Syncing in progress...'
-                : 'Cloud Sync Options (Tap for Pull & Push)\nLast: ${_formatTime(syncState.lastSyncedAt)}',
+                : 'Cloud Sync Options (Auto 1-Hr Active)\nLast: ${_formatTime(syncState.lastSyncedAt)}',
             child: InkWell(
               onTap: isSyncing ? null : () => showCloudSyncOptions(context, ref),
               borderRadius: BorderRadius.circular(16),
@@ -879,7 +896,7 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
                   onTap: isSyncing ? null : () => _triggerSync(context),
                   borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -896,15 +913,17 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
                             );
                           },
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isSyncing ? 'Syncing...' : 'Sync Now',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: context.textPrimary,
+                        if (!widget.hideText) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            isSyncing ? tr('Syncing...') : tr('Sync Now'),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: context.textPrimary,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -915,7 +934,7 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
                   color: context.border,
                 ),
                 PopupMenuButton<String>(
-                  tooltip: 'Sync Options\nLast: ${_formatTime(syncState.lastSyncedAt)}',
+                  tooltip: 'Sync Options (Auto 1-Hr Active)\nLast: ${_formatTime(syncState.lastSyncedAt)}',
                   offset: const Offset(0, 36),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -991,21 +1010,7 @@ class _TopBarSyncButtonState extends ConsumerState<_TopBarSyncButton>
                           Icon(Icons.cloud_upload_outlined, size: 18, color: context.primaryColor),
                           const SizedBox(width: 10),
                           Text(
-                            'Force Push All (Local to Cloud)',
-                            style: TextStyle(color: context.textPrimary),
-                          ),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'push_changes',
-                      enabled: !isSyncing,
-                      child: Row(
-                        children: [
-                          Icon(Icons.upload_file_rounded, size: 18, color: context.primaryColor),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Push Changes Only',
+                            'Upload Data into Supabase',
                             style: TextStyle(color: context.textPrimary),
                           ),
                         ],

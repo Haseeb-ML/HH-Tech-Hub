@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/routing/app_router.dart';
 
-class AccessDeniedScreen extends StatelessWidget {
+class AccessDeniedScreen extends ConsumerWidget {
   final String? attemptedPath;
 
   const AccessDeniedScreen({super.key, this.attemptedPath});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isMobile = MediaQuery.of(context).size.width < 600;
 
@@ -109,7 +112,11 @@ class AccessDeniedScreen extends StatelessWidget {
                             if (context.canPop()) {
                               context.pop();
                             } else {
-                              context.go('/dashboard');
+                              final adminState = ref.read(adminProvider);
+                              final fallback = adminState.isAuthenticated
+                                  ? getDefaultAllowedPath(adminState)
+                                  : '/login';
+                              context.go(fallback);
                             }
                           },
                           icon: const Icon(Icons.arrow_back_rounded, size: 18),

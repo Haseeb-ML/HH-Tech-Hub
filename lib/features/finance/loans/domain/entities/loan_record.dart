@@ -151,4 +151,43 @@ class LoanRecord {
       repayments: repayments ?? this.repayments,
     );
   }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'borrowerName': borrowerName,
+        'type': type,
+        'amount': amount,
+        'remainingBalance': remainingBalance,
+        'startDate': startDate,
+        'endDate': endDate,
+        'status': status,
+        'description': description,
+        'accountId': accountId,
+        'accountName': accountName,
+        'repayments': repayments.map((r) => r.toJson()).toList(),
+      };
+
+  factory LoanRecord.fromMap(Map<String, dynamic> map) => LoanRecord(
+        id: map['id'] ?? '',
+        borrowerName: map['borrowerName'] ?? '',
+        type: map['type'] ?? 'Lent',
+        amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+        remainingBalance: (map['remainingBalance'] as num?)?.toDouble() ?? 0.0,
+        startDate: map['startDate'] ?? '',
+        endDate: map['endDate'] ?? '',
+        status: map['status'] ?? 'Active',
+        description: map['description'] ?? '',
+        accountId: map['accountId'] ?? '',
+        accountName: map['accountName'] ?? '',
+        repayments: (map['repayments'] as List<dynamic>?)
+                ?.map((r) => LoanRepayment(
+                      id: r['id'] ?? '',
+                      date: r['date'] ?? '',
+                      amount: (r['amount'] as num?)?.toDouble() ?? 0.0,
+                      accountId: r['accountId'] ?? '',
+                      accountName: r['accountName'] ?? '',
+                    ))
+                .toList() ??
+            [],
+      );
 }

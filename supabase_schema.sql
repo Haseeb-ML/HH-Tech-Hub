@@ -18,8 +18,7 @@ CREATE TABLE IF NOT EXISTS clients (
     "updatedAt" TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "public_all_clients" ON clients;
-CREATE POLICY "public_all_clients" ON clients FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "authenticated_all_clients" ON clients FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 2. Bank Accounts
 CREATE TABLE IF NOT EXISTS bank_accounts (
@@ -155,6 +154,7 @@ CREATE TABLE IF NOT EXISTS employees (
     name TEXT NOT NULL DEFAULT '',
     email TEXT DEFAULT '',
     phones JSONB DEFAULT '[]'::jsonb,
+    cnic TEXT DEFAULT '',
     designation TEXT DEFAULT '',
     department TEXT DEFAULT '',
     "joiningDate" TEXT DEFAULT '',
@@ -377,7 +377,8 @@ CREATE TABLE IF NOT EXISTS app_users (
 );
 ALTER TABLE app_users ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "public_all_app_users" ON app_users;
-CREATE POLICY "public_all_app_users" ON app_users FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "authenticated_all_app_users" ON app_users;
+CREATE POLICY "authenticated_all_app_users" ON app_users FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 22. App Roles (Roles & Granular Permission Matrix)
 CREATE TABLE IF NOT EXISTS app_roles (
@@ -394,7 +395,8 @@ CREATE TABLE IF NOT EXISTS app_roles (
 );
 ALTER TABLE app_roles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "public_all_app_roles" ON app_roles;
-CREATE POLICY "public_all_app_roles" ON app_roles FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "authenticated_all_app_roles" ON app_roles;
+CREATE POLICY "authenticated_all_app_roles" ON app_roles FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- 23. Audit Logs (System Activity & Tracking for Super Admin)
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -409,7 +411,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "public_all_audit_logs" ON audit_logs;
-CREATE POLICY "public_all_audit_logs" ON audit_logs FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "authenticated_all_audit_logs" ON audit_logs;
+CREATE POLICY "authenticated_all_audit_logs" ON audit_logs FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 
 

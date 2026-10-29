@@ -83,18 +83,54 @@ class DashboardScreen extends ConsumerWidget {
     final activeStaffCount = employeesState.employees.where((e) => e.status == 'Active').length;
     final ongoingProjectsCount = projectsState.projects.where((p) => p.status == 'In Progress').length;
 
-    // Check module view permissions
-    final canViewFinance = adminState.hasPermission(AppModule.finance, PermissionAction.view);
-    final canViewClients = adminState.hasPermission(AppModule.clients, PermissionAction.view);
-    final canViewHR = adminState.hasPermission(AppModule.hr, PermissionAction.view);
-    final canViewProjects = adminState.hasPermission(AppModule.projects, PermissionAction.view);
-    final canViewInventory = adminState.hasPermission(AppModule.inventory, PermissionAction.view);
-    final canViewAdministration = adminState.hasPermission(AppModule.administration, PermissionAction.view);
-
     final currentUser = adminState.currentUser;
+    final isSuper = currentUser != null && (currentUser.isSuperAdmin || currentUser.role.trim().toLowerCase() == 'super admin');
+
     final userName = currentUser != null && currentUser.name.isNotEmpty
         ? currentUser.name
         : (currentUser?.username ?? 'Admin');
+
+    // Check module view permissions
+    final canViewDashboard = isSuper || adminState.hasPermission(AppModule.dashboard, PermissionAction.view);
+
+    final canViewFinance = canViewDashboard ||
+        adminState.hasPermission(AppModule.finance, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.ledger, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.accounts, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.income, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.expenses, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.loans, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.personalAccounts, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.financeReports, PermissionAction.view);
+
+    final canViewClients = canViewDashboard ||
+        adminState.hasPermission(AppModule.clients, PermissionAction.view);
+
+    final canViewHR = canViewDashboard ||
+        adminState.hasPermission(AppModule.hr, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.employees, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.attendance, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.payroll, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.advances, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.employeeHistory, PermissionAction.view);
+
+    final canViewProjects = canViewDashboard ||
+        adminState.hasPermission(AppModule.projects, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.projectsList, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.tasks, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.timesheets, PermissionAction.view);
+
+    final canViewInventory = canViewDashboard ||
+        adminState.hasPermission(AppModule.inventory, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.officeInventory, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.assets, PermissionAction.view);
+
+    final canViewAdministration = isSuper ||
+        canViewDashboard ||
+        adminState.hasPermission(AppModule.administration, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.auditLogs, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.databaseBackup, PermissionAction.view) ||
+        adminState.hasPermission(AppModule.systemSettings, PermissionAction.view);
 
     // Dynamic Lists processing
     // 1. Transactions
@@ -217,22 +253,14 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: context.isDarkMode ? Colors.white.withValues(alpha: 0.85) : Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: context.border, width: 1),
-                        ),
-                        child: const AppLogo(
-                          height: 36,
-                          fit: BoxFit.contain,
-                        ),
+                      const AppLogo(
+                        height: 76,
+                        fit: BoxFit.contain,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Text(
-                          '${tr('Welcome back')}, $userName',
+                          '${tr('Welcome')}, $userName',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.5,
@@ -243,7 +271,7 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    tr('Here is a quick overview of Software House performance today.'),
+                    tr('Here is a quick overview of Business performance today.'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: context.textSecondary,
                     ),
@@ -286,7 +314,7 @@ class DashboardScreen extends ConsumerWidget {
                         }
                       },
                       icon: const Icon(Icons.refresh, size: 16),
-                      label: const Text('Refresh Data'),
+                      label: Text(tr('Refresh Data')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: context.cardBg,
                         foregroundColor: context.textPrimary,
@@ -308,25 +336,17 @@ class DashboardScreen extends ConsumerWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: context.isDarkMode ? Colors.white.withValues(alpha: 0.85) : Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: context.border, width: 1),
-                          ),
-                          child: const AppLogo(
-                            height: 44,
-                            fit: BoxFit.contain,
-                          ),
+                        const AppLogo(
+                          height: 105,
+                          fit: BoxFit.contain,
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 18),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${tr('Welcome back')}, $userName',
+                                '${tr('Welcome')}, $userName',
                                 style: theme.textTheme.displaySmall?.copyWith(
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: -0.5,
@@ -334,9 +354,7 @@ class DashboardScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                currentUser != null && currentUser.role.isNotEmpty
-                                    ? '${tr('Role')}: ${currentUser.role} • ${tr('Here is a quick overview of Software House performance today.')}'
-                                    : tr('Here is a quick overview of Software House performance today.'),
+                                tr('Here is a quick overview of Business performance today.'),
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: context.textSecondary,
                                 ),
@@ -383,7 +401,7 @@ class DashboardScreen extends ConsumerWidget {
                       }
                     },
                     icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Refresh Data'),
+                    label: Text(tr('Refresh Data')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: context.cardBg,
                       foregroundColor: context.textPrimary,
@@ -425,13 +443,13 @@ class DashboardScreen extends ConsumerWidget {
                       isPositiveTrend: false,
                     ),
                     StatCard(
-                      title: 'Net Profit',
-                      tooltipMessage: 'Detailed statistics and information regarding Net Profit.',
+                      title: tr('Net Profit'),
+                      tooltipMessage: "Detailed statistics and information regarding ${tr('Net Profit')}.",
                       value: _formatCurrency(netProfit),
                       icon: Icons.account_balance,
                       iconColor: context.primaryColor,
                       iconBgColor: context.infoLight,
-                      trendText: netProfit >= 0 ? 'Positive net margin' : 'Deficit margin',
+                      trendText: netProfit >= 0 ? tr('Positive net margin') : tr('Deficit margin'),
                       isPositiveTrend: netProfit >= 0,
                     ),
                   ]);
@@ -439,13 +457,13 @@ class DashboardScreen extends ConsumerWidget {
                 if (canViewClients) {
                   visibleStatCards.add(
                     StatCard(
-                      title: 'Total Clients',
-                      tooltipMessage: 'Detailed statistics and information regarding Total Clients.',
-                      value: '$activeClientsCount Active',
+                      title: tr('Total Clients'),
+                      tooltipMessage: "Detailed statistics and information regarding ${tr('Total Clients')}.",
+                      value: '$activeClientsCount ${tr('Active')}',
                       icon: Icons.business,
                       iconColor: Colors.purple,
                       iconBgColor: context.isDarkMode ? Colors.purple.withValues(alpha: 0.2) : const Color(0xFFF3E8FF),
-                      trendText: '${clientsState.clients.length} registered total',
+                      trendText: '${clientsState.clients.length} ${tr('registered total')}',
                       isPositiveTrend: true,
                     ),
                   );
@@ -455,11 +473,11 @@ class DashboardScreen extends ConsumerWidget {
                     StatCard(
                       title: tr('Total Employees'),
                       tooltipMessage: "Detailed statistics and information regarding ${tr('Total Employees')}.",
-                      value: '$totalStaffCount Staff',
+                      value: '$totalStaffCount ${tr('Staff')}',
                       icon: Icons.people,
                       iconColor: Colors.teal,
                       iconBgColor: context.isDarkMode ? Colors.teal.withValues(alpha: 0.2) : const Color(0xFFE6FFFA),
-                      trendText: '$activeStaffCount active team members',
+                      trendText: '$activeStaffCount ${tr('active team members')}',
                       isPositiveTrend: true,
                     ),
                   );
@@ -469,11 +487,11 @@ class DashboardScreen extends ConsumerWidget {
                     StatCard(
                       title: tr('Active Projects'),
                       tooltipMessage: "Detailed statistics and information regarding ${tr('Active Projects')}.",
-                      value: '$ongoingProjectsCount Ongoing',
+                      value: '$ongoingProjectsCount ${tr('Ongoing Projects')}',
                       icon: Icons.task_alt,
                       iconColor: context.warning,
                       iconBgColor: context.warningLight,
-                      trendText: '${projectsState.projects.length} total projects',
+                      trendText: '${projectsState.projects.length} ${tr('total projects')}',
                       isPositiveTrend: true,
                     ),
                   );
@@ -538,11 +556,11 @@ class DashboardScreen extends ConsumerWidget {
                 }
                 if (canViewAdministration) {
                   if (mobileWidgets.isNotEmpty) mobileWidgets.add(const SizedBox(height: 24));
-                  mobileWidgets.add(_buildRecentActivities(context, recentActivities));
+                  mobileWidgets.add(_buildRecentActivities(context, recentActivities, ref));
                 }
                 if (canViewInventory) {
                   if (mobileWidgets.isNotEmpty) mobileWidgets.add(const SizedBox(height: 24));
-                  mobileWidgets.add(_buildLowStockAlerts(context, displayAlerts));
+                  mobileWidgets.add(_buildLowStockAlerts(context, displayAlerts, ref));
                 }
 
                 final List<Widget> leftColumnWidgets = [];
@@ -551,7 +569,7 @@ class DashboardScreen extends ConsumerWidget {
                 }
                 if (canViewAdministration) {
                   if (leftColumnWidgets.isNotEmpty) leftColumnWidgets.add(const SizedBox(height: 24));
-                  leftColumnWidgets.add(_buildRecentActivities(context, recentActivities));
+                  leftColumnWidgets.add(_buildRecentActivities(context, recentActivities, ref));
                 }
 
                 final List<Widget> rightColumnWidgets = [];
@@ -560,7 +578,7 @@ class DashboardScreen extends ConsumerWidget {
                 }
                 if (canViewInventory) {
                   if (rightColumnWidgets.isNotEmpty) rightColumnWidgets.add(const SizedBox(height: 24));
-                  rightColumnWidgets.add(_buildLowStockAlerts(context, displayAlerts));
+                  rightColumnWidgets.add(_buildLowStockAlerts(context, displayAlerts, ref));
                 }
 
                 if (mobileWidgets.isEmpty && leftColumnWidgets.isEmpty && rightColumnWidgets.isEmpty) {
@@ -611,14 +629,14 @@ class DashboardScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return GlassCard(
-      title: 'Recent Transactions',
+      title: tr('Recent Transactions'),
       padding: EdgeInsets.zero,
       child: transactions.isEmpty
           ? Container(
               padding: const EdgeInsets.all(24),
               alignment: Alignment.center,
               child: Text(
-                'No recent transactions found.',
+                tr('No recent transactions found.'),
                 style: TextStyle(color: context.textSecondary),
               ),
             )
@@ -647,9 +665,9 @@ class DashboardScreen extends ConsumerWidget {
                             border: Border(bottom: BorderSide(color: context.divider)),
                           ),
                           children: [
-                            _buildTableHeaderCell(context, 'Details'),
+                            _buildTableHeaderCell(context, tr('Details')),
                             _buildTableHeaderCell(context, tr('Type')),
-                            _buildTableHeaderCell(context, 'Amount'),
+                            _buildTableHeaderCell(context, tr('Amount')),
                             _buildTableHeaderCell(context, tr('Date')),
                           ],
                         ),
@@ -698,7 +716,7 @@ class DashboardScreen extends ConsumerWidget {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            tx.isIncome ? 'Inflow Receipt' : 'Outflow Expense',
+                                            tx.isIncome ? tr('Inflow Receipt') : tr('Outflow Expense'),
                                             style: TextStyle(
                                               fontSize: 11,
                                               color: context.textMuted,
@@ -804,17 +822,18 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   // Helper: Activities Section
-  Widget _buildRecentActivities(BuildContext context, List<_ActivityItem> activities) {
+  Widget _buildRecentActivities(BuildContext context, List<_ActivityItem> activities, WidgetRef ref) {
+    final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
 
     return GlassCard(
-      title: 'Recent Activities',
+      title: tr('Recent Activities'),
       child: activities.isEmpty
           ? Container(
               padding: const EdgeInsets.all(24),
               alignment: Alignment.center,
               child: Text(
-                'No recent activities recorded.',
+                tr('No recent activities recorded.'),
                 style: TextStyle(color: context.textSecondary),
               ),
             )
@@ -872,13 +891,13 @@ class DashboardScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return GlassCard(
-      title: 'Upcoming Tasks',
+      title: tr('Upcoming Tasks'),
       child: tasks.isEmpty
           ? Container(
               padding: const EdgeInsets.all(24),
               alignment: Alignment.center,
               child: Text(
-                'All tasks completed!',
+                tr('All tasks completed!'),
                 style: TextStyle(color: context.textSecondary),
               ),
             )
@@ -973,11 +992,12 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   // Helper: Low Stock Alerts Section
-  Widget _buildLowStockAlerts(BuildContext context, List<_StockAlertItem> alerts) {
+  Widget _buildLowStockAlerts(BuildContext context, List<_StockAlertItem> alerts, WidgetRef ref) {
+    final tr = ref.watch(translationProvider);
     final theme = Theme.of(context);
 
     return GlassCard(
-      title: 'Low Stock & Asset Alerts',
+      title: tr('Low Stock & Asset Alerts'),
       child: Column(
         children: [
           alerts.isEmpty
@@ -985,7 +1005,7 @@ class DashboardScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(24),
                   alignment: Alignment.center,
                   child: Text(
-                    'No stock or asset alerts. All systems operational.',
+                    tr('No stock or asset alerts. All systems operational.'),
                     style: TextStyle(color: context.textSecondary),
                   ),
                 )

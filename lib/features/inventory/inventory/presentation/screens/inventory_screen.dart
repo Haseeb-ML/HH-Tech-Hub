@@ -578,42 +578,23 @@ class _InventoryCard extends ConsumerWidget {
                         } else if (val == 'delete' && canDelete) {
                           final messenger = ScaffoldMessenger.of(context);
                           final errorColor = context.error;
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: Text(tr('Delete Item')),
-                              content: Text('${tr("Are you sure you want to delete")} "${item.name}" ${tr("from inventory?")}'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await ref.read(inventoryProvider.notifier).deleteInventoryItem(item.id);
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('${tr("Item")} "${item.name}" ${tr("deleted.")}'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: errorColor,
-                                ),
-                              );
-                            } catch (e) {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to delete item: $e'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: errorColor,
-                                ),
-                              );
-                            }
+                          try {
+                            await ref.read(inventoryProvider.notifier).deleteInventoryItem(item.id);
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('${tr("Item")} "${item.name}" ${tr("deleted.")}'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: errorColor,
+                              ),
+                            );
+                          } catch (e) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to delete item: $e'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: errorColor,
+                              ),
+                            );
                           }
                         }
                       },
@@ -1402,44 +1383,25 @@ class _EditInventoryDialogState extends ConsumerState<_EditInventoryDialog> {
                         onPressed: () async {
                           final messenger = ScaffoldMessenger.of(context);
                           final errorColor = context.error;
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: Text(tr('Delete Item')),
-                              content: Text('${tr("Are you sure you want to delete")} "${widget.item.name}"? ${tr("This action cannot be undone.")}'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: Text(tr('Cancel'), style: TextStyle(color: context.textSecondary)),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: Text(tr('Delete'), style: TextStyle(color: context.error)),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            try {
-                              await ref.read(inventoryProvider.notifier).deleteInventoryItem(widget.item.id);
-                              if (!context.mounted) return;
-                              Navigator.pop(context);
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('${tr("Item")} "${widget.item.name}" ${tr("deleted.")}'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: errorColor,
-                                ),
-                              );
-                            } catch (e) {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to delete item: $e'),
-                                  behavior: SnackBarBehavior.floating,
-                                  backgroundColor: errorColor,
-                                ),
-                              );
-                            }
+                          try {
+                            await ref.read(inventoryProvider.notifier).deleteInventoryItem(widget.item.id);
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('${tr("Item")} "${widget.item.name}" ${tr("deleted.")}'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: errorColor,
+                              ),
+                            );
+                          } catch (e) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to delete item: $e'),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: errorColor,
+                              ),
+                            );
                           }
                         },
                         icon: Icon(Icons.delete_outline, size: 16, color: context.error),

@@ -26,36 +26,18 @@ class LedgerEntry {
   static List<LedgerEntry> sortEntriesNewestFirst(List<LedgerEntry> entries) {
     final sorted = List<LedgerEntry>.from(entries);
     sorted.sort((a, b) {
-      final aIsOpeningBalance = a.category == 'Opening Balance' || a.id.startsWith('led_opening_');
-      final bIsOpeningBalance = b.category == 'Opening Balance' || b.id.startsWith('led_opening_');
-      if (aIsOpeningBalance && !bIsOpeningBalance) return 1;
-      if (!aIsOpeningBalance && bIsOpeningBalance) return -1;
-
       final dateA = _parseDateTime(a.date);
       final dateB = _parseDateTime(b.date);
 
-      // 1. Minute-level date comparison (Year, Month, Day, Hour, Minute)
-      final minA = DateTime(dateA.year, dateA.month, dateA.day, dateA.hour, dateA.minute);
-      final minB = DateTime(dateB.year, dateB.month, dateB.day, dateB.hour, dateB.minute);
-      final minCmp = minB.compareTo(minA);
-      if (minCmp != 0) return minCmp;
+      // 1. Exact Date & Time comparison (Newest first -> descending order)
+      final dateCmp = dateB.compareTo(dateA);
+      if (dateCmp != 0) return dateCmp;
 
-      // 2. Asset / Inventory purchase prioritization if applicable
-      final aIsAstOrInv = a.id.contains('AST') || a.id.contains('INV');
-      final bIsAstOrInv = b.id.contains('AST') || b.id.contains('INV');
-      if (aIsAstOrInv && !bIsAstOrInv) return -1;
-      if (!aIsAstOrInv && bIsAstOrInv) return 1;
-
-      // 3. For entries occurring in the same minute, sort by creation timestamp (Epoch in ID)
-      // Newest created transaction appears on top (descending order)
+      // 2. For entries occurring at the exact same millisecond, sort by creation numeric ID (newest first)
       final aNum = _numericId(a.id);
       final bNum = _numericId(b.id);
       final numericCmp = bNum.compareTo(aNum);
       if (numericCmp != 0) return numericCmp;
-
-      // 4. Exact date comparison (seconds & milliseconds)
-      final dateCmp = dateB.compareTo(dateA);
-      if (dateCmp != 0) return dateCmp;
 
       return b.id.compareTo(a.id);
     });
@@ -104,5 +86,70 @@ class LedgerEntry {
       description: description ?? this.description,
       installmentType: installmentType ?? this.installmentType,
     );
+  }
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'date': date,
+        'accountId': accountId,
+        'accountName': accountName,
+        'type': type,
+        'category': category,
+        'amount': amount,
+        'reference': reference,
+        'description': description,
+        'installmentType': installmentType,
+      };
+
+  factory LedgerEntry.fromMap(Map<String, dynamic> map) => LedgerEntry(
+        id: map['id'] ?? '',
+        date: map['date'] ?? '',
+        accountId: map['accountId'] ?? '',
+        accountName: map['accountName'] ?? '',
+        type: map['type'] ?? 'Debit',
+        category: map['category'] ?? 'General',
+        amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+        reference: map['reference'] ?? '',
+        description: map['description'] ?? '',
+        installmentType: map['installmentType'] ?? '',
+      );
+  /// Formatted Invoice / Expense ID (e.g. inv_0001 or exp_0001)
+  String get formattedInvoiceId {
+    final isOutflow = type == 'Credit' || category.toLowerCase().contains('expense');
+    final prefix = isOutflow ? 'exp_' : 'inv_';
+
+    if (reference.isNotEmpty) {
+      if (reference.startsWith('inv_') || reference.startsWith('exp_') || reference.startsWith('rec_')) {
+        final sub = reference.substring(4);
+        final numVal = int.tryParse(sub);
+        if (numVal != null) return '$prefix${numVal.toString().padLeft(4, '0')}';
+      }
+      final digits = reference.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.isNotEmpty && (reference.toLowerCase().contains('inv') || reference.toLowerCase().contains('exp') || reference.toLowerCase().contains('rec'))) {
+        final numVal = int.tryParse(digits.length > 4 ? digits.substring(digits.length - 4) : digits) ?? 1;
+        return '$prefix${numVal.toString().padLeft(4, '0')}';
+      }
+    }
+
+    if (id.startsWith('inc_') || id.startsWith('rec_') || id.startsWith('led_inc_') || id.startsWith('inv_')) {
+      final sub = id.replaceAll(RegExp(r'[^0-9]'), '');
+      if (sub.isNotEmpty) {
+        final numVal = int.tryParse(sub.length > 4 ? sub.substring(sub.length - 4) : sub) ?? 1;
+        return 'inv_${numVal.toString().padLeft(4, '0')}';
+      }
+    } else if (id.startsWith('exp_') || id.startsWith('led_exp_')) {
+      final sub = id.replaceAll(RegExp(r'[^0-9]'), '');
+      if (sub.isNotEmpty) {
+        final numVal = int.tryParse(sub.length > 4 ? sub.substring(sub.length - 4) : sub) ?? 1;
+        return 'exp_${numVal.toString().padLeft(4, '0')}';
+      }
+    }
+
+    final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isNotEmpty) {
+      final numVal = int.tryParse(digits.length > 4 ? digits.substring(digits.length - 4) : digits) ?? 1;
+      return '$prefix${numVal.toString().padLeft(4, '0')}';
+    }
+    return '${prefix}0001';
   }
 }

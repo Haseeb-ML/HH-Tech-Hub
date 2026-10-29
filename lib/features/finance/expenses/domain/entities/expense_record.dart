@@ -2,6 +2,7 @@ class ExpenseRecord {
   static const List<String> validCategories = [
     'Rent',
     'Salaries',
+    'Salary Advances',
     'Bills',
     'Internet',
     'Electricity',
@@ -55,6 +56,28 @@ class ExpenseRecord {
     );
   }
 
+  /// Orderly formatted Expense ID (e.g. sal_0001 for salaries, exp_0001 for general expenses)
+  String get expenseId {
+    final isSalary = category.toLowerCase().contains('salary') ||
+        category.toLowerCase().contains('payroll') ||
+        id.toLowerCase().contains('sal_');
+    final prefix = isSalary ? 'sal_' : 'exp_';
+
+    final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isNotEmpty) {
+      final numVal = int.tryParse(digits);
+      if (numVal != null) {
+        if (numVal <= 9999) {
+          return '$prefix${numVal.toString().padLeft(4, '0')}';
+        }
+        final last4 = numVal % 10000;
+        final seq = last4 == 0 ? 1 : last4;
+        return '$prefix${seq.toString().padLeft(4, '0')}';
+      }
+    }
+    return '${prefix}0001';
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -74,6 +97,7 @@ class ExpenseRecord {
 
     final lower = normalized.toLowerCase();
     if (lower.contains('electric') || lower.contains('utilit')) return 'Electricity & Utilities';
+    if (lower.contains('advance')) return 'Salary Advances';
     if (lower.contains('salar') || lower.contains('payroll')) return 'Salaries & Payroll';
     if (lower.contains('internet') || lower.contains('telecom') || lower == 'wifi') return 'Internet & Telecom';
     if (lower.contains('rent')) return 'Rent & Occupancy';

@@ -15,6 +15,8 @@ import 'package:software_house_erp/features/finance/expenses/presentation/provid
 import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
 import 'package:software_house_erp/features/finance/loans/presentation/providers/loans_provider.dart';
 import 'package:software_house_erp/features/hr/salaries/presentation/providers/salaries_provider.dart';
+import 'package:software_house_erp/features/hr/advances/domain/entities/advance_record.dart';
+import 'package:software_house_erp/features/hr/advances/presentation/providers/advances_provider.dart';
 import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
 import 'package:software_house_erp/features/inventory/inventory/presentation/providers/inventory_provider.dart';
 import 'package:software_house_erp/features/inventory/assets/presentation/providers/assets_provider.dart';
@@ -58,6 +60,9 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   String _payrollPeriodFilter = 'This Month';
   DateTimeRange? _payrollCustomDateRange;
 
+  String _advancesPeriodFilter = 'This Month';
+  DateTimeRange? _advancesCustomDateRange;
+
   String _profitLossPeriodFilter = 'This Month';
   DateTimeRange? _profitLossCustomDateRange;
 
@@ -92,6 +97,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         ref.invalidate(incomeProvider);
         ref.invalidate(expensesProvider);
         ref.invalidate(salariesProvider);
+        ref.invalidate(advancesProvider);
         ref.invalidate(ledgerProvider);
         ref.invalidate(loansProvider);
         ref.invalidate(inventoryProvider);
@@ -434,7 +440,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: ['Overview', 'Income', 'Expenses', 'Payroll', 'Profit/Loss'].map((focus) {
+            children: ['Overview', 'Income', 'Expenses', 'Payroll', 'Advances', 'Profit/Loss'].map((focus) {
               final isSelected = _summaryFocus == focus;
               return Padding(
                 padding: const EdgeInsets.only(right: 6),
@@ -471,6 +477,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
           _buildExpensesBreakdownCard(context, currentFilter)
         else if (_summaryFocus == 'Payroll')
           _buildPayrollBreakdownCard(context, currentFilter)
+        else if (_summaryFocus == 'Advances')
+          _buildAdvancesBreakdownCard(context, currentFilter)
         else
           _buildProfitLossBreakdownCard(context, pl, al, currentFilter),
       ],
@@ -2015,6 +2023,306 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
   }
 
   // ═══════════════════════════════════════════════════════════
+  
+  Future<void> _selectAdvancesCustomDateRange(BuildContext context) async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      initialDateRange: _advancesCustomDateRange ?? DateTimeRange(
+        start: DateTime(now.year, now.month, 1),
+        end: DateTime(now.year, now.month, now.day),
+      ),
+    );
+    if (picked != null) {
+      setState(() {
+        _advancesCustomDateRange = picked;
+        _advancesPeriodFilter = 'Custom Date';
+      });
+    }
+  }
+
+  List<AdvanceRecord> _getFilteredAdvancesForReport(List<AdvanceRecord> allAdvances) {
+    final now = DateTime.now();
+    final list = allAdvances.where((adv) {
+      final d = DateTime.tryParse(adv.requestDate);
+      if (d == null) return false;
+
+      if (_advancesPeriodFilter == 'This Month') {
+        return d.year == now.year && d.month == now.month;
+      } else if (_advancesPeriodFilter == 'This Year') {
+        return d.year == now.year;
+      } else if (_advancesPeriodFilter == 'Custom Date') {
+        if (_advancesCustomDateRange == null) return true;
+        final start = DateTime(_advancesCustomDateRange!.start.year, _advancesCustomDateRange!.start.month, _advancesCustomDateRange!.start.day, 0, 0, 0);
+        final end = DateTime(_advancesCustomDateRange!.end.year, _advancesCustomDateRange!.end.month, _advancesCustomDateRange!.end.day, 23, 59, 59);
+        return d.isAfter(start.subtract(const Duration(seconds: 1))) && d.isBefore(end.add(const Duration(seconds: 1)));
+      }
+      return true;
+    }).toList();
+
+    list.sort((a, b) {
+      final dateA = DateTime.tryParse(a.requestDate) ?? DateTime(1970);
+      final dateB = DateTime.tryParse(b.requestDate) ?? DateTime(1970);
+      final dateCmp = dateB.compareTo(dateA);
+      if (dateCmp != 0) return dateCmp;
+      final aStr = a.id.replaceAll(RegExp(r'[^0-9]'), '');
+      final bStr = b.id.replaceAll(RegExp(r'[^0-9]'), '');
+      final aNum = BigInt.tryParse(aStr) ?? BigInt.zero;
+      final bNum = BigInt.tryParse(bStr) ?? BigInt.zero;
+      return bNum.compareTo(aNum);
+    });
+
+    return list;
+  }
+
+  Widget _buildAdvancesBreakdownCard(BuildContext context, FinancialReportFilter filter) {
+    final theme = Theme.of(context);
+    final advancesState = ref.watch(advancesProvider);
+    final allAdvances = advancesState.advances;
+    final filteredAdvances = _getFilteredAdvancesForReport(allAdvances);
+
+    final currencyFormat = NumberFormat('#,##0.00');
+
+    final totalAmount = filteredAdvances.fold(0.0, (sum, a) => sum + a.amount);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GlassCard(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    Text(
+                      'Salary Advances Report',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: context.textPrimary,
+                        fontSize: 18,
+                      ),
+                    ),
+                    ExportButton(
+                      title: 'Salary Advances Report',
+                      fileName: 'salary_advances_report',
+                      headers: const ['REQUEST DATE', 'EMPLOYEE NAME', 'TOTAL AMOUNT (Rs.)', 'MONTHLY DEDUCTION (Rs.)', 'STATUS'],
+                      rows: filteredAdvances.map((adv) => [
+                        adv.requestDate,
+                        adv.employeeName,
+                        'Rs. ${currencyFormat.format(adv.amount)}',
+                        'Rs. ${currencyFormat.format(adv.monthlyDeduction)}/mo',
+                        adv.status,
+                      ]).toList(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text(
+                      'Period:',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: context.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: ['This Month', 'This Year', 'All Time', 'Custom Date'].map((period) {
+                            final isSelected = _advancesPeriodFilter == period;
+                            String chipLabel = period;
+                            if (period == 'Custom Date' && _advancesCustomDateRange != null) {
+                              final startStr = DateFormat('dd MMM yyyy').format(_advancesCustomDateRange!.start);
+                              final endStr = DateFormat('dd MMM yyyy').format(_advancesCustomDateRange!.end);
+                              chipLabel = 'Custom ($startStr - $endStr)';
+                            }
+
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(chipLabel),
+                                selected: isSelected,
+                                onSelected: (_) {
+                                  if (period == 'Custom Date') {
+                                    _selectAdvancesCustomDateRange(context);
+                                  } else {
+                                    setState(() {
+                                      _advancesPeriodFilter = period;
+                                    });
+                                  }
+                                },
+                                selectedColor: context.primaryColor.withValues(alpha: 0.15),
+                                backgroundColor: context.cardBg,
+                                labelStyle: TextStyle(
+                                  color: isSelected ? context.primaryColor : context.textSecondary,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 13,
+                                ),
+                                side: BorderSide(
+                                  color: isSelected ? context.primaryColor : context.border,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        GlassCard(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.handshake_outlined, color: Colors.amber, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TOTAL ADVANCES ISSUED',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: context.textSecondary,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Rs. ${currencyFormat.format(totalAmount)}',
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: context.textPrimary,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        GlassCard(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Salary Advances Logs (${filteredAdvances.length})',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: context.textPrimary,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (filteredAdvances.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 30),
+                    child: Center(
+                      child: Text(
+                        'No salary advance records found for this period.',
+                        style: TextStyle(color: context.textSecondary),
+                      ),
+                    ),
+                  )
+                else
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: max(750.0, constraints.maxWidth),
+                          child: DataTable(
+                            headingRowHeight: 44,
+                            dataRowMaxHeight: 52,
+                            horizontalMargin: 12,
+                            columnSpacing: 16,
+                            columns: const [
+                              DataColumn(label: Text('DATE')),
+                              DataColumn(label: Text('EMPLOYEE NAME')),
+                              DataColumn(label: Text('AMOUNT (Rs.)')),
+                              DataColumn(label: Text('DEDUCTION/MO')),
+                              DataColumn(label: Text('STATUS')),
+                            ],
+                            rows: filteredAdvances.map((adv) {
+                              Color statusColor;
+                              switch (adv.status) {
+                                case 'Approved':
+                                  statusColor = context.success;
+                                  break;
+                                case 'Fully Paid':
+                                  statusColor = context.info;
+                                  break;
+                                case 'Rejected':
+                                  statusColor = context.error;
+                                  break;
+                                default:
+                                  statusColor = context.warning;
+                              }
+
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text(adv.requestDate, style: TextStyle(color: context.textPrimary, fontSize: 13))),
+                                  DataCell(Text(adv.employeeName, style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.w600, fontSize: 13))),
+                                  DataCell(Text('Rs. ${currencyFormat.format(adv.amount)}', style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.bold, fontSize: 13))),
+                                  DataCell(Text('Rs. ${currencyFormat.format(adv.monthlyDeduction)}/mo', style: TextStyle(color: context.textPrimary, fontSize: 13))),
+                                  DataCell(
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                                      ),
+                                      child: Text(
+                                        adv.status,
+                                        style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   //  4. PAYROLL FULL-WIDTH BREAKDOWN TABLE
   // ═══════════════════════════════════════════════════════════
   Widget _buildPayrollBreakdownCard(BuildContext context, FinancialReportFilter filter) {

@@ -6,6 +6,7 @@ import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/widgets/access_denied_screen.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import 'package:software_house_erp/features/administration/shared/widgets/admin_sub_nav.dart';
+import 'package:software_house_erp/core/localization/app_localization.dart';
 
 class RolesScreen extends ConsumerStatefulWidget {
   const RolesScreen({super.key});
@@ -19,6 +20,7 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tr = ref.watch(translationProvider);
     final state = ref.watch(adminProvider);
     final isMobile = MediaQuery.of(context).size.width < 800;
 
@@ -83,7 +85,7 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Roles & Permission Matrix (${state.userRoles.length})',
+                              '${tr('Roles & Permission Matrix')} (${state.userRoles.length})',
                               style: TextStyle(
                                 fontSize: isMobile ? 16 : 20,
                                 fontWeight: FontWeight.bold,
@@ -91,7 +93,7 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                               ),
                             ),
                             Text(
-                              'Super Admin clearance: create custom roles and configure granular ERP permissions.',
+                              tr('Super Admin clearance: create custom roles and configure granular ERP permissions.'),
                               style: TextStyle(
                                 fontSize: isMobile ? 11 : 12,
                                 color: context.textSecondary,
@@ -107,7 +109,7 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                 ElevatedButton.icon(
                   onPressed: () => _showCreateRoleDialog(context),
                   icon: const Icon(Icons.add, size: 18),
-                  label: Text(isMobile ? 'New Role' : 'Create Role'),
+                  label: Text(isMobile ? tr('New Role') : tr('Create Role')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: context.primaryColor,
                     foregroundColor: Colors.white,
@@ -284,6 +286,63 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                               role.description.isNotEmpty ? role.description : 'Standard ERP operational role',
                               style: TextStyle(fontSize: 11, color: context.textMuted),
                             ),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: [
+                                if (role.canChangePassword)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.key, size: 10, color: Colors.green),
+                                        SizedBox(width: 3),
+                                        Text('Can Change Password', style: TextStyle(fontSize: 9.5, color: Colors.green, fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
+                                  ),
+                                if (role.canChangeUsername)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.alternate_email, size: 10, color: Colors.blue),
+                                        SizedBox(width: 3),
+                                        Text('Can Change Username', style: TextStyle(fontSize: 9.5, color: Colors.blue, fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
+                                  ),
+                                if (!isSuper && !role.canChangePassword && !role.canChangeUsername)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.lock_outline, size: 10, color: Colors.amber),
+                                        SizedBox(width: 3),
+                                        Text('Credentials Super Admin Managed', style: TextStyle(fontSize: 9.5, color: Colors.amber, fontWeight: FontWeight.w500)),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
                       ],
@@ -428,27 +487,126 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: role.isActive ? Colors.green.withValues(alpha: 0.12) : Colors.red.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    role.isActive ? 'Active' : 'Inactive',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: role.isActive ? Colors.green : Colors.red,
-                    ),
-                  ),
-                ),
+                isSuper
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Active (Immutable)',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            role.isActive ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: role.isActive ? Colors.green : Colors.red,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Transform.scale(
+                            scale: 0.75,
+                            child: Switch(
+                              value: role.isActive,
+                              activeColor: Colors.green,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              onChanged: (val) async {
+                                try {
+                                  await ref.read(adminProvider.notifier).toggleRoleStatus(role.roleName, val);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Role "${role.roleName}" status updated to ${val ? "Active" : "Inactive"}.'),
+                                        backgroundColor: val ? context.success : Colors.orange,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error: $e'), backgroundColor: context.error),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
               role.description.isNotEmpty ? role.description : 'Standard ERP operational role',
               style: TextStyle(fontSize: 11, color: context.textMuted),
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (role.canChangePassword)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.key, size: 10, color: Colors.green),
+                        SizedBox(width: 3),
+                        Text('Can Change Password', style: TextStyle(fontSize: 9.5, color: Colors.green, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                if (role.canChangeUsername)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.alternate_email, size: 10, color: Colors.blue),
+                        SizedBox(width: 3),
+                        Text('Can Change Username', style: TextStyle(fontSize: 9.5, color: Colors.blue, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                if (!isSuper && !role.canChangePassword && !role.canChangeUsername)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lock_outline, size: 10, color: Colors.amber),
+                        SizedBox(width: 3),
+                        Text('Credentials SA Managed', style: TextStyle(fontSize: 9.5, color: Colors.amber, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 12),
             Row(
@@ -503,15 +661,18 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
     final descController = TextEditingController();
     final usernameController = TextEditingController();
     final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
     bool obscurePassword = true;
+    bool obscureConfirmPassword = true;
     bool isActive = true;
     bool canChangeUsername = false;
     bool canChangePassword = false;
 
     // Granular permissions map
     final permissionsMap = <AppModule, Set<PermissionAction>>{
-      AppModule.dashboard: {PermissionAction.view},
+      for (final mod in AppModule.values) mod: <PermissionAction>{},
     };
+    permissionsMap[AppModule.dashboard] = {PermissionAction.view};
 
     showDialog(
       context: context,
@@ -521,16 +682,23 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
 
           return AlertDialog(
             backgroundColor: context.cardBg,
+            insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 40, vertical: 24),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
                 Icon(Icons.add_moderator_rounded, color: context.primaryColor),
                 const SizedBox(width: 10),
-                const Text('Create Custom Role', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    'Create Custom Role',
+                    style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             content: SizedBox(
-              width: 780,
+              width: isMobile ? double.maxFinite : 780,
               child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
@@ -597,193 +765,107 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                       ),
                       const SizedBox(height: 14),
 
-                      // Credential Modification Permission Controls
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: context.scaffoldBg,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: context.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.manage_accounts_outlined, size: 16, color: context.primaryColor),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Credential Modification Controls',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: context.primaryColor),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Define whether users assigned to this role have independent permission to change username or password.',
-                              style: TextStyle(fontSize: 11, color: context.textMuted),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Icon(Icons.shield_outlined, size: 18, color: Colors.amber),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Security Policy: Super Admin Managed',
-                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.textPrimary),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Role-based users cannot change their login username or password. User credentials can only be created, modified, or reset by the Super Admin.',
-                                          style: TextStyle(fontSize: 11, color: context.textMuted, height: 1.3),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Admin Login Account (Username & Password)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: context.primaryColor.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: context.primaryColor.withValues(alpha: 0.2)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.person_add_alt_1_outlined, size: 16, color: context.primaryColor),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Set Username & Password (Optional)',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: context.primaryColor),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Admin can set username & password here to immediately create a user account for this role.',
-                              style: TextStyle(fontSize: 11, color: context.textMuted),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Username', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: context.textPrimary)),
-                                      const SizedBox(height: 4),
-                                      TextFormField(
-                                        controller: usernameController,
-                                        style: TextStyle(color: context.textPrimary, fontSize: 12),
-                                        decoration: InputDecoration(
-                                          hintText: 'e.g. hrmanager',
-                                          hintStyle: TextStyle(color: context.textMuted, fontSize: 12),
-                                          filled: true,
-                                          fillColor: context.scaffoldBg,
-                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                          prefixIcon: const Icon(Icons.alternate_email, size: 16),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: context.textPrimary)),
-                                      const SizedBox(height: 4),
-                                      TextFormField(
-                                        controller: passwordController,
-                                        obscureText: obscurePassword,
-                                        style: TextStyle(color: context.textPrimary, fontSize: 12),
-                                        decoration: InputDecoration(
-                                          hintText: 'Min 6 characters',
-                                          hintStyle: TextStyle(color: context.textMuted, fontSize: 12),
-                                          filled: true,
-                                          fillColor: context.scaffoldBg,
-                                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                          prefixIcon: const Icon(Icons.lock_outline, size: 16),
-                                          suffixIcon: IconButton(
-                                            icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility, size: 16),
-                                            onPressed: () => setDialogState(() => obscurePassword = !obscurePassword),
-                                          ),
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                      // Credential Modification Controls
+                      _buildCredentialModificationControls(
+                        context: context,
+                        usernameController: usernameController,
+                        passwordController: passwordController,
+                        confirmPasswordController: confirmPasswordController,
+                        obscurePassword: obscurePassword,
+                        onToggleObscurePassword: () => setDialogState(() => obscurePassword = !obscurePassword),
+                        obscureConfirmPassword: obscureConfirmPassword,
+                        onToggleObscureConfirmPassword: () => setDialogState(() => obscureConfirmPassword = !obscureConfirmPassword),
+                        isCreateMode: true,
                       ),
                       const Divider(height: 24),
 
                       // Permissions Matrix Header
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Granular Permissions Matrix', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: context.primaryColor)),
-                              Text('Select allowed actions (View, Create, Edit, Delete) for each ERP module', style: TextStyle(fontSize: 11, color: context.textMuted)),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              TextButton.icon(
-                                onPressed: () {
-                                  setDialogState(() {
-                                    for (final mod in matrixOrderedModules) {
-                                      if (mod.isCategoryHeader) continue;
-                                      final acts = activeMatrixActions.where((a) => _isActionSupported(mod, a));
-                                      permissionsMap[mod] = Set<PermissionAction>.from(acts);
-                                    }
-                                  });
-                                },
-                                icon: const Icon(Icons.select_all, size: 16),
-                                label: const Text('Select All', style: TextStyle(fontSize: 12)),
+                      if (isMobile)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Granular Permissions Matrix',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: context.primaryColor),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Select allowed actions for each ERP module',
+                              style: TextStyle(fontSize: 11, color: context.textMuted),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton.icon(
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      for (final mod in matrixOrderedModules) {
+                                        if (mod.isCategoryHeader) continue;
+                                        final acts = activeMatrixActions.where((a) => _isActionSupported(mod, a));
+                                        permissionsMap[mod] = Set<PermissionAction>.from(acts);
+                                      }
+                                    });
+                                  },
+                                  icon: const Icon(Icons.select_all, size: 15),
+                                  label: const Text('Select All', style: TextStyle(fontSize: 11)),
+                                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                                ),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      permissionsMap.clear();
+                                    });
+                                  },
+                                  icon: const Icon(Icons.clear_all, size: 15),
+                                  label: const Text('Clear All', style: TextStyle(fontSize: 11)),
+                                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                                ),
+                              ],
+                            ),
+                          ],
+                        )
+                      else
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Granular Permissions Matrix', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: context.primaryColor)),
+                                  Text('Select allowed actions (View, Create, Edit, Delete) for each ERP module', style: TextStyle(fontSize: 11, color: context.textMuted), overflow: TextOverflow.ellipsis),
+                                ],
                               ),
-                              TextButton.icon(
-                                onPressed: () {
-                                  setDialogState(() {
-                                    permissionsMap.clear();
-                                  });
-                                },
-                                icon: const Icon(Icons.clear_all, size: 16),
-                                label: const Text('Clear All', style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                            Row(
+                              children: [
+                                TextButton.icon(
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      for (final mod in matrixOrderedModules) {
+                                        if (mod.isCategoryHeader) continue;
+                                        final acts = activeMatrixActions.where((a) => _isActionSupported(mod, a));
+                                        permissionsMap[mod] = Set<PermissionAction>.from(acts);
+                                      }
+                                    });
+                                  },
+                                  icon: const Icon(Icons.select_all, size: 16),
+                                  label: const Text('Select All', style: TextStyle(fontSize: 12)),
+                                ),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      permissionsMap.clear();
+                                    });
+                                  },
+                                  icon: const Icon(Icons.clear_all, size: 16),
+                                  label: const Text('Clear All', style: TextStyle(fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       const SizedBox(height: 10),
 
                       // Matrix Table / Cards
@@ -806,12 +888,21 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                   final desc = descController.text.trim();
                   final uname = usernameController.text.trim();
                   final pass = passwordController.text.trim();
+                  final confirmPass = confirmPasswordController.text.trim();
 
-                  if (uname.isNotEmpty && pass.length < 6) {
-                    messenger.showSnackBar(
-                      SnackBar(content: const Text('Password must be at least 6 characters long.'), backgroundColor: context.error),
-                    );
-                    return;
+                  if (pass.isNotEmpty) {
+                    if (pass.length < 6) {
+                      messenger.showSnackBar(
+                        SnackBar(content: const Text('Password must be at least 6 characters long.'), backgroundColor: context.error),
+                      );
+                      return;
+                    }
+                    if (pass != confirmPass) {
+                      messenger.showSnackBar(
+                        SnackBar(content: const Text('Passwords do not match.'), backgroundColor: context.error),
+                      );
+                      return;
+                    }
                   }
 
                   try {
@@ -879,52 +970,24 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
     final nameController = TextEditingController(text: role.roleName);
     final descController = TextEditingController(text: role.description);
     bool isActive = role.isActive;
-    bool canChangeUsername = role.canChangeUsername;
-    bool canChangePassword = role.canChangePassword;
     bool isSaving = false;
     final isSuper = role.isSuperAdmin;
 
-    // Clone existing permissions
+    final adminState = ref.read(adminProvider);
+    final assignedUsers = adminState.users.where(
+      (u) => u.role.trim().toLowerCase() == role.roleName.trim().toLowerCase()
+    ).toList();
+    AdminUser? selectedUser = assignedUsers.firstOrNull;
+    final usernameController = TextEditingController(text: selectedUser?.username ?? '');
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscurePassword = true;
+    bool obscureConfirmPassword = true;
+
+    // Clone existing permissions exactly as stored
     final permissionsMap = <AppModule, Set<PermissionAction>>{};
-    for (final entry in role.permissions.entries) {
-      permissionsMap[entry.key] = Set<PermissionAction>.from(entry.value);
-    }
-    // Flow down legacy parent permissions to new submodules if not already explicitly configured
-    if (permissionsMap.containsKey(AppModule.finance)) {
-      final acts = permissionsMap[AppModule.finance]!;
-      for (final sub in [
-        AppModule.ledger,
-        AppModule.accounts,
-        AppModule.income,
-        AppModule.expenses,
-        AppModule.loans,
-        AppModule.personalAccounts,
-      ]) {
-        permissionsMap.putIfAbsent(sub, () => Set<PermissionAction>.from(acts));
-      }
-    }
-    if (permissionsMap.containsKey(AppModule.hr)) {
-      final acts = permissionsMap[AppModule.hr]!;
-      for (final sub in [
-        AppModule.employees,
-        AppModule.attendance,
-        AppModule.payroll,
-        AppModule.advances,
-        AppModule.employeeHistory,
-      ]) {
-        permissionsMap.putIfAbsent(sub, () => Set<PermissionAction>.from(acts));
-      }
-    }
-    if (permissionsMap.containsKey(AppModule.inventory)) {
-      final acts = permissionsMap[AppModule.inventory]!;
-      for (final sub in [AppModule.officeInventory, AppModule.assets]) {
-        permissionsMap.putIfAbsent(sub, () => Set<PermissionAction>.from(acts));
-      }
-    }
-    if (permissionsMap.containsKey(AppModule.reports)) {
-      final acts = permissionsMap[AppModule.reports]!;
-      permissionsMap.putIfAbsent(AppModule.generalReports, () => Set<PermissionAction>.from(acts));
-      permissionsMap.putIfAbsent(AppModule.financeReports, () => Set<PermissionAction>.from(acts));
+    for (final mod in AppModule.values) {
+      permissionsMap[mod] = Set<PermissionAction>.from(role.permissions[mod] ?? {});
     }
     // Dashboard only supports view
     if (permissionsMap.containsKey(AppModule.dashboard)) {
@@ -939,16 +1002,23 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
 
           return AlertDialog(
             backgroundColor: context.cardBg,
+            insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 40, vertical: 24),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
                 Icon(Icons.tune, color: context.primaryColor),
                 const SizedBox(width: 10),
-                Text('Edit Role: ${role.roleName}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    'Edit Role: ${role.roleName}',
+                    style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
             content: SizedBox(
-              width: 780,
+              width: isMobile ? double.maxFinite : 780,
               child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
@@ -1014,114 +1084,131 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        // Credential Modification Permission Controls
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: context.scaffoldBg,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: context.border),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.manage_accounts_outlined, size: 16, color: context.primaryColor),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Credential Modification Controls',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: context.primaryColor),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Define whether users assigned to this role have independent permission to change username or password.',
-                                style: TextStyle(fontSize: 11, color: context.textMuted),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(Icons.shield_outlined, size: 18, color: Colors.amber),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Security Policy: Super Admin Managed',
-                                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.textPrimary),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            'Role-based users cannot change their login username or password. User credentials can only be modified or reset by the Super Admin in Administration > Users.',
-                                            style: TextStyle(fontSize: 11, color: context.textMuted, height: 1.3),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                        // Credential Modification Controls
+                        _buildCredentialModificationControls(
+                          context: context,
+                          usernameController: usernameController,
+                          passwordController: passwordController,
+                          confirmPasswordController: confirmPasswordController,
+                          obscurePassword: obscurePassword,
+                          onToggleObscurePassword: () => setDialogState(() => obscurePassword = !obscurePassword),
+                          obscureConfirmPassword: obscureConfirmPassword,
+                          onToggleObscureConfirmPassword: () => setDialogState(() => obscureConfirmPassword = !obscureConfirmPassword),
+                          assignedUsers: assignedUsers,
+                          selectedUser: selectedUser,
+                          onUserSelected: (u) {
+                            if (u != null) {
+                              setDialogState(() {
+                                selectedUser = u;
+                                usernameController.text = u.username;
+                                passwordController.clear();
+                                confirmPasswordController.clear();
+                              });
+                            }
+                          },
+                          isCreateMode: false,
                         ),
                         const Divider(height: 24),
                       ],
 
                       // Permissions Matrix Header
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Granular Permissions Matrix', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: context.primaryColor)),
-                              Text(
-                                isSuper
-                                    ? 'Super Admin has full unrestricted system access'
-                                    : 'Configure exact module access and operation permissions',
-                                style: TextStyle(fontSize: 11, color: context.textMuted),
+                      if (isMobile)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Granular Permissions Matrix',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: context.primaryColor),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              isSuper
+                                  ? 'Super Admin has full unrestricted system access'
+                                  : 'Configure exact module access and operation permissions',
+                              style: TextStyle(fontSize: 11, color: context.textMuted),
+                            ),
+                            if (!isSuper) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        for (final mod in matrixOrderedModules) {
+                                          if (mod.isCategoryHeader) continue;
+                                          final acts = activeMatrixActions.where((a) => _isActionSupported(mod, a));
+                                          permissionsMap[mod] = Set<PermissionAction>.from(acts);
+                                        }
+                                      });
+                                    },
+                                    icon: const Icon(Icons.select_all, size: 15),
+                                    label: const Text('Select All', style: TextStyle(fontSize: 11)),
+                                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        permissionsMap.clear();
+                                      });
+                                    },
+                                    icon: const Icon(Icons.clear_all, size: 15),
+                                    label: const Text('Clear All', style: TextStyle(fontSize: 11)),
+                                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                          if (!isSuper)
-                            Row(
-                              children: [
-                                TextButton.icon(
-                                  onPressed: () {
-                                    setDialogState(() {
-                                      for (final mod in matrixOrderedModules) {
-                                        if (mod.isCategoryHeader) continue;
-                                        final acts = activeMatrixActions.where((a) => _isActionSupported(mod, a));
-                                        permissionsMap[mod] = Set<PermissionAction>.from(acts);
-                                      }
-                                    });
-                                  },
-                                  icon: const Icon(Icons.select_all, size: 16),
-                                  label: const Text('Select All', style: TextStyle(fontSize: 12)),
-                                ),
-                                TextButton.icon(
-                                  onPressed: () {
-                                    setDialogState(() {
-                                      permissionsMap.clear();
-                                    });
-                                  },
-                                  icon: const Icon(Icons.clear_all, size: 16),
-                                  label: const Text('Clear All', style: TextStyle(fontSize: 12)),
-                                ),
-                              ],
+                          ],
+                        )
+                      else
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Granular Permissions Matrix', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: context.primaryColor)),
+                                  Text(
+                                    isSuper
+                                        ? 'Super Admin has full unrestricted system access'
+                                        : 'Configure exact module access and operation permissions',
+                                    style: TextStyle(fontSize: 11, color: context.textMuted),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
-                        ],
-                      ),
+                            if (!isSuper)
+                              Row(
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        for (final mod in matrixOrderedModules) {
+                                          if (mod.isCategoryHeader) continue;
+                                          final acts = activeMatrixActions.where((a) => _isActionSupported(mod, a));
+                                          permissionsMap[mod] = Set<PermissionAction>.from(acts);
+                                        }
+                                      });
+                                    },
+                                    icon: const Icon(Icons.select_all, size: 16),
+                                    label: const Text('Select All', style: TextStyle(fontSize: 12)),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () {
+                                      setDialogState(() {
+                                        permissionsMap.clear();
+                                      });
+                                    },
+                                    icon: const Icon(Icons.clear_all, size: 16),
+                                    label: const Text('Clear All', style: TextStyle(fontSize: 12)),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
                       const SizedBox(height: 10),
 
                       if (isSuper)
@@ -1166,6 +1253,23 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                           final messenger = ScaffoldMessenger.of(context);
                           final newRoleName = nameController.text.trim();
                           final desc = descController.text.trim();
+                          final pass = passwordController.text.trim();
+                          final confirmPass = confirmPasswordController.text.trim();
+
+                          if (pass.isNotEmpty) {
+                            if (pass.length < 6) {
+                              messenger.showSnackBar(
+                                SnackBar(content: const Text('New password must be at least 6 characters long.'), backgroundColor: context.error),
+                              );
+                              return;
+                            }
+                            if (pass != confirmPass) {
+                              messenger.showSnackBar(
+                                SnackBar(content: const Text('Passwords do not match.'), backgroundColor: context.error),
+                              );
+                              return;
+                            }
+                          }
 
                           final successColor = context.success;
                           final errorColor = context.error;
@@ -1177,13 +1281,45 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                               newRoleName: newRoleName,
                               description: desc.isNotEmpty ? desc : role.description,
                               isActive: isActive,
-                              canChangeUsername: canChangeUsername,
-                              canChangePassword: canChangePassword,
+                              canChangeUsername: false,
+                              canChangePassword: false,
                               permissions: permissionsMap,
                             );
+
+                            final newUsername = usernameController.text.trim();
+                            if (selectedUser != null) {
+                              if (newUsername.isNotEmpty && newUsername != selectedUser!.username) {
+                                await ref.read(adminProvider.notifier).updateUser(
+                                  selectedUser!.copyWith(
+                                    username: newUsername,
+                                    email: selectedUser!.email.contains('@')
+                                        ? '$newUsername@${selectedUser!.email.split('@').last}'
+                                        : '$newUsername@hhtech.com',
+                                  ),
+                                );
+                              }
+                              if (pass.isNotEmpty) {
+                                await ref.read(adminProvider.notifier).resetUserPassword(
+                                  selectedUser!.id,
+                                  pass,
+                                );
+                              }
+                            } else if (newUsername.isNotEmpty && pass.isNotEmpty) {
+                              final newUser = AdminUser(
+                                id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
+                                name: newRoleName,
+                                username: newUsername,
+                                email: '$newUsername@hhtech.com',
+                                role: newRoleName,
+                                status: isActive ? 'Active' : 'Inactive',
+                                lastActive: 'Never',
+                              );
+                              await ref.read(adminProvider.notifier).addUser(newUser, password: pass);
+                            }
+
                             if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
                             messenger.showSnackBar(
-                              SnackBar(content: Text('Permissions updated for role "$newRoleName"!'), backgroundColor: successColor),
+                              SnackBar(content: Text('Permissions and credentials updated for role "$newRoleName"!'), backgroundColor: successColor),
                             );
                           } catch (e) {
                             if (dialogCtx.mounted) {
@@ -1385,13 +1521,16 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                     children: [
                       Icon(module.icon, size: 17, color: context.primaryColor),
                       const SizedBox(width: 8),
-                      Text(
-                        module.displayName,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: context.primaryColor,
-                          letterSpacing: 0.2,
+                      Expanded(
+                        child: Text(
+                          module.displayName,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: context.primaryColor,
+                            letterSpacing: 0.2,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1410,8 +1549,6 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                           ),
                         ),
                       ),
-                      const Spacer(),
-                      // Explicitly NO checkboxes on the right of category header!
                     ],
                   ),
                 );
@@ -1433,28 +1570,26 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  if (isSub) const SizedBox(width: 14),
-                                  if (isSub)
-                                    Icon(Icons.subdirectory_arrow_right,
-                                        size: 14, color: context.textMuted.withValues(alpha: 0.5)),
-                                  if (isSub) const SizedBox(width: 4),
-                                  Icon(module.icon,
-                                      size: 16,
-                                      color: granted.isNotEmpty ? context.primaryColor : context.textMuted),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    module.displayName,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: isSub ? FontWeight.normal : FontWeight.bold,
-                                      color: context.textPrimary,
-                                    ),
+                              if (isSub) const SizedBox(width: 14),
+                              if (isSub)
+                                Icon(Icons.subdirectory_arrow_right,
+                                    size: 14, color: context.textMuted.withValues(alpha: 0.5)),
+                              if (isSub) const SizedBox(width: 4),
+                              Icon(module.icon,
+                                  size: 16,
+                                  color: granted.isNotEmpty ? context.primaryColor : context.textMuted),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  module.displayName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: isSub ? FontWeight.normal : FontWeight.bold,
+                                    color: context.textPrimary,
                                   ),
-                                ],
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                               Checkbox(
                                 value: allChecked,
@@ -1768,6 +1903,358 @@ class _RolesScreenState extends ConsumerState<RolesScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildCredentialModificationControls({
+    required BuildContext context,
+    required TextEditingController usernameController,
+    required TextEditingController passwordController,
+    required TextEditingController confirmPasswordController,
+    required bool obscurePassword,
+    required VoidCallback onToggleObscurePassword,
+    required bool obscureConfirmPassword,
+    required VoidCallback onToggleObscureConfirmPassword,
+    List<AdminUser> assignedUsers = const [],
+    AdminUser? selectedUser,
+    ValueChanged<AdminUser?>? onUserSelected,
+    bool isCreateMode = false,
+  }) {
+    final isMobile = MediaQuery.of(context).size.width < 700;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.primaryColor.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: context.primaryColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isMobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: context.primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(Icons.manage_accounts_outlined, size: 16, color: context.primaryColor),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Credential Modification Controls',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: context.primaryColor),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.shield_outlined, size: 12, color: Colors.amber),
+                      SizedBox(width: 4),
+                      Text(
+                        'Super Admin Managed',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: context.primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(Icons.manage_accounts_outlined, size: 16, color: context.primaryColor),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Credential Modification Controls',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: context.primaryColor),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.shield_outlined, size: 12, color: Colors.amber),
+                      SizedBox(width: 4),
+                      Text(
+                        'Super Admin Managed',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          const SizedBox(height: 6),
+          Text(
+            isCreateMode
+                ? 'Set login credentials for this role. Only Super Admin can modify or reset these credentials.'
+                : 'Modify login username or set/reset password for this role. Role-based users cannot change credentials from their own login.',
+            style: TextStyle(fontSize: 11, color: context.textMuted),
+          ),
+          const SizedBox(height: 12),
+
+          // If multiple users assigned to this role in edit mode, show account selector
+          if (!isCreateMode && assignedUsers.length > 1) ...[
+            Text(
+              'Select User Account to Modify',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: context.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<AdminUser>(
+              initialValue: selectedUser,
+              dropdownColor: context.cardBg,
+              isExpanded: true,
+              style: TextStyle(color: context.textPrimary, fontSize: 12),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: context.scaffoldBg,
+                prefixIcon: const Icon(Icons.person_outline, size: 16),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              items: assignedUsers.map((u) {
+                return DropdownMenuItem(
+                  value: u,
+                  child: Text('${u.name} (@${u.username.isNotEmpty ? u.username : u.email})'),
+                );
+              }).toList(),
+              onChanged: onUserSelected,
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Username Field
+          Text(
+            'Username / Login ID',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: context.textPrimary),
+          ),
+          const SizedBox(height: 4),
+          TextFormField(
+            controller: usernameController,
+            style: TextStyle(color: context.textPrimary, fontSize: 12),
+            decoration: InputDecoration(
+              hintText: 'e.g. accountant, hrmanager',
+              hintStyle: TextStyle(color: context.textMuted, fontSize: 12),
+              filled: true,
+              fillColor: context.scaffoldBg,
+              prefixIcon: const Icon(Icons.alternate_email, size: 16),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Password and Confirm Password Fields
+          if (isMobile) ...[
+            Text(
+              isCreateMode ? 'Password' : 'New Password (leave blank to keep unchanged)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: context.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            TextFormField(
+              controller: passwordController,
+              obscureText: obscurePassword,
+              style: TextStyle(color: context.textPrimary, fontSize: 12),
+              decoration: InputDecoration(
+                hintText: isCreateMode ? 'Min 6 characters' : 'Enter new password',
+                hintStyle: TextStyle(color: context.textMuted, fontSize: 12),
+                filled: true,
+                fillColor: context.scaffoldBg,
+                prefixIcon: const Icon(Icons.lock_outline, size: 16),
+                suffixIcon: IconButton(
+                  icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility, size: 16),
+                  onPressed: onToggleObscurePassword,
+                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              validator: (val) {
+                if (val != null && val.isNotEmpty && val.length < 6) {
+                  return 'Password must be at least 6 characters';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Confirm Password',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: context.textPrimary),
+            ),
+            const SizedBox(height: 4),
+            TextFormField(
+              controller: confirmPasswordController,
+              obscureText: obscureConfirmPassword,
+              style: TextStyle(color: context.textPrimary, fontSize: 12),
+              decoration: InputDecoration(
+                hintText: 'Re-enter password',
+                hintStyle: TextStyle(color: context.textMuted, fontSize: 12),
+                filled: true,
+                fillColor: context.scaffoldBg,
+                prefixIcon: const Icon(Icons.lock_reset, size: 16),
+                suffixIcon: IconButton(
+                  icon: Icon(obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, size: 16),
+                  onPressed: onToggleObscureConfirmPassword,
+                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              validator: (val) {
+                if (passwordController.text.isNotEmpty) {
+                  if (val == null || val.isEmpty) return 'Confirm password';
+                  if (val != passwordController.text) return 'Passwords do not match';
+                }
+                return null;
+              },
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isCreateMode ? 'Password' : 'New Password (blank = unchanged)',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: context.textPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      TextFormField(
+                        controller: passwordController,
+                        obscureText: obscurePassword,
+                        style: TextStyle(color: context.textPrimary, fontSize: 12),
+                        decoration: InputDecoration(
+                          hintText: isCreateMode ? 'Min 6 characters' : 'Enter new password',
+                          hintStyle: TextStyle(color: context.textMuted, fontSize: 12),
+                          filled: true,
+                          fillColor: context.scaffoldBg,
+                          prefixIcon: const Icon(Icons.lock_outline, size: 16),
+                          suffixIcon: IconButton(
+                            icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility, size: 16),
+                            onPressed: onToggleObscurePassword,
+                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        ),
+                        validator: (val) {
+                          if (val != null && val.isNotEmpty && val.length < 6) {
+                            return 'Min 6 characters';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Confirm Password',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: context.textPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      TextFormField(
+                        controller: confirmPasswordController,
+                        obscureText: obscureConfirmPassword,
+                        style: TextStyle(color: context.textPrimary, fontSize: 12),
+                        decoration: InputDecoration(
+                          hintText: 'Re-enter password',
+                          hintStyle: TextStyle(color: context.textMuted, fontSize: 12),
+                          filled: true,
+                          fillColor: context.scaffoldBg,
+                          prefixIcon: const Icon(Icons.lock_reset, size: 16),
+                          suffixIcon: IconButton(
+                            icon: Icon(obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, size: 16),
+                            onPressed: onToggleObscureConfirmPassword,
+                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        ),
+                        validator: (val) {
+                          if (passwordController.text.isNotEmpty) {
+                            if (val == null || val.isEmpty) return 'Confirm password';
+                            if (val != passwordController.text) return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+
+          // Security Policy Banner
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.25)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.shield_outlined, size: 14, color: Colors.amber),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Super Admin Exclusive: Only Super Admin can change credentials from here. Role-based users cannot change their username or password from their own login.',
+                    style: TextStyle(fontSize: 10.5, color: Colors.amber),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

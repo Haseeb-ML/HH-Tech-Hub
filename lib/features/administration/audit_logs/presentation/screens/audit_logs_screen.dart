@@ -137,11 +137,13 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
   }
 
   void _showLogDetailsDialog(BuildContext context, AuditLog log) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
           backgroundColor: context.cardBg,
+          insetPadding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 40, vertical: 24),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
@@ -163,7 +165,7 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
             ],
           ),
           content: SizedBox(
-            width: 520,
+            width: isMobile ? double.maxFinite : 520,
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,7 +320,7 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
           // Screen Content
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 12 : 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -472,10 +474,13 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Filter Header Row with Active Count & Clear Button
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            runSpacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(Icons.tune, size: 20, color: context.primaryColor),
                                   const SizedBox(width: 8),
@@ -565,6 +570,7 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
                               final moduleDropdown = DropdownButtonFormField<String>(
                                 value: state.moduleFilter,
                                 dropdownColor: context.cardBg,
+                                isExpanded: true,
                                 style: TextStyle(color: context.textPrimary, fontSize: 13),
                                 decoration: InputDecoration(
                                   labelText: tr('Module Scope'),
@@ -582,15 +588,15 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
                                   ),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'All', child: Text('All Modules')),
-                                  DropdownMenuItem(value: 'HR', child: Text('HR & Attendance')),
-                                  DropdownMenuItem(value: 'Finance', child: Text('Finance & Accounts')),
-                                  DropdownMenuItem(value: 'Projects', child: Text('Projects & Tasks')),
-                                  DropdownMenuItem(value: 'Inventory', child: Text('Inventory & Assets')),
-                                  DropdownMenuItem(value: 'Sales', child: Text('Sales & Purchases')),
-                                  DropdownMenuItem(value: 'Clients', child: Text('Clients Directory')),
-                                  DropdownMenuItem(value: 'Administration', child: Text('Administration')),
-                                  DropdownMenuItem(value: 'Security', child: Text('Security & Logins')),
+                                  DropdownMenuItem(value: 'All', child: Text('All Modules', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'HR', child: Text('HR & Attendance', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'Finance', child: Text('Finance & Accounts', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'Projects', child: Text('Projects & Tasks', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'Inventory', child: Text('Inventory & Assets', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'Sales', child: Text('Sales & Purchases', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'Clients', child: Text('Clients Directory', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'Administration', child: Text('Administration', overflow: TextOverflow.ellipsis)),
+                                  DropdownMenuItem(value: 'Security', child: Text('Security & Logins', overflow: TextOverflow.ellipsis)),
                                 ],
                                 onChanged: (val) {
                                   if (val != null) {
@@ -621,7 +627,7 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
                                   ),
                                 ),
                                 items: [
-                                  const DropdownMenuItem(value: 'All', child: Text('All Assigned Roles')),
+                                  const DropdownMenuItem(value: 'All', child: Text('All Assigned Roles', overflow: TextOverflow.ellipsis)),
                                   ...sortedRoles.map((r) => DropdownMenuItem(
                                     value: r,
                                     child: Text(r, overflow: TextOverflow.ellipsis),
@@ -633,6 +639,20 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
                                   }
                                 },
                               );
+
+                              final isMobile = constraints.maxWidth < 600;
+
+                              if (isMobile) {
+                                return Column(
+                                  children: [
+                                    searchField,
+                                    const SizedBox(height: 12),
+                                    moduleDropdown,
+                                    const SizedBox(height: 12),
+                                    roleDropdown,
+                                  ],
+                                );
+                              }
 
                               if (isNarrow) {
                                 return Column(
@@ -826,23 +846,50 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
                           // Table Header with row count
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Showing $totalFiltered of ${state.logs.length} audit logs',
-                                  style: TextStyle(
-                                    color: context.textSecondary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                if (filteredLogs.isNotEmpty)
-                                  Text(
-                                    'Click any row to view full details',
-                                    style: TextStyle(color: context.textMuted, fontSize: 12, fontStyle: FontStyle.italic),
-                                  ),
-                              ],
+                            child: LayoutBuilder(
+                              builder: (context, thConstraints) {
+                                final isCompact = thConstraints.maxWidth < 550;
+                                if (isCompact) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Showing $totalFiltered of ${state.logs.length} audit logs',
+                                        style: TextStyle(
+                                          color: context.textSecondary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      if (filteredLogs.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Click any row to view full details',
+                                          style: TextStyle(color: context.textMuted, fontSize: 12, fontStyle: FontStyle.italic),
+                                        ),
+                                      ],
+                                    ],
+                                  );
+                                }
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Showing $totalFiltered of ${state.logs.length} audit logs',
+                                      style: TextStyle(
+                                        color: context.textSecondary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (filteredLogs.isNotEmpty)
+                                      Text(
+                                        'Click any row to view full details',
+                                        style: TextStyle(color: context.textMuted, fontSize: 12, fontStyle: FontStyle.italic),
+                                      ),
+                                  ],
+                                );
+                              },
                             ),
                           ),
 
@@ -1040,40 +1087,83 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
                             const SizedBox(height: 16),
                             const Divider(height: 1),
                             const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Showing ${startIndex + 1} to ${math.min(startIndex + _pageSize, totalFiltered)} of $totalFiltered entries',
-                                  style: TextStyle(color: context.textSecondary, fontSize: 12),
-                                ),
-                                Row(
+                            LayoutBuilder(
+                              builder: (context, pConstraints) {
+                                if (pConstraints.maxWidth < 500) {
+                                  return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Showing ${startIndex + 1} to ${math.min(startIndex + _pageSize, totalFiltered)} of $totalFiltered entries',
+                                        style: TextStyle(color: context.textSecondary, fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          IconButton.outlined(
+                                            icon: const Icon(Icons.chevron_left, size: 18),
+                                            tooltip: 'Previous Page',
+                                            onPressed: currentPage > 1
+                                                ? () => setState(() => _currentPage = currentPage - 1)
+                                                : null,
+                                            visualDensity: VisualDensity.compact,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Page $currentPage of $totalPages',
+                                            style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          IconButton.outlined(
+                                            icon: const Icon(Icons.chevron_right, size: 18),
+                                            tooltip: 'Next Page',
+                                            onPressed: currentPage < totalPages
+                                                ? () => setState(() => _currentPage = currentPage + 1)
+                                                : null,
+                                            visualDensity: VisualDensity.compact,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  );
+                                }
+                                return Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    IconButton.outlined(
-                                      icon: const Icon(Icons.chevron_left, size: 18),
-                                      tooltip: 'Previous Page',
-                                      onPressed: currentPage > 1
-                                          ? () => setState(() => _currentPage = currentPage - 1)
-                                          : null,
-                                      visualDensity: VisualDensity.compact,
-                                    ),
-                                    const SizedBox(width: 8),
                                     Text(
-                                      'Page $currentPage of $totalPages',
-                                      style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                                      'Showing ${startIndex + 1} to ${math.min(startIndex + _pageSize, totalFiltered)} of $totalFiltered entries',
+                                      style: TextStyle(color: context.textSecondary, fontSize: 12),
                                     ),
-                                    const SizedBox(width: 8),
-                                    IconButton.outlined(
-                                      icon: const Icon(Icons.chevron_right, size: 18),
-                                      tooltip: 'Next Page',
-                                      onPressed: currentPage < totalPages
-                                          ? () => setState(() => _currentPage = currentPage + 1)
-                                          : null,
-                                      visualDensity: VisualDensity.compact,
+                                    Row(
+                                      children: [
+                                        IconButton.outlined(
+                                          icon: const Icon(Icons.chevron_left, size: 18),
+                                          tooltip: 'Previous Page',
+                                          onPressed: currentPage > 1
+                                              ? () => setState(() => _currentPage = currentPage - 1)
+                                              : null,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Page $currentPage of $totalPages',
+                                          style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        IconButton.outlined(
+                                          icon: const Icon(Icons.chevron_right, size: 18),
+                                          tooltip: 'Next Page',
+                                          onPressed: currentPage < totalPages
+                                              ? () => setState(() => _currentPage = currentPage + 1)
+                                              : null,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      ],
                                     ),
                                   ],
-                                ),
-                              ],
+                                );
+                              },
                             ),
                           ],
                         ],

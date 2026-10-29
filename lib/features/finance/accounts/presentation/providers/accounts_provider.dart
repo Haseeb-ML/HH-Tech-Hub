@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:software_house_erp/core/services/database_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/bank_account.dart';
@@ -11,6 +12,7 @@ import '../../../ledger/presentation/providers/ledger_provider.dart';
 import 'package:software_house_erp/core/services/cloud_sync_service.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
 
 
 
@@ -170,6 +172,12 @@ class AccountsNotifier extends Notifier<AccountsState> {
   @override
   AccountsState build() {
     _loadAccounts();
+    ref.listen<SyncState>(cloudSyncStateProvider, (previous, next) {
+      if ((next.status == SyncStatus.success || next.status == SyncStatus.offline) &&
+          previous?.status == SyncStatus.syncing) {
+        _loadAccounts();
+      }
+    });
     return const AccountsState(
       accounts: [],
       isLoading: true,
@@ -180,74 +188,7 @@ class AccountsNotifier extends Notifier<AccountsState> {
 
   Future<void> _loadAccounts() async {
     try {
-      var list = await _repository.getAccounts();
-
-      final hasHassan = list.any((a) =>
-          a.accountScope == 'Personal' &&
-          (a.name.toLowerCase().contains('hassan') || a.ownerName.toLowerCase().contains('hassan')));
-
-      final hasHuzaifa = list.any((a) =>
-          a.accountScope == 'Personal' &&
-          (a.name.toLowerCase().contains('huzaifa') || a.ownerName.toLowerCase().contains('huzaifa')));
-
-      bool updated = false;
-
-      if (!hasHassan) {
-        final existing = list.where((a) => a.id == 'acc_personal_hassan').firstOrNull;
-        if (existing != null) {
-          await _repository.updateAccount(existing.copyWith(
-            accountScope: 'Personal',
-            ownerName: 'Hassan',
-            openingBalance: existing.openingBalance > 0 ? existing.openingBalance : existing.balance,
-          ));
-        } else {
-          const hassanAcc = BankAccount(
-            id: 'acc_personal_hassan',
-            name: 'Hassan Personal Account',
-            type: 'Bank',
-            bankName: 'Personal Bank',
-            accountNumber: 'PK-HASSAN-01',
-            balance: 0.0,
-            openingBalance: 0.0,
-            accountScope: 'Personal',
-            ownerName: 'Hassan',
-            status: 'Active',
-          );
-          await _repository.addAccount(hassanAcc);
-        }
-        updated = true;
-      }
-
-      if (!hasHuzaifa) {
-        final existing = list.where((a) => a.id == 'acc_personal_huzaifa').firstOrNull;
-        if (existing != null) {
-          await _repository.updateAccount(existing.copyWith(
-            accountScope: 'Personal',
-            ownerName: 'Huzaifa',
-            openingBalance: existing.openingBalance > 0 ? existing.openingBalance : existing.balance,
-          ));
-        } else {
-          const huzaifaAcc = BankAccount(
-            id: 'acc_personal_huzaifa',
-            name: 'Huzaifa Personal Account',
-            type: 'Bank',
-            bankName: 'Personal Bank',
-            accountNumber: 'PK-HUZAIFA-02',
-            balance: 0.0,
-            openingBalance: 0.0,
-            accountScope: 'Personal',
-            ownerName: 'Huzaifa',
-            status: 'Active',
-          );
-          await _repository.addAccount(huzaifaAcc);
-        }
-        updated = true;
-      }
-
-      if (updated) {
-        list = await _repository.getAccounts();
-      }
-
+      final list = await _repository.getAccounts();
       state = state.copyWith(accounts: list, isLoading: false);
       syncBalancesFromDb();
     } catch (_) {
@@ -343,16 +284,39 @@ class AccountsNotifier extends Notifier<AccountsState> {
       throw Exception('Access Denied: You do not have permission to delete accounts.');
     }
 
-    if (id == 'acc_personal_hassan' ||
-      id == 'acc_personal_huzaifa') {
-      // Permanent accounts cannot be deleted
-      return;
+    // Find target account from state or repository
+    BankAccount? targetAccount = state.accounts.where((a) => a.id == id).firstOrNull;
+    if (targetAccount == null || targetAccount.name.isEmpty) {
+      try {
+        final allAccs = await _repository.getAccounts();
+        targetAccount = allAccs.where((a) => a.id == id).firstOrNull;
+      } catch (_) {}
     }
+
     state = state.copyWith(isLoading: true);
+
+    // Save to Recycle Bin / Recovery Provider BEFORE deleting from repository
+    if (targetAccount != null && targetAccount.name.isNotEmpty) {
+      try {
+        final currentUser = adminState.currentUser?.name ?? 'Admin';
+        final scopeLabel = targetAccount.accountScope.isNotEmpty ? targetAccount.accountScope : (targetAccount.isPersonal ? 'Personal' : 'Company');
+        await ref.read(recoveryProvider.notifier).addDeletedItem(
+          id: targetAccount.id,
+          itemType: 'Account',
+          title: targetAccount.name,
+          subtitle: '${targetAccount.type} Account ($scopeLabel) • Balance: PKRs ${targetAccount.balance.toStringAsFixed(2)}',
+          jsonData: targetAccount.toMap(),
+          deletedBy: currentUser,
+        );
+      } catch (e) {
+        debugPrint('Error saving deleted account to recycle bin: $e');
+      }
+    }
+
     await _repository.deleteAccount(id);
 
     ref.read(adminProvider.notifier).logAction(
-      action: 'Deleted account: $id',
+      action: 'Deleted account: ${targetAccount?.name ?? id}',
       module: 'Finance',
     );
 

@@ -281,13 +281,7 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                ledgerEntries: ledgerState.entries,
                              );
 
-                            final isPermanent = acc.id == 'acc_personal_hassan' ||
-                                acc.id == 'acc_personal_huzaifa' ||
-                                (acc.accountScope == 'Personal' &&
-                                    (acc.name.toLowerCase().contains('hassan') ||
-                                        acc.name
-                                            .toLowerCase()
-                                            .contains('huzaifa')));
+                            // Permanent check removed
 
                             return Material(
                               color: Colors.transparent,
@@ -337,42 +331,6 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                           ),
                                           Row(
                                             children: [
-                                              if (isPermanent)
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                          horizontal: 6,
-                                                          vertical: 2.5),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.blue
-                                                        .withValues(alpha: 0.1),
-                                                    borderRadius:
-                                                        BorderRadius.circular(4),
-                                                    border: Border.all(
-                                                        color: Colors.blue
-                                                            .withValues(
-                                                                alpha: 0.3)),
-                                                  ),
-                                                  child: const Row(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      Icon(Icons.verified,
-                                                          size: 10,
-                                                          color: Colors.blue),
-                                                      SizedBox(width: 3),
-                                                      Text(
-                                                        'Permanent',
-                                                        style: TextStyle(
-                                                          color: Colors.blue,
-                                                          fontSize: 9,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              const SizedBox(width: 4),
                                               PopupMenuButton<String>(
                                                 icon: Icon(Icons.more_vert,
                                                     size: 18,
@@ -395,7 +353,6 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                                       await ref.read(accountsProvider.notifier).updateAccount(result);
                                                     }
                                                   } else if (val == 'delete' && canDeleteAccount) {
-                                                    if (isPermanent) return;
                                                     final confirm =
                                                         await showDialog<bool>(
                                                       context: context,
@@ -460,7 +417,7 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                                                   .textPrimary,
                                                               fontSize: 13)),
                                                     ),
-                                                  if (!isPermanent && canDeleteAccount)
+                                                  if (canDeleteAccount)
                                                     PopupMenuItem(
                                                       value: 'delete',
                                                       child: Text(

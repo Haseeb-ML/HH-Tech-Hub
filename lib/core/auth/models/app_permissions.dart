@@ -377,6 +377,14 @@ class UserRole {
     if (isSuperAdmin) return true; // Super Admin has non-restrictable full ERP access
     if (!isActive) return false; // Inactive roles grant no permissions
 
+    // If module is a category header, it has permission if ANY of its child sub-modules have permission
+    if (module.isCategoryHeader) {
+      final children = AppModule.values.where((m) => m.parentModule == module);
+      if (children.isNotEmpty) {
+        return children.any((child) => hasPermission(child, action));
+      }
+    }
+
     // 1. Direct permission check: if this module is explicitly configured in permissions map
     if (permissions.containsKey(module)) {
       final modulePerms = permissions[module]!;
@@ -391,42 +399,6 @@ class UserRole {
       final parentPerms = permissions[parent]!;
       if (parentPerms.contains(PermissionAction.manage)) return true;
       return parentPerms.contains(action);
-    }
-
-    // 3. Fallback compatibility with legacy role strings
-    if (module == AppModule.ledger && permissions.containsKey(AppModule.finance)) {
-      return permissions[AppModule.finance]!.contains(action);
-    }
-    if (module == AppModule.personalAccounts && permissions.containsKey(AppModule.accounts)) {
-      return permissions[AppModule.accounts]!.contains(action);
-    }
-    if (module == AppModule.financeReports &&
-        (permissions.containsKey(AppModule.reports) || permissions.containsKey(AppModule.finance))) {
-      return (permissions[AppModule.reports]?.contains(action) ?? false) ||
-          (permissions[AppModule.finance]?.contains(action) ?? false);
-    }
-    if (module == AppModule.advances && permissions.containsKey(AppModule.payroll)) {
-      return permissions[AppModule.payroll]!.contains(action);
-    }
-    if (module == AppModule.employeeHistory && permissions.containsKey(AppModule.employees)) {
-      return permissions[AppModule.employees]!.contains(action);
-    }
-    if (module == AppModule.officeInventory && permissions.containsKey(AppModule.inventory)) {
-      return permissions[AppModule.inventory]!.contains(action);
-    }
-    if (module == AppModule.generalReports && permissions.containsKey(AppModule.reports)) {
-      return permissions[AppModule.reports]!.contains(action);
-    }
-    if ((module == AppModule.projectsList || module == AppModule.tasks || module == AppModule.timesheets) &&
-        permissions.containsKey(AppModule.projects)) {
-      return permissions[AppModule.projects]!.contains(action);
-    }
-    if (module == AppModule.projects) {
-      if (hasPermission(AppModule.projectsList, action) ||
-          hasPermission(AppModule.tasks, action) ||
-          hasPermission(AppModule.timesheets, action)) {
-        return true;
-      }
     }
 
     return false;

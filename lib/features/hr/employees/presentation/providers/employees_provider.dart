@@ -5,6 +5,7 @@ import '../../domain/repositories/employees_repository.dart';
 import '../../data/repositories/employees_repository_impl.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
 
 
 class EmployeesState {
@@ -134,6 +135,18 @@ class EmployeesNotifier extends Notifier<EmployeesState> {
 
     final found = state.employees.where((e) => e.id == id).firstOrNull;
     final empName = found != null ? found.name : 'ID $id';
+
+    if (found != null) {
+      final currentUser = adminState.currentUser?.name ?? 'Admin';
+      await ref.read(recoveryProvider.notifier).addDeletedItem(
+        id: found.id,
+        itemType: 'Employee',
+        title: found.name,
+        subtitle: '${found.designation} (${found.department})',
+        jsonData: found.toMap(),
+        deletedBy: currentUser,
+      );
+    }
 
     state = state.copyWith(isLoading: true);
     await _repository.deleteEmployee(id);

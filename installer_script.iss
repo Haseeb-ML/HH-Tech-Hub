@@ -1,21 +1,26 @@
+; Script generated for HH Tech Hub ERP Inno Setup Installer
+
 #define MyAppName "HH Tech Hub ERP"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "HH Tech Hub"
+#define MyAppURL "https://hhtechhub.com"
 #define MyAppExeName "software_house_erp.exe"
-#define SourcePath "build\windows\x64\runner\Release"
 
 [Setup]
-AppId={{9F7B5E2C-A4D9-4D88-B05F-2947E9CA1B77}
+; NOTE: The value of AppId uniquely identifies this application.
+AppId={{D37B4785-3A21-4E89-9A24-F8E1528652A1}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}
+AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
-PrivilegesRequired=lowest
-OutputDir=installer
-OutputBaseFilename=HH_Tech_Hub_ERP_Setup
-SetupIconFile=windows\runner\resources\app_icon.ico
-Compression=lzma
+; Output location and setup filename
+OutputDir=c:\Users\M HASEEB\Desktop\HHTechSoftwareHouseERP-main\build\installer
+OutputBaseFilename=HHTechERP_Setup_v1.0.0
+Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 
@@ -26,12 +31,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "{#SourcePath}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourcePath}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SourcePath}\data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Main Executable
+Source: "c:\Users\M HASEEB\Desktop\HHTechSoftwareHouseERP-main\build\windows\x64\runner\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; All DLLs and Data folder
+Source: "c:\Users\M HASEEB\Desktop\HHTechSoftwareHouseERP-main\build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]

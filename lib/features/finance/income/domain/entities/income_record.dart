@@ -57,6 +57,25 @@ class IncomeRecord {
     );
   }
 
+  /// Orderly formatted Receipt ID (e.g. rec_0001, rec_0002)
+  String get receiptId {
+    if (id.startsWith('rec_')) {
+      final sub = id.substring(4);
+      final numVal = int.tryParse(sub);
+      if (numVal != null) return 'rec_${numVal.toString().padLeft(4, '0')}';
+      if (sub.length >= 4) {
+        final last4 = int.tryParse(sub.substring(sub.length - 4));
+        if (last4 != null) return 'rec_${last4.toString().padLeft(4, '0')}';
+      }
+    }
+    final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isNotEmpty) {
+      final numVal = int.tryParse(digits.length > 4 ? digits.substring(digits.length - 4) : digits) ?? 1;
+      return 'rec_${numVal.toString().padLeft(4, '0')}';
+    }
+    return 'rec_0001';
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

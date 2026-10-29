@@ -3,6 +3,7 @@ class Employee {
   final String name;
   final String email;
   final List<String> phones;
+  final String cnic;
   final String designation;
   final String department;
   final String joiningDate;
@@ -17,6 +18,7 @@ class Employee {
     required this.name,
     required this.email,
     required this.phones,
+    this.cnic = '',
     required this.designation,
     required this.department,
     required this.joiningDate,
@@ -32,6 +34,7 @@ class Employee {
     String? name,
     String? email,
     List<String>? phones,
+    String? cnic,
     String? designation,
     String? department,
     String? joiningDate,
@@ -46,6 +49,7 @@ class Employee {
       name: name ?? this.name,
       email: email ?? this.email,
       phones: phones ?? this.phones,
+      cnic: cnic ?? this.cnic,
       designation: designation ?? this.designation,
       department: department ?? this.department,
       joiningDate: joiningDate ?? this.joiningDate,
@@ -63,6 +67,7 @@ class Employee {
       'name': name,
       'email': email,
       'phones': phones,
+      'cnic': cnic,
       'designation': designation,
       'department': department,
       'joiningDate': joiningDate,
@@ -80,6 +85,7 @@ class Employee {
       name: map['name'] ?? '',
       email: map['email'] ?? '',
       phones: List<String>.from(map['phones'] ?? (map['phone'] != null ? [map['phone']] : [])),
+      cnic: map['cnic'] ?? '',
       designation: map['designation'] ?? '',
       department: map['department'] ?? '',
       joiningDate: map['joiningDate'] ?? '',

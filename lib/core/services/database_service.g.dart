@@ -2223,6 +2223,54 @@ class $BankAccountsTableTable extends BankAccountsTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _openingBalanceMeta = const VerificationMeta(
+    'openingBalance',
+  );
+  @override
+  late final GeneratedColumn<double> openingBalance = GeneratedColumn<double>(
+    'opening_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _openingBalanceDateMeta =
+      const VerificationMeta('openingBalanceDate');
+  @override
+  late final GeneratedColumn<String> openingBalanceDate =
+      GeneratedColumn<String>(
+        'opening_balance_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _accountScopeMeta = const VerificationMeta(
+    'accountScope',
+  );
+  @override
+  late final GeneratedColumn<String> accountScope = GeneratedColumn<String>(
+    'account_scope',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Company'),
+  );
+  static const VerificationMeta _ownerNameMeta = const VerificationMeta(
+    'ownerName',
+  );
+  @override
+  late final GeneratedColumn<String> ownerName = GeneratedColumn<String>(
+    'owner_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2232,6 +2280,10 @@ class $BankAccountsTableTable extends BankAccountsTable
     bankName,
     balance,
     status,
+    openingBalance,
+    openingBalanceDate,
+    accountScope,
+    ownerName,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2301,6 +2353,39 @@ class $BankAccountsTableTable extends BankAccountsTable
     } else if (isInserting) {
       context.missing(_statusMeta);
     }
+    if (data.containsKey('opening_balance')) {
+      context.handle(
+        _openingBalanceMeta,
+        openingBalance.isAcceptableOrUnknown(
+          data['opening_balance']!,
+          _openingBalanceMeta,
+        ),
+      );
+    }
+    if (data.containsKey('opening_balance_date')) {
+      context.handle(
+        _openingBalanceDateMeta,
+        openingBalanceDate.isAcceptableOrUnknown(
+          data['opening_balance_date']!,
+          _openingBalanceDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('account_scope')) {
+      context.handle(
+        _accountScopeMeta,
+        accountScope.isAcceptableOrUnknown(
+          data['account_scope']!,
+          _accountScopeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('owner_name')) {
+      context.handle(
+        _ownerNameMeta,
+        ownerName.isAcceptableOrUnknown(data['owner_name']!, _ownerNameMeta),
+      );
+    }
     return context;
   }
 
@@ -2338,6 +2423,22 @@ class $BankAccountsTableTable extends BankAccountsTable
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      openingBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}opening_balance'],
+      )!,
+      openingBalanceDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}opening_balance_date'],
+      )!,
+      accountScope: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_scope'],
+      )!,
+      ownerName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_name'],
+      )!,
     );
   }
 
@@ -2356,6 +2457,10 @@ class BankAccountsTableData extends DataClass
   final String bankName;
   final double balance;
   final String status;
+  final double openingBalance;
+  final String openingBalanceDate;
+  final String accountScope;
+  final String ownerName;
   const BankAccountsTableData({
     required this.id,
     required this.name,
@@ -2364,6 +2469,10 @@ class BankAccountsTableData extends DataClass
     required this.bankName,
     required this.balance,
     required this.status,
+    required this.openingBalance,
+    required this.openingBalanceDate,
+    required this.accountScope,
+    required this.ownerName,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2375,6 +2484,10 @@ class BankAccountsTableData extends DataClass
     map['bank_name'] = Variable<String>(bankName);
     map['balance'] = Variable<double>(balance);
     map['status'] = Variable<String>(status);
+    map['opening_balance'] = Variable<double>(openingBalance);
+    map['opening_balance_date'] = Variable<String>(openingBalanceDate);
+    map['account_scope'] = Variable<String>(accountScope);
+    map['owner_name'] = Variable<String>(ownerName);
     return map;
   }
 
@@ -2387,6 +2500,10 @@ class BankAccountsTableData extends DataClass
       bankName: Value(bankName),
       balance: Value(balance),
       status: Value(status),
+      openingBalance: Value(openingBalance),
+      openingBalanceDate: Value(openingBalanceDate),
+      accountScope: Value(accountScope),
+      ownerName: Value(ownerName),
     );
   }
 
@@ -2403,6 +2520,12 @@ class BankAccountsTableData extends DataClass
       bankName: serializer.fromJson<String>(json['bankName']),
       balance: serializer.fromJson<double>(json['balance']),
       status: serializer.fromJson<String>(json['status']),
+      openingBalance: serializer.fromJson<double>(json['openingBalance']),
+      openingBalanceDate: serializer.fromJson<String>(
+        json['openingBalanceDate'],
+      ),
+      accountScope: serializer.fromJson<String>(json['accountScope']),
+      ownerName: serializer.fromJson<String>(json['ownerName']),
     );
   }
   @override
@@ -2416,6 +2539,10 @@ class BankAccountsTableData extends DataClass
       'bankName': serializer.toJson<String>(bankName),
       'balance': serializer.toJson<double>(balance),
       'status': serializer.toJson<String>(status),
+      'openingBalance': serializer.toJson<double>(openingBalance),
+      'openingBalanceDate': serializer.toJson<String>(openingBalanceDate),
+      'accountScope': serializer.toJson<String>(accountScope),
+      'ownerName': serializer.toJson<String>(ownerName),
     };
   }
 
@@ -2427,6 +2554,10 @@ class BankAccountsTableData extends DataClass
     String? bankName,
     double? balance,
     String? status,
+    double? openingBalance,
+    String? openingBalanceDate,
+    String? accountScope,
+    String? ownerName,
   }) => BankAccountsTableData(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -2435,6 +2566,10 @@ class BankAccountsTableData extends DataClass
     bankName: bankName ?? this.bankName,
     balance: balance ?? this.balance,
     status: status ?? this.status,
+    openingBalance: openingBalance ?? this.openingBalance,
+    openingBalanceDate: openingBalanceDate ?? this.openingBalanceDate,
+    accountScope: accountScope ?? this.accountScope,
+    ownerName: ownerName ?? this.ownerName,
   );
   BankAccountsTableData copyWithCompanion(BankAccountsTableCompanion data) {
     return BankAccountsTableData(
@@ -2447,6 +2582,16 @@ class BankAccountsTableData extends DataClass
       bankName: data.bankName.present ? data.bankName.value : this.bankName,
       balance: data.balance.present ? data.balance.value : this.balance,
       status: data.status.present ? data.status.value : this.status,
+      openingBalance: data.openingBalance.present
+          ? data.openingBalance.value
+          : this.openingBalance,
+      openingBalanceDate: data.openingBalanceDate.present
+          ? data.openingBalanceDate.value
+          : this.openingBalanceDate,
+      accountScope: data.accountScope.present
+          ? data.accountScope.value
+          : this.accountScope,
+      ownerName: data.ownerName.present ? data.ownerName.value : this.ownerName,
     );
   }
 
@@ -2459,14 +2604,29 @@ class BankAccountsTableData extends DataClass
           ..write('accountNumber: $accountNumber, ')
           ..write('bankName: $bankName, ')
           ..write('balance: $balance, ')
-          ..write('status: $status')
+          ..write('status: $status, ')
+          ..write('openingBalance: $openingBalance, ')
+          ..write('openingBalanceDate: $openingBalanceDate, ')
+          ..write('accountScope: $accountScope, ')
+          ..write('ownerName: $ownerName')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, type, accountNumber, bankName, balance, status);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    type,
+    accountNumber,
+    bankName,
+    balance,
+    status,
+    openingBalance,
+    openingBalanceDate,
+    accountScope,
+    ownerName,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2477,7 +2637,11 @@ class BankAccountsTableData extends DataClass
           other.accountNumber == this.accountNumber &&
           other.bankName == this.bankName &&
           other.balance == this.balance &&
-          other.status == this.status);
+          other.status == this.status &&
+          other.openingBalance == this.openingBalance &&
+          other.openingBalanceDate == this.openingBalanceDate &&
+          other.accountScope == this.accountScope &&
+          other.ownerName == this.ownerName);
 }
 
 class BankAccountsTableCompanion
@@ -2489,6 +2653,10 @@ class BankAccountsTableCompanion
   final Value<String> bankName;
   final Value<double> balance;
   final Value<String> status;
+  final Value<double> openingBalance;
+  final Value<String> openingBalanceDate;
+  final Value<String> accountScope;
+  final Value<String> ownerName;
   final Value<int> rowid;
   const BankAccountsTableCompanion({
     this.id = const Value.absent(),
@@ -2498,6 +2666,10 @@ class BankAccountsTableCompanion
     this.bankName = const Value.absent(),
     this.balance = const Value.absent(),
     this.status = const Value.absent(),
+    this.openingBalance = const Value.absent(),
+    this.openingBalanceDate = const Value.absent(),
+    this.accountScope = const Value.absent(),
+    this.ownerName = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BankAccountsTableCompanion.insert({
@@ -2508,6 +2680,10 @@ class BankAccountsTableCompanion
     required String bankName,
     required double balance,
     required String status,
+    this.openingBalance = const Value.absent(),
+    this.openingBalanceDate = const Value.absent(),
+    this.accountScope = const Value.absent(),
+    this.ownerName = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -2524,6 +2700,10 @@ class BankAccountsTableCompanion
     Expression<String>? bankName,
     Expression<double>? balance,
     Expression<String>? status,
+    Expression<double>? openingBalance,
+    Expression<String>? openingBalanceDate,
+    Expression<String>? accountScope,
+    Expression<String>? ownerName,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2534,6 +2714,11 @@ class BankAccountsTableCompanion
       if (bankName != null) 'bank_name': bankName,
       if (balance != null) 'balance': balance,
       if (status != null) 'status': status,
+      if (openingBalance != null) 'opening_balance': openingBalance,
+      if (openingBalanceDate != null)
+        'opening_balance_date': openingBalanceDate,
+      if (accountScope != null) 'account_scope': accountScope,
+      if (ownerName != null) 'owner_name': ownerName,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2546,6 +2731,10 @@ class BankAccountsTableCompanion
     Value<String>? bankName,
     Value<double>? balance,
     Value<String>? status,
+    Value<double>? openingBalance,
+    Value<String>? openingBalanceDate,
+    Value<String>? accountScope,
+    Value<String>? ownerName,
     Value<int>? rowid,
   }) {
     return BankAccountsTableCompanion(
@@ -2556,6 +2745,10 @@ class BankAccountsTableCompanion
       bankName: bankName ?? this.bankName,
       balance: balance ?? this.balance,
       status: status ?? this.status,
+      openingBalance: openingBalance ?? this.openingBalance,
+      openingBalanceDate: openingBalanceDate ?? this.openingBalanceDate,
+      accountScope: accountScope ?? this.accountScope,
+      ownerName: ownerName ?? this.ownerName,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2584,6 +2777,18 @@ class BankAccountsTableCompanion
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (openingBalance.present) {
+      map['opening_balance'] = Variable<double>(openingBalance.value);
+    }
+    if (openingBalanceDate.present) {
+      map['opening_balance_date'] = Variable<String>(openingBalanceDate.value);
+    }
+    if (accountScope.present) {
+      map['account_scope'] = Variable<String>(accountScope.value);
+    }
+    if (ownerName.present) {
+      map['owner_name'] = Variable<String>(ownerName.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2600,6 +2805,10 @@ class BankAccountsTableCompanion
           ..write('bankName: $bankName, ')
           ..write('balance: $balance, ')
           ..write('status: $status, ')
+          ..write('openingBalance: $openingBalance, ')
+          ..write('openingBalanceDate: $openingBalanceDate, ')
+          ..write('accountScope: $accountScope, ')
+          ..write('ownerName: $ownerName, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6149,6 +6358,16 @@ class $EmployeesTableTable extends EmployeesTable
         type: DriftSqlType.string,
         requiredDuringInsert: true,
       ).withConverter<List<String>>($EmployeesTableTable.$converterphones);
+  static const VerificationMeta _cnicMeta = const VerificationMeta('cnic');
+  @override
+  late final GeneratedColumn<String> cnic = GeneratedColumn<String>(
+    'cnic',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _designationMeta = const VerificationMeta(
     'designation',
   );
@@ -6241,6 +6460,7 @@ class $EmployeesTableTable extends EmployeesTable
     name,
     email,
     phones,
+    cnic,
     designation,
     department,
     joiningDate,
@@ -6282,6 +6502,12 @@ class $EmployeesTableTable extends EmployeesTable
       );
     } else if (isInserting) {
       context.missing(_emailMeta);
+    }
+    if (data.containsKey('cnic')) {
+      context.handle(
+        _cnicMeta,
+        cnic.isAcceptableOrUnknown(data['cnic']!, _cnicMeta),
+      );
     }
     if (data.containsKey('designation')) {
       context.handle(
@@ -6384,6 +6610,10 @@ class $EmployeesTableTable extends EmployeesTable
           data['${effectivePrefix}phones'],
         )!,
       ),
+      cnic: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cnic'],
+      )!,
       designation: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}designation'],
@@ -6434,6 +6664,7 @@ class EmployeesTableData extends DataClass
   final String name;
   final String email;
   final List<String> phones;
+  final String cnic;
   final String designation;
   final String department;
   final String joiningDate;
@@ -6447,6 +6678,7 @@ class EmployeesTableData extends DataClass
     required this.name,
     required this.email,
     required this.phones,
+    required this.cnic,
     required this.designation,
     required this.department,
     required this.joiningDate,
@@ -6467,6 +6699,7 @@ class EmployeesTableData extends DataClass
         $EmployeesTableTable.$converterphones.toSql(phones),
       );
     }
+    map['cnic'] = Variable<String>(cnic);
     map['designation'] = Variable<String>(designation);
     map['department'] = Variable<String>(department);
     map['joining_date'] = Variable<String>(joiningDate);
@@ -6486,6 +6719,7 @@ class EmployeesTableData extends DataClass
       name: Value(name),
       email: Value(email),
       phones: Value(phones),
+      cnic: Value(cnic),
       designation: Value(designation),
       department: Value(department),
       joiningDate: Value(joiningDate),
@@ -6509,6 +6743,7 @@ class EmployeesTableData extends DataClass
       name: serializer.fromJson<String>(json['name']),
       email: serializer.fromJson<String>(json['email']),
       phones: serializer.fromJson<List<String>>(json['phones']),
+      cnic: serializer.fromJson<String>(json['cnic']),
       designation: serializer.fromJson<String>(json['designation']),
       department: serializer.fromJson<String>(json['department']),
       joiningDate: serializer.fromJson<String>(json['joiningDate']),
@@ -6527,6 +6762,7 @@ class EmployeesTableData extends DataClass
       'name': serializer.toJson<String>(name),
       'email': serializer.toJson<String>(email),
       'phones': serializer.toJson<List<String>>(phones),
+      'cnic': serializer.toJson<String>(cnic),
       'designation': serializer.toJson<String>(designation),
       'department': serializer.toJson<String>(department),
       'joiningDate': serializer.toJson<String>(joiningDate),
@@ -6543,6 +6779,7 @@ class EmployeesTableData extends DataClass
     String? name,
     String? email,
     List<String>? phones,
+    String? cnic,
     String? designation,
     String? department,
     String? joiningDate,
@@ -6556,6 +6793,7 @@ class EmployeesTableData extends DataClass
     name: name ?? this.name,
     email: email ?? this.email,
     phones: phones ?? this.phones,
+    cnic: cnic ?? this.cnic,
     designation: designation ?? this.designation,
     department: department ?? this.department,
     joiningDate: joiningDate ?? this.joiningDate,
@@ -6571,6 +6809,7 @@ class EmployeesTableData extends DataClass
       name: data.name.present ? data.name.value : this.name,
       email: data.email.present ? data.email.value : this.email,
       phones: data.phones.present ? data.phones.value : this.phones,
+      cnic: data.cnic.present ? data.cnic.value : this.cnic,
       designation: data.designation.present
           ? data.designation.value
           : this.designation,
@@ -6603,6 +6842,7 @@ class EmployeesTableData extends DataClass
           ..write('name: $name, ')
           ..write('email: $email, ')
           ..write('phones: $phones, ')
+          ..write('cnic: $cnic, ')
           ..write('designation: $designation, ')
           ..write('department: $department, ')
           ..write('joiningDate: $joiningDate, ')
@@ -6621,6 +6861,7 @@ class EmployeesTableData extends DataClass
     name,
     email,
     phones,
+    cnic,
     designation,
     department,
     joiningDate,
@@ -6638,6 +6879,7 @@ class EmployeesTableData extends DataClass
           other.name == this.name &&
           other.email == this.email &&
           other.phones == this.phones &&
+          other.cnic == this.cnic &&
           other.designation == this.designation &&
           other.department == this.department &&
           other.joiningDate == this.joiningDate &&
@@ -6653,6 +6895,7 @@ class EmployeesTableCompanion extends UpdateCompanion<EmployeesTableData> {
   final Value<String> name;
   final Value<String> email;
   final Value<List<String>> phones;
+  final Value<String> cnic;
   final Value<String> designation;
   final Value<String> department;
   final Value<String> joiningDate;
@@ -6667,6 +6910,7 @@ class EmployeesTableCompanion extends UpdateCompanion<EmployeesTableData> {
     this.name = const Value.absent(),
     this.email = const Value.absent(),
     this.phones = const Value.absent(),
+    this.cnic = const Value.absent(),
     this.designation = const Value.absent(),
     this.department = const Value.absent(),
     this.joiningDate = const Value.absent(),
@@ -6682,6 +6926,7 @@ class EmployeesTableCompanion extends UpdateCompanion<EmployeesTableData> {
     required String name,
     required String email,
     required List<String> phones,
+    this.cnic = const Value.absent(),
     required String designation,
     required String department,
     required String joiningDate,
@@ -6707,6 +6952,7 @@ class EmployeesTableCompanion extends UpdateCompanion<EmployeesTableData> {
     Expression<String>? name,
     Expression<String>? email,
     Expression<String>? phones,
+    Expression<String>? cnic,
     Expression<String>? designation,
     Expression<String>? department,
     Expression<String>? joiningDate,
@@ -6722,6 +6968,7 @@ class EmployeesTableCompanion extends UpdateCompanion<EmployeesTableData> {
       if (name != null) 'name': name,
       if (email != null) 'email': email,
       if (phones != null) 'phones': phones,
+      if (cnic != null) 'cnic': cnic,
       if (designation != null) 'designation': designation,
       if (department != null) 'department': department,
       if (joiningDate != null) 'joining_date': joiningDate,
@@ -6739,6 +6986,7 @@ class EmployeesTableCompanion extends UpdateCompanion<EmployeesTableData> {
     Value<String>? name,
     Value<String>? email,
     Value<List<String>>? phones,
+    Value<String>? cnic,
     Value<String>? designation,
     Value<String>? department,
     Value<String>? joiningDate,
@@ -6754,6 +7002,7 @@ class EmployeesTableCompanion extends UpdateCompanion<EmployeesTableData> {
       name: name ?? this.name,
       email: email ?? this.email,
       phones: phones ?? this.phones,
+      cnic: cnic ?? this.cnic,
       designation: designation ?? this.designation,
       department: department ?? this.department,
       joiningDate: joiningDate ?? this.joiningDate,
@@ -6782,6 +7031,9 @@ class EmployeesTableCompanion extends UpdateCompanion<EmployeesTableData> {
       map['phones'] = Variable<String>(
         $EmployeesTableTable.$converterphones.toSql(phones.value),
       );
+    }
+    if (cnic.present) {
+      map['cnic'] = Variable<String>(cnic.value);
     }
     if (designation.present) {
       map['designation'] = Variable<String>(designation.value);
@@ -6820,6 +7072,7 @@ class EmployeesTableCompanion extends UpdateCompanion<EmployeesTableData> {
           ..write('name: $name, ')
           ..write('email: $email, ')
           ..write('phones: $phones, ')
+          ..write('cnic: $cnic, ')
           ..write('designation: $designation, ')
           ..write('department: $department, ')
           ..write('joiningDate: $joiningDate, ')
@@ -12597,6 +12850,473 @@ class SalesInvoicesTableCompanion
   }
 }
 
+class $RecycleBinTableTable extends RecycleBinTable
+    with TableInfo<$RecycleBinTableTable, RecycleBinTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecycleBinTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _itemTypeMeta = const VerificationMeta(
+    'itemType',
+  );
+  @override
+  late final GeneratedColumn<String> itemType = GeneratedColumn<String>(
+    'item_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _subtitleMeta = const VerificationMeta(
+    'subtitle',
+  );
+  @override
+  late final GeneratedColumn<String> subtitle = GeneratedColumn<String>(
+    'subtitle',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAt = GeneratedColumn<String>(
+    'deleted_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedByMeta = const VerificationMeta(
+    'deletedBy',
+  );
+  @override
+  late final GeneratedColumn<String> deletedBy = GeneratedColumn<String>(
+    'deleted_by',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<Map<String, dynamic>, String>
+  jsonData =
+      GeneratedColumn<String>(
+        'json_data',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<Map<String, dynamic>>(
+        $RecycleBinTableTable.$converterjsonData,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    itemType,
+    title,
+    subtitle,
+    deletedAt,
+    deletedBy,
+    jsonData,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recycle_bin_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RecycleBinTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('item_type')) {
+      context.handle(
+        _itemTypeMeta,
+        itemType.isAcceptableOrUnknown(data['item_type']!, _itemTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemTypeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('subtitle')) {
+      context.handle(
+        _subtitleMeta,
+        subtitle.isAcceptableOrUnknown(data['subtitle']!, _subtitleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_subtitleMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deletedAtMeta);
+    }
+    if (data.containsKey('deleted_by')) {
+      context.handle(
+        _deletedByMeta,
+        deletedBy.isAcceptableOrUnknown(data['deleted_by']!, _deletedByMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deletedByMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RecycleBinTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecycleBinTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      itemType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_type'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      subtitle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}subtitle'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at'],
+      )!,
+      deletedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_by'],
+      )!,
+      jsonData: $RecycleBinTableTable.$converterjsonData.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}json_data'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $RecycleBinTableTable createAlias(String alias) {
+    return $RecycleBinTableTable(attachedDatabase, alias);
+  }
+
+  static TypeConverter<Map<String, dynamic>, String> $converterjsonData =
+      const JsonMapConverter();
+}
+
+class RecycleBinTableData extends DataClass
+    implements Insertable<RecycleBinTableData> {
+  final String id;
+  final String itemType;
+  final String title;
+  final String subtitle;
+  final String deletedAt;
+  final String deletedBy;
+  final Map<String, dynamic> jsonData;
+  const RecycleBinTableData({
+    required this.id,
+    required this.itemType,
+    required this.title,
+    required this.subtitle,
+    required this.deletedAt,
+    required this.deletedBy,
+    required this.jsonData,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['item_type'] = Variable<String>(itemType);
+    map['title'] = Variable<String>(title);
+    map['subtitle'] = Variable<String>(subtitle);
+    map['deleted_at'] = Variable<String>(deletedAt);
+    map['deleted_by'] = Variable<String>(deletedBy);
+    {
+      map['json_data'] = Variable<String>(
+        $RecycleBinTableTable.$converterjsonData.toSql(jsonData),
+      );
+    }
+    return map;
+  }
+
+  RecycleBinTableCompanion toCompanion(bool nullToAbsent) {
+    return RecycleBinTableCompanion(
+      id: Value(id),
+      itemType: Value(itemType),
+      title: Value(title),
+      subtitle: Value(subtitle),
+      deletedAt: Value(deletedAt),
+      deletedBy: Value(deletedBy),
+      jsonData: Value(jsonData),
+    );
+  }
+
+  factory RecycleBinTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecycleBinTableData(
+      id: serializer.fromJson<String>(json['id']),
+      itemType: serializer.fromJson<String>(json['itemType']),
+      title: serializer.fromJson<String>(json['title']),
+      subtitle: serializer.fromJson<String>(json['subtitle']),
+      deletedAt: serializer.fromJson<String>(json['deletedAt']),
+      deletedBy: serializer.fromJson<String>(json['deletedBy']),
+      jsonData: serializer.fromJson<Map<String, dynamic>>(json['jsonData']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'itemType': serializer.toJson<String>(itemType),
+      'title': serializer.toJson<String>(title),
+      'subtitle': serializer.toJson<String>(subtitle),
+      'deletedAt': serializer.toJson<String>(deletedAt),
+      'deletedBy': serializer.toJson<String>(deletedBy),
+      'jsonData': serializer.toJson<Map<String, dynamic>>(jsonData),
+    };
+  }
+
+  RecycleBinTableData copyWith({
+    String? id,
+    String? itemType,
+    String? title,
+    String? subtitle,
+    String? deletedAt,
+    String? deletedBy,
+    Map<String, dynamic>? jsonData,
+  }) => RecycleBinTableData(
+    id: id ?? this.id,
+    itemType: itemType ?? this.itemType,
+    title: title ?? this.title,
+    subtitle: subtitle ?? this.subtitle,
+    deletedAt: deletedAt ?? this.deletedAt,
+    deletedBy: deletedBy ?? this.deletedBy,
+    jsonData: jsonData ?? this.jsonData,
+  );
+  RecycleBinTableData copyWithCompanion(RecycleBinTableCompanion data) {
+    return RecycleBinTableData(
+      id: data.id.present ? data.id.value : this.id,
+      itemType: data.itemType.present ? data.itemType.value : this.itemType,
+      title: data.title.present ? data.title.value : this.title,
+      subtitle: data.subtitle.present ? data.subtitle.value : this.subtitle,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      deletedBy: data.deletedBy.present ? data.deletedBy.value : this.deletedBy,
+      jsonData: data.jsonData.present ? data.jsonData.value : this.jsonData,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecycleBinTableData(')
+          ..write('id: $id, ')
+          ..write('itemType: $itemType, ')
+          ..write('title: $title, ')
+          ..write('subtitle: $subtitle, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('deletedBy: $deletedBy, ')
+          ..write('jsonData: $jsonData')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    itemType,
+    title,
+    subtitle,
+    deletedAt,
+    deletedBy,
+    jsonData,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecycleBinTableData &&
+          other.id == this.id &&
+          other.itemType == this.itemType &&
+          other.title == this.title &&
+          other.subtitle == this.subtitle &&
+          other.deletedAt == this.deletedAt &&
+          other.deletedBy == this.deletedBy &&
+          other.jsonData == this.jsonData);
+}
+
+class RecycleBinTableCompanion extends UpdateCompanion<RecycleBinTableData> {
+  final Value<String> id;
+  final Value<String> itemType;
+  final Value<String> title;
+  final Value<String> subtitle;
+  final Value<String> deletedAt;
+  final Value<String> deletedBy;
+  final Value<Map<String, dynamic>> jsonData;
+  final Value<int> rowid;
+  const RecycleBinTableCompanion({
+    this.id = const Value.absent(),
+    this.itemType = const Value.absent(),
+    this.title = const Value.absent(),
+    this.subtitle = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.deletedBy = const Value.absent(),
+    this.jsonData = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecycleBinTableCompanion.insert({
+    required String id,
+    required String itemType,
+    required String title,
+    required String subtitle,
+    required String deletedAt,
+    required String deletedBy,
+    required Map<String, dynamic> jsonData,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       itemType = Value(itemType),
+       title = Value(title),
+       subtitle = Value(subtitle),
+       deletedAt = Value(deletedAt),
+       deletedBy = Value(deletedBy),
+       jsonData = Value(jsonData);
+  static Insertable<RecycleBinTableData> custom({
+    Expression<String>? id,
+    Expression<String>? itemType,
+    Expression<String>? title,
+    Expression<String>? subtitle,
+    Expression<String>? deletedAt,
+    Expression<String>? deletedBy,
+    Expression<String>? jsonData,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (itemType != null) 'item_type': itemType,
+      if (title != null) 'title': title,
+      if (subtitle != null) 'subtitle': subtitle,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (deletedBy != null) 'deleted_by': deletedBy,
+      if (jsonData != null) 'json_data': jsonData,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecycleBinTableCompanion copyWith({
+    Value<String>? id,
+    Value<String>? itemType,
+    Value<String>? title,
+    Value<String>? subtitle,
+    Value<String>? deletedAt,
+    Value<String>? deletedBy,
+    Value<Map<String, dynamic>>? jsonData,
+    Value<int>? rowid,
+  }) {
+    return RecycleBinTableCompanion(
+      id: id ?? this.id,
+      itemType: itemType ?? this.itemType,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      deletedAt: deletedAt ?? this.deletedAt,
+      deletedBy: deletedBy ?? this.deletedBy,
+      jsonData: jsonData ?? this.jsonData,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (itemType.present) {
+      map['item_type'] = Variable<String>(itemType.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (subtitle.present) {
+      map['subtitle'] = Variable<String>(subtitle.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<String>(deletedAt.value);
+    }
+    if (deletedBy.present) {
+      map['deleted_by'] = Variable<String>(deletedBy.value);
+    }
+    if (jsonData.present) {
+      map['json_data'] = Variable<String>(
+        $RecycleBinTableTable.$converterjsonData.toSql(jsonData.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecycleBinTableCompanion(')
+          ..write('id: $id, ')
+          ..write('itemType: $itemType, ')
+          ..write('title: $title, ')
+          ..write('subtitle: $subtitle, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('deletedBy: $deletedBy, ')
+          ..write('jsonData: $jsonData, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -12641,6 +13361,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ProductsTableTable productsTable = $ProductsTableTable(this);
   late final $SalesInvoicesTableTable salesInvoicesTable =
       $SalesInvoicesTableTable(this);
+  late final $RecycleBinTableTable recycleBinTable = $RecycleBinTableTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -12668,6 +13391,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     purchaseOrdersTable,
     productsTable,
     salesInvoicesTable,
+    recycleBinTable,
   ];
 }
 
@@ -12869,7 +13593,18 @@ class $$TransactionsTableTableTableManager
                 isIncome: isIncome,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$TransactionsTableTable, TransactionsTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $TransactionsTableTable,
+                    TransactionsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13073,7 +13808,18 @@ class $$ActivitiesTableTableTableManager
                 colorHex: colorHex,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ActivitiesTableTable, ActivitiesTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ActivitiesTableTable,
+                    ActivitiesTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13273,7 +14019,16 @@ class $$TasksTableTableTableManager
                 isCompleted: isCompleted,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$TasksTableTable, TasksTableData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $TasksTableTable,
+                    TasksTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13496,7 +14251,18 @@ class $$StockAlertsTableTableTableManager
                 bgHex: bgHex,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$StockAlertsTableTable, StockAlertsTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $StockAlertsTableTable,
+                    StockAlertsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13803,7 +14569,16 @@ class $$ClientsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ClientsTableTable, ClientsTableData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ClientsTableTable,
+                    ClientsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -13836,6 +14611,10 @@ typedef $$BankAccountsTableTableCreateCompanionBuilder =
       required String bankName,
       required double balance,
       required String status,
+      Value<double> openingBalance,
+      Value<String> openingBalanceDate,
+      Value<String> accountScope,
+      Value<String> ownerName,
       Value<int> rowid,
     });
 typedef $$BankAccountsTableTableUpdateCompanionBuilder =
@@ -13847,6 +14626,10 @@ typedef $$BankAccountsTableTableUpdateCompanionBuilder =
       Value<String> bankName,
       Value<double> balance,
       Value<String> status,
+      Value<double> openingBalance,
+      Value<String> openingBalanceDate,
+      Value<String> accountScope,
+      Value<String> ownerName,
       Value<int> rowid,
     });
 
@@ -13891,6 +14674,26 @@ class $$BankAccountsTableTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
     column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get openingBalanceDate => $composableBuilder(
+    column: $table.openingBalanceDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountScope => $composableBuilder(
+    column: $table.accountScope,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerName => $composableBuilder(
+    column: $table.ownerName,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -13938,6 +14741,26 @@ class $$BankAccountsTableTableOrderingComposer
     column: $table.status,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get openingBalanceDate => $composableBuilder(
+    column: $table.openingBalanceDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountScope => $composableBuilder(
+    column: $table.accountScope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerName => $composableBuilder(
+    column: $table.ownerName,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BankAccountsTableTableAnnotationComposer
@@ -13971,6 +14794,24 @@ class $$BankAccountsTableTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<double> get openingBalance => $composableBuilder(
+    column: $table.openingBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get openingBalanceDate => $composableBuilder(
+    column: $table.openingBalanceDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get accountScope => $composableBuilder(
+    column: $table.accountScope,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ownerName =>
+      $composableBuilder(column: $table.ownerName, builder: (column) => column);
 }
 
 class $$BankAccountsTableTableTableManager
@@ -14020,6 +14861,10 @@ class $$BankAccountsTableTableTableManager
                 Value<String> bankName = const Value.absent(),
                 Value<double> balance = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<double> openingBalance = const Value.absent(),
+                Value<String> openingBalanceDate = const Value.absent(),
+                Value<String> accountScope = const Value.absent(),
+                Value<String> ownerName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BankAccountsTableCompanion(
                 id: id,
@@ -14029,6 +14874,10 @@ class $$BankAccountsTableTableTableManager
                 bankName: bankName,
                 balance: balance,
                 status: status,
+                openingBalance: openingBalance,
+                openingBalanceDate: openingBalanceDate,
+                accountScope: accountScope,
+                ownerName: ownerName,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -14040,6 +14889,10 @@ class $$BankAccountsTableTableTableManager
                 required String bankName,
                 required double balance,
                 required String status,
+                Value<double> openingBalance = const Value.absent(),
+                Value<String> openingBalanceDate = const Value.absent(),
+                Value<String> accountScope = const Value.absent(),
+                Value<String> ownerName = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BankAccountsTableCompanion.insert(
                 id: id,
@@ -14049,10 +14902,25 @@ class $$BankAccountsTableTableTableManager
                 bankName: bankName,
                 balance: balance,
                 status: status,
+                openingBalance: openingBalance,
+                openingBalanceDate: openingBalanceDate,
+                accountScope: accountScope,
+                ownerName: ownerName,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$BankAccountsTableTable, BankAccountsTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $BankAccountsTableTable,
+                    BankAccountsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14310,7 +15178,19 @@ class $$ExpenseRecordsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $ExpenseRecordsTableTable,
+                    ExpenseRecordsTableData
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ExpenseRecordsTableTable,
+                    ExpenseRecordsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14666,7 +15546,18 @@ class $$IncomeRecordsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$IncomeRecordsTableTable, IncomeRecordsTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $IncomeRecordsTableTable,
+                    IncomeRecordsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -14959,7 +15850,18 @@ class $$LedgerEntriesTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$LedgerEntriesTableTable, LedgerEntriesTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LedgerEntriesTableTable,
+                    LedgerEntriesTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -15279,7 +16181,18 @@ class $$LoanRecordsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$LoanRecordsTableTable, LoanRecordsTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LoanRecordsTableTable,
+                    LoanRecordsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -15581,7 +16494,19 @@ class $$AdvanceRecordsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $AdvanceRecordsTableTable,
+                    AdvanceRecordsTableData
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AdvanceRecordsTableTable,
+                    AdvanceRecordsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -15861,7 +16786,19 @@ class $$AttendanceRecordsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $AttendanceRecordsTableTable,
+                    AttendanceRecordsTableData
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AttendanceRecordsTableTable,
+                    AttendanceRecordsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -15895,6 +16832,7 @@ typedef $$EmployeesTableTableCreateCompanionBuilder =
       required String name,
       required String email,
       required List<String> phones,
+      Value<String> cnic,
       required String designation,
       required String department,
       required String joiningDate,
@@ -15911,6 +16849,7 @@ typedef $$EmployeesTableTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> email,
       Value<List<String>> phones,
+      Value<String> cnic,
       Value<String> designation,
       Value<String> department,
       Value<String> joiningDate,
@@ -15950,6 +16889,11 @@ class $$EmployeesTableTableFilterComposer
   get phones => $composableBuilder(
     column: $table.phones,
     builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<String> get cnic => $composableBuilder(
+    column: $table.cnic,
+    builder: (column) => ColumnFilters(column),
   );
 
   ColumnFilters<String> get designation => $composableBuilder(
@@ -16022,6 +16966,11 @@ class $$EmployeesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get cnic => $composableBuilder(
+    column: $table.cnic,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get designation => $composableBuilder(
     column: $table.designation,
     builder: (column) => ColumnOrderings(column),
@@ -16083,6 +17032,9 @@ class $$EmployeesTableTableAnnotationComposer
 
   GeneratedColumnWithTypeConverter<List<String>, String> get phones =>
       $composableBuilder(column: $table.phones, builder: (column) => column);
+
+  GeneratedColumn<String> get cnic =>
+      $composableBuilder(column: $table.cnic, builder: (column) => column);
 
   GeneratedColumn<String> get designation => $composableBuilder(
     column: $table.designation,
@@ -16164,6 +17116,7 @@ class $$EmployeesTableTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> email = const Value.absent(),
                 Value<List<String>> phones = const Value.absent(),
+                Value<String> cnic = const Value.absent(),
                 Value<String> designation = const Value.absent(),
                 Value<String> department = const Value.absent(),
                 Value<String> joiningDate = const Value.absent(),
@@ -16178,6 +17131,7 @@ class $$EmployeesTableTableTableManager
                 name: name,
                 email: email,
                 phones: phones,
+                cnic: cnic,
                 designation: designation,
                 department: department,
                 joiningDate: joiningDate,
@@ -16194,6 +17148,7 @@ class $$EmployeesTableTableTableManager
                 required String name,
                 required String email,
                 required List<String> phones,
+                Value<String> cnic = const Value.absent(),
                 required String designation,
                 required String department,
                 required String joiningDate,
@@ -16208,6 +17163,7 @@ class $$EmployeesTableTableTableManager
                 name: name,
                 email: email,
                 phones: phones,
+                cnic: cnic,
                 designation: designation,
                 department: department,
                 joiningDate: joiningDate,
@@ -16219,7 +17175,16 @@ class $$EmployeesTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$EmployeesTableTable, EmployeesTableData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $EmployeesTableTable,
+                    EmployeesTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16556,7 +17521,18 @@ class $$SalaryRecordsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$SalaryRecordsTableTable, SalaryRecordsTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SalaryRecordsTableTable,
+                    SalaryRecordsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -16863,7 +17839,16 @@ class $$AssetsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$AssetsTableTable, AssetsTableData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $AssetsTableTable,
+                    AssetsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -17138,7 +18123,19 @@ class $$InventoryItemsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $InventoryItemsTableTable,
+                    InventoryItemsTableData
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $InventoryItemsTableTable,
+                    InventoryItemsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -17617,7 +18614,16 @@ class $$ProjectsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ProjectsTableTable, ProjectsTableData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ProjectsTableTable,
+                    ProjectsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -17929,7 +18935,18 @@ class $$ProjectTasksTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ProjectTasksTableTable, ProjectTasksTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ProjectTasksTableTable,
+                    ProjectTasksTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18251,7 +19268,19 @@ class $$TimesheetEntriesTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $TimesheetEntriesTableTable,
+                    TimesheetEntriesTableData
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $TimesheetEntriesTableTable,
+                    TimesheetEntriesTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18572,7 +19601,19 @@ class $$PurchaseOrdersTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<
+                    $PurchaseOrdersTableTable,
+                    PurchaseOrdersTableData
+                  >(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $PurchaseOrdersTableTable,
+                    PurchaseOrdersTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -18801,7 +19842,16 @@ class $$ProductsTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$ProductsTableTable, ProductsTableData>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ProductsTableTable,
+                    ProductsTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -19113,7 +20163,18 @@ class $$SalesInvoicesTableTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable<$SalesInvoicesTableTable, SalesInvoicesTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $SalesInvoicesTableTable,
+                    SalesInvoicesTableData
+                  >(db, table, e),
+                ),
+              )
               .toList(),
           prefetchHooksCallback: null,
         ),
@@ -19139,6 +20200,270 @@ typedef $$SalesInvoicesTableTableProcessedTableManager =
         >,
       ),
       SalesInvoicesTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$RecycleBinTableTableCreateCompanionBuilder =
+    RecycleBinTableCompanion Function({
+      required String id,
+      required String itemType,
+      required String title,
+      required String subtitle,
+      required String deletedAt,
+      required String deletedBy,
+      required Map<String, dynamic> jsonData,
+      Value<int> rowid,
+    });
+typedef $$RecycleBinTableTableUpdateCompanionBuilder =
+    RecycleBinTableCompanion Function({
+      Value<String> id,
+      Value<String> itemType,
+      Value<String> title,
+      Value<String> subtitle,
+      Value<String> deletedAt,
+      Value<String> deletedBy,
+      Value<Map<String, dynamic>> jsonData,
+      Value<int> rowid,
+    });
+
+class $$RecycleBinTableTableFilterComposer
+    extends Composer<_$AppDatabase, $RecycleBinTableTable> {
+  $$RecycleBinTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get itemType => $composableBuilder(
+    column: $table.itemType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get subtitle => $composableBuilder(
+    column: $table.subtitle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedBy => $composableBuilder(
+    column: $table.deletedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<
+    Map<String, dynamic>,
+    Map<String, dynamic>,
+    String
+  >
+  get jsonData => $composableBuilder(
+    column: $table.jsonData,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+}
+
+class $$RecycleBinTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecycleBinTableTable> {
+  $$RecycleBinTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get itemType => $composableBuilder(
+    column: $table.itemType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get subtitle => $composableBuilder(
+    column: $table.subtitle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedBy => $composableBuilder(
+    column: $table.deletedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get jsonData => $composableBuilder(
+    column: $table.jsonData,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RecycleBinTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecycleBinTableTable> {
+  $$RecycleBinTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get itemType =>
+      $composableBuilder(column: $table.itemType, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get subtitle =>
+      $composableBuilder(column: $table.subtitle, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deletedBy =>
+      $composableBuilder(column: $table.deletedBy, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<Map<String, dynamic>, String> get jsonData =>
+      $composableBuilder(column: $table.jsonData, builder: (column) => column);
+}
+
+class $$RecycleBinTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecycleBinTableTable,
+          RecycleBinTableData,
+          $$RecycleBinTableTableFilterComposer,
+          $$RecycleBinTableTableOrderingComposer,
+          $$RecycleBinTableTableAnnotationComposer,
+          $$RecycleBinTableTableCreateCompanionBuilder,
+          $$RecycleBinTableTableUpdateCompanionBuilder,
+          (
+            RecycleBinTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $RecycleBinTableTable,
+              RecycleBinTableData
+            >,
+          ),
+          RecycleBinTableData,
+          PrefetchHooks Function()
+        > {
+  $$RecycleBinTableTableTableManager(
+    _$AppDatabase db,
+    $RecycleBinTableTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecycleBinTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecycleBinTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecycleBinTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> itemType = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> subtitle = const Value.absent(),
+                Value<String> deletedAt = const Value.absent(),
+                Value<String> deletedBy = const Value.absent(),
+                Value<Map<String, dynamic>> jsonData = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecycleBinTableCompanion(
+                id: id,
+                itemType: itemType,
+                title: title,
+                subtitle: subtitle,
+                deletedAt: deletedAt,
+                deletedBy: deletedBy,
+                jsonData: jsonData,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String itemType,
+                required String title,
+                required String subtitle,
+                required String deletedAt,
+                required String deletedBy,
+                required Map<String, dynamic> jsonData,
+                Value<int> rowid = const Value.absent(),
+              }) => RecycleBinTableCompanion.insert(
+                id: id,
+                itemType: itemType,
+                title: title,
+                subtitle: subtitle,
+                deletedAt: deletedAt,
+                deletedBy: deletedBy,
+                jsonData: jsonData,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RecycleBinTableTable, RecycleBinTableData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $RecycleBinTableTable,
+                    RecycleBinTableData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RecycleBinTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecycleBinTableTable,
+      RecycleBinTableData,
+      $$RecycleBinTableTableFilterComposer,
+      $$RecycleBinTableTableOrderingComposer,
+      $$RecycleBinTableTableAnnotationComposer,
+      $$RecycleBinTableTableCreateCompanionBuilder,
+      $$RecycleBinTableTableUpdateCompanionBuilder,
+      (
+        RecycleBinTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $RecycleBinTableTable,
+          RecycleBinTableData
+        >,
+      ),
+      RecycleBinTableData,
       PrefetchHooks Function()
     >;
 
@@ -19192,4 +20517,6 @@ class $AppDatabaseManager {
       $$ProductsTableTableTableManager(_db, _db.productsTable);
   $$SalesInvoicesTableTableTableManager get salesInvoicesTable =>
       $$SalesInvoicesTableTableTableManager(_db, _db.salesInvoicesTable);
+  $$RecycleBinTableTableTableManager get recycleBinTable =>
+      $$RecycleBinTableTableTableManager(_db, _db.recycleBinTable);
 }

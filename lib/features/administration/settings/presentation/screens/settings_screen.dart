@@ -274,17 +274,9 @@ class SettingsScreen extends ConsumerWidget {
                             ),
                             if (!isMobile) ...[
                               const SizedBox(width: 16),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: context.isDarkMode ? Colors.white.withValues(alpha: 0.85) : Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: context.border, width: 1),
-                                ),
-                                child: const AppLogo(
-                                  height: 60,
-                                  fit: BoxFit.contain,
-                                ),
+                              const AppLogo(
+                                height: 60,
+                                fit: BoxFit.contain,
                               ),
                             ],
                           ],
@@ -339,13 +331,22 @@ class _ChangeCredentialsCardState extends ConsumerState<_ChangeCredentialsCard> 
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(adminProvider.notifier).getAdminUsername().then((name) {
+      final current = ref.read(adminProvider).currentUser;
+      if (current != null && current.username.isNotEmpty) {
         if (mounted) {
           setState(() {
-            _newUsernameController.text = name;
+            _newUsernameController.text = current.username;
           });
         }
-      });
+      } else {
+        ref.read(adminProvider.notifier).getAdminUsername().then((name) {
+          if (mounted) {
+            setState(() {
+              _newUsernameController.text = name;
+            });
+          }
+        });
+      }
     });
   }
 

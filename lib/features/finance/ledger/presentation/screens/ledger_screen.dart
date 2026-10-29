@@ -19,6 +19,8 @@ import '../../../../../core/services/cloud_sync_service.dart';
 import '../../../loans/presentation/providers/loans_provider.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/utils/transaction_id_helper.dart';
+import 'package:software_house_erp/core/widgets/export_button.dart';
 
 DateTime? _extractTimestampFromId(String id) {
   try {
@@ -178,12 +180,16 @@ class LedgerScreen extends ConsumerWidget {
 
       // Determine clean, meaningful Reference
       String actualRef = '';
-      if (inc.invoiceNumber.isNotEmpty) {
-        actualRef = inc.invoiceNumber;
-      } else if (inc.projectId != null && inc.projectId!.isNotEmpty) {
-        actualRef = inc.projectId!;
+      final isAddon = inc.incomeType.toLowerCase().contains('addon') ||
+          inc.description.toLowerCase().contains('addon') ||
+          (inc.projectPaymentType != null && inc.projectPaymentType!.toLowerCase().contains('addon'));
+
+      if (isAddon) {
+        actualRef = 'ADDON';
       } else if (matchedProj != null && matchedProj.name.isNotEmpty) {
         actualRef = matchedProj.name;
+      } else if (inc.invoiceNumber.isNotEmpty && !inc.invoiceNumber.contains('_') && !RegExp(r'\d{6,}').hasMatch(inc.invoiceNumber)) {
+        actualRef = inc.invoiceNumber;
       } else {
         actualRef = '—';
       }
@@ -292,13 +298,28 @@ class LedgerScreen extends ConsumerWidget {
 
     // Filter entries
     final filteredEntries = allEntries.where((e) {
+      final cleanTxId = TransactionIdHelper.getLedgerInvoiceId(entry: e, incomes: incomes, expenses: expenses);
       final matchesSearch = state.searchQuery.isEmpty ||
           e.description.toLowerCase().contains(state.searchQuery.toLowerCase()) ||
           e.category.toLowerCase().contains(state.searchQuery.toLowerCase()) ||
-          e.reference.toLowerCase().contains(state.searchQuery.toLowerCase());
+          e.reference.toLowerCase().contains(state.searchQuery.toLowerCase()) ||
+          e.id.toLowerCase().contains(state.searchQuery.toLowerCase()) ||
+          cleanTxId.toLowerCase().contains(state.searchQuery.toLowerCase());
 
       final matchesAccount = activeAccountFilter == 'All' || e.accountId == activeAccountFilter;
-      final matchesType = state.typeFilter == 'All' || e.type == state.typeFilter;
+
+      bool matchesType = true;
+      if (state.typeFilter == 'Debit') {
+        matchesType = e.type == 'Debit';
+      } else if (state.typeFilter == 'Credit') {
+        matchesType = e.type == 'Credit';
+      } else if (state.typeFilter == 'Loans') {
+        matchesType = e.id.startsWith('led_loan_') || e.category.toLowerCase().contains('loan');
+      } else if (state.typeFilter == 'Loans: Borrowed') {
+        matchesType = (e.id.startsWith('led_loan_') || e.category.toLowerCase().contains('loan')) && e.category.toLowerCase().contains('borrowed');
+      } else if (state.typeFilter == 'Loans: Lent') {
+        matchesType = (e.id.startsWith('led_loan_') || e.category.toLowerCase().contains('loan')) && e.category.toLowerCase().contains('lent');
+      }
 
       bool matchesDate = true;
       if (state.startDate != null && state.endDate != null) {
@@ -374,26 +395,94 @@ class LedgerScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Title Row
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'General Ledger',
-                              style: theme.textTheme.displaySmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: context.textPrimary,
-                                letterSpacing: -0.5,
+                        if (isMobile) ...[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'General Ledger',
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: context.textPrimary,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Audit double-entry debit/credit ledger records and cash flow transactions.',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: context.textSecondary,
+                              const SizedBox(height: 4),
+                              Text(
+                                'Audit double-entry debit/credit ledger records and cash flow transactions.',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: context.textSecondary,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                              const SizedBox(height: 12),
+                              ExportButton(
+                                title: 'General Ledger Report',
+                                fileName: 'general_ledger_report',
+                                headers: const ['Transaction ID', 'Date & Time', 'Type', 'Account', 'Reference', 'Debit (PKR)', 'Credit (PKR)'],
+                                rows: sortedFilteredEntries.map((e) {
+                                  final isDebit = e.type.toLowerCase() == 'debit' || e.type.toLowerCase() == 'expense';
+                                  final cleanTxId = TransactionIdHelper.getLedgerInvoiceId(entry: e, incomes: incomes, expenses: expenses);
+                                  return [
+                                    cleanTxId,
+                                    e.date,
+                                    isDebit ? 'Debit / Expense' : 'Credit / Income',
+                                    e.accountId.isNotEmpty ? e.accountId : 'Cash/Bank',
+                                    e.description.isNotEmpty ? e.description : '-',
+                                    isDebit ? 'Rs. ${e.amount.toStringAsFixed(0)}' : '-',
+                                    !isDebit ? 'Rs. ${e.amount.toStringAsFixed(0)}' : '-',
+                                  ];
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'General Ledger',
+                                      style: theme.textTheme.displaySmall?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: context.textPrimary,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Audit double-entry debit/credit ledger records and cash flow transactions.',
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: context.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              ExportButton(
+                                title: 'General Ledger Report',
+                                fileName: 'general_ledger_report',
+                                headers: const ['Transaction ID', 'Date & Time', 'Type', 'Account', 'Reference', 'Debit (PKR)', 'Credit (PKR)'],
+                                rows: sortedFilteredEntries.map((e) {
+                                  final isDebit = e.type.toLowerCase() == 'debit' || e.type.toLowerCase() == 'expense';
+                                  final cleanTxId = TransactionIdHelper.getLedgerInvoiceId(entry: e, incomes: incomes, expenses: expenses);
+                                  return [
+                                    cleanTxId,
+                                    e.date,
+                                    isDebit ? 'Debit / Expense' : 'Credit / Income',
+                                    e.accountId.isNotEmpty ? e.accountId : 'Cash/Bank',
+                                    e.description.isNotEmpty ? e.description : '-',
+                                    isDebit ? 'Rs. ${e.amount.toStringAsFixed(0)}' : '-',
+                                    !isDebit ? 'Rs. ${e.amount.toStringAsFixed(0)}' : '-',
+                                  ];
+                                }).toList(),
+                              ),
+                            ],
+                          ),
+                        ],
                         const SizedBox(height: 24),
 
                         // Metrics Cards
@@ -650,9 +739,9 @@ class LedgerScreen extends ConsumerWidget {
                                       ),
                                       const SizedBox(width: 12),
 
-                                      // Type Filter (Debit/Credit)
+                                      // Type Filter (Debit/Credit/Loans)
                                       SizedBox(
-                                        width: 140,
+                                        width: 185,
                                         height: 40,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -671,6 +760,9 @@ class LedgerScreen extends ConsumerWidget {
                                                 DropdownMenuItem(value: 'All', child: Text(tr('All Types'))),
                                                 DropdownMenuItem(value: 'Debit', child: Text(tr('Inflow (Debit)'))),
                                                 DropdownMenuItem(value: 'Credit', child: Text(tr('Outflow (Credit)'))),
+                                                DropdownMenuItem(value: 'Loans', child: Text(tr('Loans (All Records)'))),
+                                                DropdownMenuItem(value: 'Loans: Borrowed', child: Text(tr('Loans: Borrowed'))),
+                                                DropdownMenuItem(value: 'Loans: Lent', child: Text(tr('Loans: Lent'))),
                                               ],
                                               onChanged: (val) {
                                                 if (val != null) {
@@ -718,7 +810,7 @@ class LedgerScreen extends ConsumerWidget {
                                   SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
                                     child: SizedBox(
-                                      width: max(850.0, tableConstraints.maxWidth),
+                                      width: max(980.0, tableConstraints.maxWidth),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.stretch,
                                         children: [
@@ -733,13 +825,13 @@ class LedgerScreen extends ConsumerWidget {
                                             child: Row(
                                               children: [
                                                 Expanded(flex: 1, child: Text('Type', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold))),
+                                                Expanded(flex: 2, child: Text('Invoice / ID', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold))),
                                                 Expanded(flex: 3, child: Text('Description', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold))),
                                                 Expanded(flex: 2, child: Row(children: [Text('Date & Time', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)), const SizedBox(width: 4), Icon(Icons.arrow_downward, size: 14, color: context.textPrimary)])),
                                                 Expanded(flex: 2, child: Text('Account', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold))),
                                                 Expanded(flex: 2, child: Text('Category', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold))),
                                                 Expanded(flex: 2, child: Text('Reference', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold))),
                                                 Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('Amount', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)))),
-                                                Expanded(flex: 1, child: Align(alignment: Alignment.centerRight, child: Text('Action', style: TextStyle(color: context.textPrimary, fontSize: 12, fontWeight: FontWeight.bold)))),
                                               ],
                                             ),
                                           ),
@@ -1117,6 +1209,9 @@ class LedgerScreen extends ConsumerWidget {
                             DropdownMenuItem(value: 'All', child: Text(tr('All Types'))),
                             DropdownMenuItem(value: 'Debit', child: Text(tr('Inflow (Debit)'))),
                             DropdownMenuItem(value: 'Credit', child: Text(tr('Outflow (Credit)'))),
+                            DropdownMenuItem(value: 'Loans', child: Text(tr('Loans (All Records)'))),
+                            DropdownMenuItem(value: 'Loans: Borrowed', child: Text(tr('Loans: Borrowed'))),
+                            DropdownMenuItem(value: 'Loans: Lent', child: Text(tr('Loans: Lent'))),
                           ],
                           onChanged: (val) {
                             if (val != null) {
@@ -1210,6 +1305,14 @@ class _LedgerListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final incomes = ref.watch(incomeProvider).incomes;
+    final expenses = ref.watch(expensesProvider).expenses;
+    final projects = ref.watch(projectsProvider).projects;
+    final displayInvoiceId = TransactionIdHelper.getLedgerInvoiceId(
+      entry: entry,
+      incomes: incomes,
+      expenses: expenses,
+    );
     final adminState = ref.watch(adminProvider);
     bool canDelete = false;
     if (entry.id.startsWith('led_inc_')) {
@@ -1250,7 +1353,7 @@ class _LedgerListTile extends ConsumerWidget {
       onTap: () {
         TransactionDetailDialog.show(
           context,
-          id: entry.id,
+          id: displayInvoiceId,
           title: entry.description,
           category: entry.category,
           description: entry.description,
@@ -1258,7 +1361,24 @@ class _LedgerListTile extends ConsumerWidget {
           date: entry.date,
           type: entry.type,
           accountName: entry.accountName,
-          reference: entry.reference,
+          reference: entry.reference.isNotEmpty && entry.reference != '—' ? entry.reference : displayInvoiceId,
+          onDelete: canDelete
+              ? () async {
+                  if (entry.id.startsWith('led_inc_')) {
+                    final realIncId = entry.id.replaceFirst('led_inc_', '');
+                    await ref.read(incomeProvider.notifier).deleteIncome(realIncId);
+                  } else if (entry.id.startsWith('led_exp_')) {
+                    final realExpId = entry.id.replaceFirst('led_exp_', '');
+                    await ref.read(expensesProvider.notifier).deleteExpense(realExpId);
+                  } else {
+                    await ref.read(ledgerProvider.notifier).deleteLedgerEntry(entry.id);
+                  }
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Transaction deleted successfully')),
+                  );
+                }
+              : null,
         );
       },
       child: Container(
@@ -1283,7 +1403,31 @@ class _LedgerListTile extends ConsumerWidget {
             ),
           ),
 
-          // 2. Description (Project Name - Client Name + Installment Type Subtext)
+          // 2. Invoice / Ref ID
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: context.isDarkMode ? const Color(0xFF111827) : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: context.border),
+                ),
+                child: Text(
+                  displayInvoiceId,
+                  style: TextStyle(
+                    color: context.textPrimary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 3. Description (Project Name - Client Name + Installment Type Subtext)
           Expanded(
             flex: 3,
             child: Column(
@@ -1385,19 +1529,37 @@ class _LedgerListTile extends ConsumerWidget {
           // 6. Reference
           Expanded(
             flex: 2,
-            child: Text(
-              (entry.reference.isNotEmpty &&
-                      entry.reference != '—' &&
-                      !entry.reference.contains('Expense Outflow') &&
-                      !entry.reference.contains('Payment Received') &&
-                      !entry.reference.contains('Advance Payment') &&
-                      !entry.reference.contains('Partial Payment') &&
-                      !entry.reference.contains('Full Payment'))
-                  ? (entry.reference.startsWith('Ref:') ? entry.reference : 'Ref: ${entry.reference}')
-                  : '—',
-              style: TextStyle(color: context.textSecondary, fontSize: 12),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Builder(
+              builder: (context) {
+                String refText = entry.reference;
+                if (refText.contains('proj_') || refText.contains('pro_') || refText.contains('rec_')) {
+                  final rawId = refText.replaceFirst('Ref:', '').trim();
+                  final cleanProj = projects.where((p) => p.id == rawId || p.id == refText).firstOrNull;
+                  if (cleanProj != null && cleanProj.name.isNotEmpty) {
+                    refText = cleanProj.name;
+                  } else {
+                    refText = 'Project Payment';
+                  }
+                }
+
+                final isAddon = refText == 'ADDON';
+                final isCleanProject = refText.isNotEmpty && refText != '—' && !isAddon;
+
+                return Text(
+                  isAddon
+                      ? 'ADDON'
+                      : (isCleanProject
+                          ? (refText.startsWith('Ref:') ? refText : refText)
+                          : '—'),
+                  style: TextStyle(
+                    color: isAddon ? context.textPrimary : context.textSecondary,
+                    fontSize: 12,
+                    fontWeight: isAddon ? FontWeight.bold : FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                );
+              },
             ),
           ),
 
@@ -1410,68 +1572,6 @@ class _LedgerListTile extends ConsumerWidget {
                 'Rs. ${entry.amount.toStringAsFixed(2)}',
                 style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 13),
               ),
-            ),
-          ),
-
-          // 8. Action (3 dots with Delete Warning)
-          Expanded(
-            flex: 1,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: canDelete
-                  ? PopupMenuButton<String>(
-                      icon: Icon(Icons.more_vert, size: 18, color: context.textSecondary),
-                      onSelected: (val) async {
-                        if (val == 'delete') {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Confirm Delete', style: TextStyle(fontWeight: FontWeight.bold)),
-                              content: Text('Are you sure you want to delete transaction "${entry.description}"?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('Cancel'),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Delete', style: TextStyle(color: Colors.white)),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            if (entry.id.startsWith('led_inc_')) {
-                              final realIncId = entry.id.replaceFirst('led_inc_', '');
-                              await ref.read(incomeProvider.notifier).deleteIncome(realIncId);
-                            } else if (entry.id.startsWith('led_exp_')) {
-                              final realExpId = entry.id.replaceFirst('led_exp_', '');
-                              await ref.read(expensesProvider.notifier).deleteExpense(realExpId);
-                            } else {
-                              await ref.read(ledgerProvider.notifier).deleteLedgerEntry(entry.id);
-                            }
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Transaction deleted successfully')),
-                            );
-                          }
-                        }
-                      },
-                      itemBuilder: (ctx) => [
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text('Delete', style: TextStyle(color: Colors.red, fontSize: 13)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
             ),
           ),
         ],
