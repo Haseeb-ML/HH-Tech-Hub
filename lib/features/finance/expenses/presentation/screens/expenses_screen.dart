@@ -1569,11 +1569,47 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
   late final TextEditingController _amountController;
   late final TextEditingController _vendorController;
   late final TextEditingController _descController;
+  late final TextEditingController _dateController;
 
   String _category = 'Electricity & Utilities';
   String? _selectedAccountId;
   DateTime _date = DateTime.now();
   bool _isPersonalExpense = false;
+
+  String _formatDateForDisplay(DateTime dt) {
+    return DateFormat('yyyy-MM-dd HH:mm').format(dt);
+  }
+
+  DateTime _parseInputDate(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return DateTime.now();
+
+    final formats = [
+      'yyyy-MM-dd HH:mm:ss',
+      'yyyy-MM-dd HH:mm',
+      'yyyy-MM-ddTHH:mm:ss',
+      'yyyy-MM-ddTHH:mm',
+      'yyyy-MM-dd',
+      'dd-MM-yyyy HH:mm',
+      'dd-MM-yyyy',
+      'dd/MM/yyyy HH:mm',
+      'dd/MM/yyyy',
+      'yyyy/MM/dd HH:mm',
+      'yyyy/MM/dd',
+    ];
+
+    for (final fmt in formats) {
+      try {
+        return DateFormat(fmt).parse(trimmed);
+      } catch (_) {}
+    }
+
+    try {
+      return DateTime.parse(trimmed);
+    } catch (_) {}
+
+    return DateTime.now();
+  }
 
   @override
   void initState() {
@@ -1585,8 +1621,13 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
     if (widget.expense != null) {
       _category = widget.expense!.category;
       _selectedAccountId = widget.expense!.accountId;
-      _date = DateTime.tryParse(widget.expense!.date) ?? DateTime.now();
+      final parsed = DateTime.tryParse(widget.expense!.date) ?? DateTime.now();
+      _date = parsed;
+      _dateController = TextEditingController(text: _formatDateForDisplay(parsed));
       _isPersonalExpense = widget.expense!.isPersonalExpense;
+    } else {
+      _date = DateTime.now();
+      _dateController = TextEditingController(text: _formatDateForDisplay(_date));
     }
   }
 
@@ -1595,6 +1636,7 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
     _amountController.dispose();
     _vendorController.dispose();
     _descController.dispose();
+    _dateController.dispose();
     super.dispose();
   }
 
@@ -1680,34 +1722,75 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
             final dateField = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildLabel(tr('Date Paid')),
-                OutlinedButton(
-                  onPressed: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: _date,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2030),
-                    );
-                    if (picked != null) {
-                      setState(() => _date = picked);
-                    }
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: context.border),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _date.toIso8601String().substring(0, 10),
-                        style: TextStyle(color: context.textPrimary, fontSize: 13),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildLabel('Date Paid'),
+                    InkWell(
+                      onTap: () {
+                        final now = DateTime.now();
+                        setState(() {
+                          _date = now;
+                          _dateController.text = _formatDateForDisplay(now);
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.access_time, size: 12, color: context.primaryColor),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Current Time',
+                              style: TextStyle(color: context.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
                       ),
-                      Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
-                    ],
+                    ),
+                  ],
+                ),
+                TextFormField(
+                  controller: _dateController,
+                  style: TextStyle(color: context.textPrimary, fontSize: 13),
+                  keyboardType: TextInputType.datetime,
+                  decoration: _buildInputDecoration('YYYY-MM-DD HH:mm (or leave for now)').copyWith(
+                    suffixIcon: IconButton(
+                      tooltip: 'Pick Date & Time from Calendar',
+                      icon: Icon(Icons.calendar_month_outlined, size: 20, color: context.primaryColor),
+                      onPressed: () async {
+                        final current = _parseInputDate(_dateController.text);
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: current,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                        );
+                        if (pickedDate != null && context.mounted) {
+                          final pickedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.fromDateTime(current),
+                          );
+                          final finalDateTime = DateTime(
+                            pickedDate.year,
+                            pickedDate.month,
+                            pickedDate.day,
+                            pickedTime?.hour ?? current.hour,
+                            pickedTime?.minute ?? current.minute,
+                          );
+                          setState(() {
+                            _date = finalDateTime;
+                            _dateController.text = _formatDateForDisplay(finalDateTime);
+                          });
+                        }
+                      },
+                    ),
                   ),
+                  onChanged: (val) {
+                    _date = _parseInputDate(val);
+                  },
                 ),
               ],
             );
@@ -1890,10 +1973,9 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                                 }
 
                                 final now = DateTime.now();
-                                final isToday = _date.year == now.year && _date.month == now.month && _date.day == now.day;
-                                final expenseDate = (widget.expense != null && !isToday && widget.expense!.date.startsWith(_date.toIso8601String().substring(0, 10)))
-                                    ? widget.expense!.date
-                                    : (isToday ? now.toIso8601String() : DateTime(_date.year, _date.month, _date.day, 12, 0, 0).toIso8601String());
+                                final rawInput = _dateController.text.trim();
+                                final DateTime chosenDate = rawInput.isEmpty ? now : _parseInputDate(rawInput);
+                                final expenseDate = chosenDate.toIso8601String();
 
                                 final expense = ExpenseRecord(
                                   id: widget.expense?.id ?? 'exp_${now.millisecondsSinceEpoch}',
