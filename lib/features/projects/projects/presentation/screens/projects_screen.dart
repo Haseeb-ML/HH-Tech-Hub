@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/projects/shared/widgets/projects_sub_nav.dart';
 import '../providers/projects_provider.dart';
 import '../../domain/entities/project.dart';
@@ -370,7 +371,7 @@ class ProjectsScreen extends ConsumerWidget {
                                   tooltipMessage:
                                       'Detailed statistics and information regarding Total Budget.',
                                   value:
-                                      'Rs. ${(totalBudget / 1000).toStringAsFixed(1)}k',
+                                      CurrencyFormatter.formatCurrency(totalBudget),
                                   icon: Icons.monetization_on_outlined,
                                   iconColor: Colors.deepPurple,
                                   iconBgColor: context.isDarkMode

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/sales/shared/widgets/sales_sub_nav.dart';
 import 'package:software_house_erp/features/clients/clients/presentation/providers/clients_provider.dart';
 import '../providers/products_provider.dart';
@@ -28,12 +29,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   }
 
   String _formatCurrency(double amount) {
-    if (amount >= 1000000) {
-      return 'Rs. ${(amount / 1000000).toStringAsFixed(2)}M';
-    } else if (amount >= 1000) {
-      return 'Rs. ${(amount / 1000).toStringAsFixed(1)}k';
-    }
-    return 'Rs. ${amount.toStringAsFixed(0)}';
+    return CurrencyFormatter.formatCurrency(amount);
   }
 
   Color _getStatusColor(BuildContext context, String status) {

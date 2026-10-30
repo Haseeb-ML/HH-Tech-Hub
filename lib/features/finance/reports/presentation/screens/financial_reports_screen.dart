@@ -7,6 +7,7 @@ import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/finance/expenses/domain/entities/expense_record.dart';
 import 'package:software_house_erp/features/finance/income/domain/entities/income_record.dart';
 import 'package:software_house_erp/features/hr/salaries/domain/entities/salary_record.dart';
@@ -366,7 +367,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
               children: [
                 StatCard(
                   title: 'TOTAL REVENUE',
-                  value: 'Rs. ${(pl.totalRevenue / 1000).toStringAsFixed(1)}k',
+                  value: CurrencyFormatter.formatCurrency(pl.totalRevenue),
                   icon: Icons.trending_up,
                   iconColor: context.success,
                   iconBgColor: context.successLight,
@@ -374,7 +375,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                 ),
                 StatCard(
                   title: 'TOTAL EXPENSES',
-                  value: 'Rs. ${(pl.totalExpenses / 1000).toStringAsFixed(1)}k',
+                  value: CurrencyFormatter.formatCurrency(pl.totalExpenses),
                   icon: Icons.trending_down,
                   iconColor: context.error,
                   iconBgColor: context.errorLight,
@@ -382,7 +383,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                 ),
                 StatCard(
                   title: 'NET PROFIT',
-                  value: 'Rs. ${(pl.netProfit / 1000).toStringAsFixed(1)}k',
+                  value: CurrencyFormatter.formatAccountingBalance((pl.netProfit as num).toDouble(), showDr: false),
                   icon: Icons.account_balance_wallet_outlined,
                   iconColor: pl.netProfit >= 0 ? context.success : context.error,
                   iconBgColor: pl.netProfit >= 0 ? context.successLight : context.errorLight,
@@ -390,7 +391,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                 ),
                 StatCard(
                   title: 'CASH & BANK',
-                  value: 'Rs. ${(al.cashAndBankBalance / 1000).toStringAsFixed(1)}k',
+                  value: CurrencyFormatter.formatAccountingBalance((al.cashAndBankBalance as num).toDouble(), showDr: false),
                   icon: Icons.account_balance_outlined,
                   iconColor: context.info,
                   iconBgColor: context.infoLight,
@@ -398,7 +399,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                 ),
                 StatCard(
                   title: 'RECEIVABLES',
-                  value: 'Rs. ${(al.accountsReceivable / 1000).toStringAsFixed(1)}k',
+                  value: CurrencyFormatter.formatCurrency(al.accountsReceivable),
                   icon: Icons.receipt_long_outlined,
                   iconColor: context.warning,
                   iconBgColor: context.warningLight,
@@ -406,7 +407,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                 ),
                 StatCard(
                   title: 'PAYABLES',
-                  value: 'Rs. ${(((al.accountsPayable + al.shortTermLoans)) / 1000).toStringAsFixed(1)}k',
+                  value: CurrencyFormatter.formatCurrency(al.accountsPayable + al.shortTermLoans),
                   icon: Icons.money_off_outlined,
                   iconColor: context.error,
                   iconBgColor: context.errorLight,
@@ -416,7 +417,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                 ),
                 StatCard(
                   title: 'TOTAL ASSETS',
-                  value: 'Rs. ${(al.totalCurrentAssets / 1000).toStringAsFixed(1)}k',
+                  value: CurrencyFormatter.formatCurrency(al.totalCurrentAssets),
                   icon: Icons.pie_chart_outline_outlined,
                   iconColor: context.success,
                   iconBgColor: context.successLight,
@@ -424,7 +425,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                 ),
                 StatCard(
                   title: 'TOTAL LIABILITIES',
-                  value: 'Rs. ${(al.totalCurrentLiabilities / 1000).toStringAsFixed(1)}k',
+                  value: CurrencyFormatter.formatCurrency(al.totalCurrentLiabilities),
                   icon: Icons.credit_card_off_outlined,
                   iconColor: context.error,
                   iconBgColor: context.errorLight,
@@ -4212,14 +4213,7 @@ class _IncomeBarChartPainter extends CustomPainter {
         gridPaint,
       );
 
-      String label;
-      if (val >= 1000000) {
-        label = 'Rs. ${(val / 1000000).toStringAsFixed(1)}M';
-      } else if (val >= 1000) {
-        label = 'Rs. ${(val / 1000).toStringAsFixed(0)}K';
-      } else {
-        label = 'Rs. ${val.toStringAsFixed(0)}';
-      }
+      final label = CurrencyFormatter.formatCurrency(val);
 
       final textPainter = TextPainter(
         text: TextSpan(text: label, style: textStyle),
@@ -4432,14 +4426,7 @@ class _ExpensesCategoryBarChartPainter extends CustomPainter {
         gridPaint,
       );
 
-      String label;
-      if (val >= 1000000) {
-        label = 'Rs. ${(val / 1000000).toStringAsFixed(1)}M';
-      } else if (val >= 1000) {
-        label = 'Rs. ${(val / 1000).toStringAsFixed(0)}K';
-      } else {
-        label = 'Rs. ${val.toStringAsFixed(0)}';
-      }
+      final label = CurrencyFormatter.formatCurrency(val);
 
       final textPainter = TextPainter(
         text: TextSpan(text: label, style: textStyle),
@@ -4570,14 +4557,7 @@ class _TrendChartPainter extends CustomPainter {
         gridPaint,
       );
 
-      String label;
-      if (val >= 1000000) {
-        label = 'Rs. ${(val / 1000000).toStringAsFixed(1)}M';
-      } else if (val >= 1000) {
-        label = 'Rs. ${(val / 1000).toStringAsFixed(0)}K';
-      } else {
-        label = 'Rs. ${val.toStringAsFixed(0)}';
-      }
+      final label = CurrencyFormatter.formatCurrency(val);
 
       final textPainter = TextPainter(
         text: TextSpan(text: label, style: textStyle),
@@ -4755,14 +4735,7 @@ class _CurrentVsPriorYearChartPainter extends CustomPainter {
 
       canvas.drawLine(Offset(xPos, topPadding), Offset(xPos, topPadding + chartHeight), gridPaint);
 
-      String label;
-      if (val >= 1000000) {
-        label = 'Rs.${(val / 1000000).toStringAsFixed(1)}M';
-      } else if (val >= 1000) {
-        label = 'Rs.${(val / 1000).toStringAsFixed(0)}K';
-      } else {
-        label = 'Rs.${val.toStringAsFixed(0)}';
-      }
+      final label = CurrencyFormatter.formatCurrency(val);
 
       final textPainter = TextPainter(
         text: TextSpan(text: label, style: textStyle),

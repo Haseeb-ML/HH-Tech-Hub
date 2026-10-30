@@ -178,7 +178,7 @@ class AccountsScreen extends ConsumerWidget {
                                 StatCard(
                                   title: 'Total Balance',
                                   tooltipMessage: 'Detailed statistics and information regarding Total Balance.',
-                                  value: 'Rs. ${(totalBalance / 1000).toStringAsFixed(1)}k',
+                                  value: CurrencyFormatter.formatAccountingBalance(totalBalance),
                                   icon: Icons.account_balance_wallet_outlined,
                                   iconColor: context.primaryColor,
                                   iconBgColor: context.infoLight,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/finance_sub_nav.dart';
 import '../providers/loans_provider.dart';
 import '../../../accounts/presentation/providers/accounts_provider.dart';
@@ -159,7 +160,7 @@ class LoansScreen extends ConsumerWidget {
                                 StatCard(
                                   title: 'Total Loans Lent',
                                   tooltipMessage: 'Detailed statistics and information regarding Total Loans Lent.',
-                                  value: 'Rs. ${(totalLent / 1000).toStringAsFixed(1)}k',
+                                  value: CurrencyFormatter.formatCurrency(totalLent),
                                   icon: Icons.upload_outlined,
                                   iconColor: context.success,
                                   iconBgColor: context.successLight,
@@ -167,7 +168,7 @@ class LoansScreen extends ConsumerWidget {
                                 StatCard(
                                   title: 'Remaining Lent Recv',
                                   tooltipMessage: 'Detailed statistics and information regarding Remaining Lent Recv.',
-                                  value: 'Rs. ${(remainingLent / 1000).toStringAsFixed(1)}k',
+                                  value: CurrencyFormatter.formatCurrency(remainingLent),
                                   icon: Icons.trending_up,
                                   iconColor: Colors.teal,
                                   iconBgColor: context.isDarkMode ? Colors.teal.withValues(alpha: 0.2) : const Color(0xFFE6F4EA),
@@ -175,7 +176,7 @@ class LoansScreen extends ConsumerWidget {
                                 StatCard(
                                   title: 'Total Loans Borrowed',
                                   tooltipMessage: 'Detailed statistics and information regarding Total Loans Borrowed.',
-                                  value: 'Rs. ${(totalBorrowed / 1000).toStringAsFixed(1)}k',
+                                  value: CurrencyFormatter.formatCurrency(totalBorrowed),
                                   icon: Icons.download_outlined,
                                   iconColor: context.error,
                                   iconBgColor: context.errorLight,
@@ -183,7 +184,7 @@ class LoansScreen extends ConsumerWidget {
                                 StatCard(
                                   title: 'Remaining Borrowed Pay',
                                   tooltipMessage: 'Detailed statistics and information regarding Remaining Borrowed Pay.',
-                                  value: 'Rs. ${(remainingBorrowed / 1000).toStringAsFixed(1)}k',
+                                  value: CurrencyFormatter.formatCurrency(remainingBorrowed),
                                   icon: Icons.trending_down,
                                   iconColor: context.warning,
                                   iconBgColor: context.warningLight,

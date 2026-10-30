@@ -4,6 +4,7 @@ import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/core/utils/export_helper.dart';
 import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
 import '../../../employees/domain/entities/employee.dart';
@@ -411,7 +412,7 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                       StatCard(
                                         title: tr('Total Salaries Drawn'),
                                         tooltipMessage: "Detailed statistics and information regarding ${tr('Total Salaries Drawn')}.",
-                                        value: 'Rs. ${(totalPaidSalary / 1000).toStringAsFixed(1)}k',
+                                        value: CurrencyFormatter.formatCurrency(totalPaidSalary),
                                         icon: Icons.payments_outlined,
                                         iconColor: context.success,
                                         iconBgColor: context.successLight,

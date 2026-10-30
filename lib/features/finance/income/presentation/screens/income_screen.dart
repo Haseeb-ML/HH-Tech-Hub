@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/finance_sub_nav.dart';
 import '../providers/income_provider.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
@@ -482,7 +483,7 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                 StatCard(
                                   title: 'Total Invoiced',
                                   tooltipMessage: 'Detailed statistics and information regarding Total Invoiced.',
-                                  value: 'Rs. ${(totalAmount / 1000).toStringAsFixed(1)}k',
+                                  value: CurrencyFormatter.formatCurrency(totalAmount),
                                   icon: Icons.assignment_turned_in_outlined,
                                   iconColor: context.primaryColor,
                                   iconBgColor: context.infoLight,
@@ -490,7 +491,7 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                 StatCard(
                                   title: tr('Received Inflow'),
                                   tooltipMessage: "Detailed statistics and information regarding ${tr('Received Inflow')}.",
-                                  value: 'Rs. ${(receivedAmount / 1000).toStringAsFixed(1)}k',
+                                  value: CurrencyFormatter.formatCurrency(receivedAmount),
                                   icon: Icons.check_circle_outline,
                                   iconColor: context.success,
                                   iconBgColor: context.successLight,
@@ -498,7 +499,7 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
                                 StatCard(
                                   title: tr('Pending Inflow'),
                                   tooltipMessage: "Detailed statistics and information regarding ${tr('Pending Inflow')}.",
-                                  value: 'Rs. ${(pendingAmount / 1000).toStringAsFixed(1)}k',
+                                  value: CurrencyFormatter.formatCurrency(pendingAmount),
                                   icon: Icons.hourglass_empty,
                                   iconColor: context.warning,
                                   iconBgColor: context.warningLight,

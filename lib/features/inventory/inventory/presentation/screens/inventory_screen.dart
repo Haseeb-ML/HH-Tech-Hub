@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/inventory/shared/widgets/inventory_sub_nav.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
 import '../providers/inventory_provider.dart';
@@ -218,7 +219,7 @@ class InventoryScreen extends ConsumerWidget {
                                 StatCard(
                                   title: 'Total Value',
                                   tooltipMessage: 'Detailed statistics and information regarding Total Value.',
-                                  value: 'Rs. ${(totalValue / 1000).toStringAsFixed(1)}k',
+                                  value: CurrencyFormatter.formatCurrency(totalValue),
                                   icon: Icons.monetization_on_outlined,
                                   iconColor: context.success,
                                   iconBgColor: context.successLight,

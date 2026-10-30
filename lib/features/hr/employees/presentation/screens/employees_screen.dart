@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
 import '../providers/employees_provider.dart';
 import '../providers/departments_provider.dart';
@@ -201,7 +202,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                           StatCard(
                             title: tr('Monthly Payroll'),
                             tooltipMessage: "Detailed statistics and information regarding ${tr('Monthly Payroll')}.",
-                            value: 'Rs. ${(monthlyPayroll / 1000).toStringAsFixed(1)}k',
+                            value: CurrencyFormatter.formatCurrency(monthlyPayroll),
                             icon: Icons.payments_outlined,
                             iconColor: context.error,
                             iconBgColor: context.errorLight,

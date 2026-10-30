@@ -5,6 +5,7 @@ import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 
 // Import providers
 import 'package:software_house_erp/features/hr/employees/presentation/providers/employees_provider.dart';
@@ -296,7 +297,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 StatCard(
                   title: 'Total Portfolio Budget',
                   tooltipMessage: 'Detailed statistics and information regarding Total Portfolio Budget.',
-                  value: 'Rs. ${(totalBudget / 1000).toStringAsFixed(0)}k',
+                  value: CurrencyFormatter.formatCurrency(totalBudget),
                   icon: Icons.monetization_on_outlined,
                   iconColor: context.primaryColor,
                   iconBgColor: context.infoLight,
@@ -489,7 +490,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 StatCard(
                   title: tr('Hardware & License Assets'),
                   tooltipMessage: "Detailed statistics and information regarding ${tr('Hardware & License Assets')}.",
-                  value: 'Rs. ${(totalAssetsValue / 1000).toStringAsFixed(0)}k',
+                  value: CurrencyFormatter.formatCurrency(totalAssetsValue),
                   icon: Icons.computer_outlined,
                   iconColor: context.success,
                   iconBgColor: context.successLight,
@@ -574,7 +575,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 10),
-                      _buildSummaryRow(tr('Total Hardware Assets'), '${assetState.assets.length} devices (Rs. ${(totalAssetsValue / 1000).toStringAsFixed(0)}k)'),
+                      _buildSummaryRow(tr('Total Hardware Assets'), '${assetState.assets.length} devices (${CurrencyFormatter.formatCurrency(totalAssetsValue)})'),
                       const SizedBox(height: 8),
                       _buildSummaryRow(tr('Assets Deployed'), '$assignedAssets in active use', color: context.info),
                       const SizedBox(height: 8),
@@ -639,7 +640,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             const SizedBox(height: 16),
                             const Divider(),
                             const SizedBox(height: 10),
-                            _buildSummaryRow(tr('Total Hardware Assets'), '${assetState.assets.length} devices (Rs. ${(totalAssetsValue / 1000).toStringAsFixed(0)}k)'),
+                            _buildSummaryRow(tr('Total Hardware Assets'), '${assetState.assets.length} devices (${CurrencyFormatter.formatCurrency(totalAssetsValue)})'),
                             const SizedBox(height: 8),
                             _buildSummaryRow(tr('Assets Deployed'), '$assignedAssets device allocations', color: context.info),
                             const SizedBox(height: 8),
@@ -862,9 +863,7 @@ class _CustomBarChart extends ConsumerWidget {
                       // Value Text above bar!
                       Text(
                         d.primaryValue > 0
-                            ? (d.primaryValue >= 1000
-                                ? 'Rs. ${(d.primaryValue / 1000).toStringAsFixed(0)}k'
-                                : 'Rs. ${d.primaryValue.toInt()}')
+                            ? 'Rs. ${CurrencyFormatter.formatAmount(d.primaryValue)}'
                             : (d.count != null && d.count! > 0 ? '${d.count} proj' : '0'),
                         style: TextStyle(
                           color: context.textPrimary,
@@ -986,7 +985,7 @@ class _CustomBreakdownList extends ConsumerWidget {
                   Text(
                     isHeadcount
                         ? '${item.value.toInt()} Staff (${item.percentage.toStringAsFixed(0)}%)'
-                        : 'Rs. ${(item.value / 1000).toStringAsFixed(0)}k (${item.percentage.toStringAsFixed(0)}%)',
+                        : '${CurrencyFormatter.formatCurrency(item.value)} (${item.percentage.toStringAsFixed(0)}%)',
                     style: TextStyle(color: context.textSecondary, fontSize: 11),
                   ),
                 ],
