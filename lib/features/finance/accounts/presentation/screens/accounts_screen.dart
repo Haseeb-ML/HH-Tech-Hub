@@ -1325,23 +1325,21 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
                   const SizedBox(height: 16),
                 ],
 
-                // Opening Balance (Company Accounts Only)
-                if (_accountScope != 'Personal') ...[
-                  _buildLabel('Opening Balance'),
-                  TextFormField(
-                    controller: _openingBalanceController,
-                    keyboardType: TextInputType.number,
-                    style: TextStyle(color: context.textPrimary),
-                    decoration: _buildInputDecoration('e.g. 10000'),
-                    validator: (val) {
-                      if (val != null && val.isNotEmpty && double.tryParse(val) == null) {
-                        return 'Enter a valid number';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                ],
+                // Opening Balance
+                _buildLabel('Opening Balance'),
+                TextFormField(
+                  controller: _openingBalanceController,
+                  keyboardType: TextInputType.number,
+                  style: TextStyle(color: context.textPrimary),
+                  decoration: _buildInputDecoration('e.g. 10000'),
+                  validator: (val) {
+                    if (val != null && val.isNotEmpty && double.tryParse(val) == null) {
+                      return 'Enter a valid number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
 
                 // Actions Row
                 Align(
@@ -1364,14 +1362,10 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
                         onPressed: () {
                           if (_formKey.currentState?.validate() == true) {
                             final isPersonalScope = _accountScope.toLowerCase() == 'personal';
-                            final openingBal = isPersonalScope
-                                ? (widget.account?.openingBalance ?? 0.0)
-                                : (double.tryParse(_openingBalanceController.text.trim().isEmpty ? "0" : _openingBalanceController.text) ?? 0.0);
+                            final openingBal = double.tryParse(_openingBalanceController.text.trim().isEmpty ? "0" : _openingBalanceController.text) ?? 0.0;
                             final double calculatedBalance;
                             if (widget.account == null) {
-                              calculatedBalance = isPersonalScope ? 0.0 : openingBal;
-                            } else if (isPersonalScope) {
-                              calculatedBalance = widget.account!.balance;
+                              calculatedBalance = openingBal;
                             } else if (widget.account!.balance == widget.account!.openingBalance ||
                                 (widget.account!.openingBalance == 0.0 && widget.account!.balance == 0.0)) {
                               calculatedBalance = openingBal;
