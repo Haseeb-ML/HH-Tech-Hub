@@ -68,9 +68,6 @@ Future<void> recordPersonalAccountTransaction(
   }
 
   if (transaction.type == PersonalTransactionType.expense) {
-    if (personal.balance < transaction.amount) {
-      throw StateError('Insufficient balance in ${personal.name}.');
-    }
     await accountNotifier.adjustBalance(personal.id, -transaction.amount);
     await ledgerNotifier.addLedgerEntry(LedgerEntry(
       id: 'led_personal_expense_${DateTime.now().millisecondsSinceEpoch}',

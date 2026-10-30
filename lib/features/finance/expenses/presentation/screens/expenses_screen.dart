@@ -1544,7 +1544,7 @@ class _ExpenseDetailsDialog extends ConsumerWidget {
                     const Divider(height: 1),
                     _detailRow(context, isMobile, 'Vendor / Beneficiary', expense.vendorName.isEmpty ? 'Not provided' : expense.vendorName, Icons.person_outline),
                     const Divider(height: 1),
-                    _detailRow(context, isMobile, 'Paid From Account', accountLabel, Icons.account_balance_outlined),
+                    _detailRow(context, isMobile, 'Account', accountLabel, Icons.account_balance_outlined),
                     const Divider(height: 1),
                     _detailRow(context, isMobile, 'Date Paid', _formatDate(expense.date), Icons.calendar_today_outlined),
                     const Divider(height: 1),
@@ -1855,7 +1855,7 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
             final accountField = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildLabel('Paid From Account'),
+                _buildLabel('Account'),
                 DropdownButtonFormField<String>(
                   isExpanded: true,
                   initialValue: _selectedAccountId,
