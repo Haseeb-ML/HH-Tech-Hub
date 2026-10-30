@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:intl/intl.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 
 class TransactionDetailDialog extends StatelessWidget {
   final String id;
@@ -82,8 +83,10 @@ class TransactionDetailDialog extends StatelessWidget {
     String formattedDate = date;
     try {
       final dt = DateTime.parse(date);
-      formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(dt);
-    } catch (_) {}
+      formattedDate = AppDateFormatter.formatWithTime(dt);
+    } catch (_) {
+      formattedDate = AppDateFormatter.formatString(date);
+    }
 
     final isOutflow = !isInflow;
     final prefix = isOutflow ? 'exp_' : 'inv_';

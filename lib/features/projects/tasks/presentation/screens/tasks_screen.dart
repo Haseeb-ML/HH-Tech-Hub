@@ -3,6 +3,7 @@ import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/features/projects/shared/widgets/projects_sub_nav.dart';
 import '../providers/tasks_provider.dart';
 import '../../domain/entities/project_task.dart';
@@ -817,7 +818,7 @@ class _TaskCard extends ConsumerWidget {
                   Icon(Icons.calendar_today, size: 10, color: context.textMuted),
                   const SizedBox(width: 4),
                   Text(
-                    task.dueDate,
+                    AppDateFormatter.formatString(task.dueDate),
                     style: TextStyle(color: context.textSecondary, fontSize: 10),
                   ),
                 ],
@@ -1138,7 +1139,7 @@ class _AddEditTaskDialogState extends ConsumerState<_AddEditTaskDialog> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            _dueDate.toIso8601String().substring(0, 10),
+                            AppDateFormatter.format(_dueDate),
                             style: TextStyle(color: context.textPrimary),
                           ),
                           Icon(Icons.calendar_today, size: 16, color: context.primaryColor),

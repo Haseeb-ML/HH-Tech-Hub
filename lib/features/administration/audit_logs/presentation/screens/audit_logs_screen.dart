@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
@@ -36,7 +37,7 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
   }
 
   String _formatDate(DateTime dt) {
-    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+    return AppDateFormatter.format(dt);
   }
 
   Future<void> _pickSingleDate(BuildContext context) async {
@@ -172,7 +173,7 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _detailTile(context, 'Log ID', log.id, Icons.tag),
-                  _detailTile(context, 'Timestamp', log.timestamp, Icons.schedule),
+                  _detailTile(context, 'Timestamp', AppDateFormatter.formatString(log.timestamp), Icons.schedule),
                   _detailTile(context, 'User Account / Operator', log.user, Icons.person_outline),
                   _detailTile(context, 'Module Scope', log.module, Icons.layers_outlined),
                   _detailTile(context, 'IP Address', log.ipAddress, Icons.wifi),
@@ -986,7 +987,7 @@ class _AuditlogsScreenState extends ConsumerState<AuditlogsScreen> {
                                               children: [
                                                 Icon(Icons.access_time, size: 14, color: context.textMuted),
                                                 const SizedBox(width: 6),
-                                                Text(log.timestamp, style: TextStyle(color: context.textSecondary, fontSize: 12)),
+                                                Text(AppDateFormatter.formatString(log.timestamp), style: TextStyle(color: context.textSecondary, fontSize: 12)),
                                               ],
                                             ),
                                           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
@@ -570,7 +571,7 @@ class _SalaryRow extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Period: ${record.payPeriod} • ${record.paymentDate}',
+                        'Period: ${record.payPeriod} • ${AppDateFormatter.formatString(record.paymentDate)}',
                         style: TextStyle(color: context.textSecondary, fontSize: 11),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -679,7 +680,7 @@ class _SalaryRow extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Period: ${record.payPeriod} | Paid on ${record.paymentDate}',
+                      'Period: ${record.payPeriod} | Paid on ${AppDateFormatter.formatString(record.paymentDate)}',
                       style: TextStyle(color: context.textSecondary, fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -962,7 +963,7 @@ class _PayslipPreviewDialogState extends ConsumerState<_PayslipPreviewDialog> {
                       runSpacing: 8,
                       alignment: WrapAlignment.spaceBetween,
                       children: [
-                        _buildInfoColumn('Disbursed Date', record.paymentDate, context),
+                        _buildInfoColumn('Disbursed Date', AppDateFormatter.formatString(record.paymentDate), context),
                         _buildInfoColumn('Slip Ref', 'PAY-${record.id.replaceAll('sal_', '')}', context),
                         _buildInfoColumn('Account', record.accountName.isNotEmpty ? record.accountName : 'Company Account', context),
                       ],

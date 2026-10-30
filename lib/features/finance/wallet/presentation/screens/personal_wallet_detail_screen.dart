@@ -18,6 +18,7 @@ import '../widgets/personal_account_transaction_dialog.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 
 class PersonalWalletDetailScreen extends ConsumerStatefulWidget {
   final String accountId;
@@ -418,7 +419,7 @@ class _PersonalWalletDetailScreenState
                 final isInflow = t.type == 'Income';
                 return [
                   (item.key + 1).toString(),
-                  t.date.split('T').first,
+                  AppDateFormatter.formatString(t.date),
                   t.description,
                   t.reference,
                   isInflow ? t.amount.toStringAsFixed(2) : '-',
@@ -945,7 +946,7 @@ class _PersonalWalletDetailScreenState
                               const SizedBox(width: 8),
                               Text(
                                 _startDate != null && _endDate != null
-                                    ? '${_startDate!.toIso8601String().substring(0, 10)} – ${_endDate!.toIso8601String().substring(0, 10)}'
+                                    ? '${AppDateFormatter.format(_startDate)} – ${AppDateFormatter.format(_endDate)}'
                                     : tr('Date Range'),
                                 style: TextStyle(
                                     color: context.textPrimary,
@@ -1387,7 +1388,7 @@ class _PersonalWalletDetailScreenState
 
   Widget _buildDateAndTimeCell(BuildContext context, String rawDate, String txId) {
     final dt = _resolveTransactionDate(rawDate, txId);
-    final dateStr = rawDate.split('T').first;
+    final dateStr = AppDateFormatter.formatString(rawDate);
     String timeStr = '12:00 PM';
     if (dt != null) {
       final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);

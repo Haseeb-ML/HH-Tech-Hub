@@ -6,6 +6,7 @@ import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/finance_sub_nav.dart';
 import '../providers/income_provider.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
@@ -44,11 +45,11 @@ class _IncomeScreenState extends ConsumerState<IncomeScreen> {
     try {
       final dt = DateTime.parse(isoDate);
       if (dt.hour != 0 || dt.minute != 0) {
-        return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
+        return AppDateFormatter.formatWithTime(dt);
       }
-      return DateFormat('dd MMM yyyy').format(dt);
+      return AppDateFormatter.format(dt);
     } catch (_) {
-      return isoDate;
+      return AppDateFormatter.formatString(isoDate);
     }
   }
 
@@ -2230,7 +2231,7 @@ class _RecordIncomeDialogState extends ConsumerState<_RecordIncomeDialog> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                DateFormat('dd MMM yyyy').format(_date),
+                                AppDateFormatter.format(_date),
                                 style: TextStyle(color: context.textPrimary, fontSize: 13),
                               ),
                               Icon(Icons.calendar_today, size: 16, color: context.primaryColor),

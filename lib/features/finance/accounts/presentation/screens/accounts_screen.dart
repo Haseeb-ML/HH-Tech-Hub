@@ -2433,7 +2433,7 @@ Future<void> _generateBankStatement(BuildContext context, WidgetRef ref, BankAcc
 
   // Prepare Excel rows
   List<List<dynamic>> rows = [];
-  final dateFormat = DateFormat('dd MMM yyyy, HH:mm');
+  final dateFormat = DateFormat('dd-MM-yyyy, HH:mm');
 
   for (int i = 0; i < sortedTransactions.length; i++) {
     final t = sortedTransactions[i];

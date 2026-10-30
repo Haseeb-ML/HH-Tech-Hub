@@ -8,6 +8,7 @@ import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/features/projects/shared/widgets/projects_sub_nav.dart';
 import '../providers/projects_provider.dart';
 import '../../domain/entities/project.dart';
@@ -4020,7 +4021,7 @@ class _PartialPaymentDialogContentState
       'Nov',
       'Dec',
     ];
-    return '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
+    return AppDateFormatter.format(d);
   }
 
   String _paymentTypeHint(String type) {
@@ -4797,8 +4798,7 @@ String _formatIncomeDate(String isoString) {
       'Nov',
       'Dec',
     ];
-    final date =
-        '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
+    final date = AppDateFormatter.format(d);
 
     // If isoString doesn't contain a time component, don't invent 12:00 AM
     final hasExplicitTime = isoString.contains('T') || isoString.contains(' ');
@@ -5928,7 +5928,7 @@ class _AddAddonModalDialogState extends ConsumerState<_AddAddonModalDialog> {
                             child: Text(
                               _estimatedDeliveryDate == null
                                   ? 'Select estimated delivery date'
-                                  : '${_estimatedDeliveryDate!.day}/${_estimatedDeliveryDate!.month}/${_estimatedDeliveryDate!.year}',
+                                  : AppDateFormatter.format(_estimatedDeliveryDate),
                               style: TextStyle(
                                 color: _estimatedDeliveryDate == null
                                     ? context.textMuted
@@ -6101,7 +6101,7 @@ class _AddAddonModalDialogState extends ConsumerState<_AddAddonModalDialog> {
                                 'addon_${DateTime.now().millisecondsSinceEpoch}';
 
                             final deliveryStr = _estimatedDeliveryDate != null
-                                ? '${_estimatedDeliveryDate!.day}/${_estimatedDeliveryDate!.month}/${_estimatedDeliveryDate!.year}'
+                                ? AppDateFormatter.format(_estimatedDeliveryDate)
                                 : '';
 
                             final paymentStatus = paymentAmount >= totalAmount

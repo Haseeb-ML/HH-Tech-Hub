@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/features/administration/recovery/data/models/recycle_bin_item.dart';
 import 'package:software_house_erp/features/administration/recovery/presentation/providers/recovery_provider.dart';
@@ -446,8 +447,10 @@ class _DataRecoveryScreenState extends ConsumerState<DataRecoveryScreen> {
     String formattedDate = item.deletedAt;
     try {
       final dt = DateTime.parse(item.deletedAt);
-      formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(dt);
-    } catch (_) {}
+      formattedDate = AppDateFormatter.formatWithTime(dt);
+    } catch (_) {
+      formattedDate = AppDateFormatter.formatString(item.deletedAt);
+    }
 
     if (isMobile) {
       return Container(

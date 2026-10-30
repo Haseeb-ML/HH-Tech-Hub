@@ -12,6 +12,7 @@ import '../../domain/entities/attendance_record.dart';
 import '../../../employees/presentation/providers/employees_provider.dart';
 import '../../../employees/presentation/providers/departments_provider.dart';
 import '../../../../../core/widgets/export_button.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 
 // ═══════════════════════════════════════════════════════════
 //  AttendanceScreen — Daily + Monthly toggle
@@ -2245,7 +2246,7 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${widget.record.employeeName} • Date: ${widget.record.date}',
+                '${widget.record.employeeName} • Date: ${AppDateFormatter.formatString(widget.record.date)}',
                 style: TextStyle(color: context.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 16),
@@ -2432,7 +2433,7 @@ class _EditAttendanceDialogState extends ConsumerState<_EditAttendanceDialog> {
                         builder: (ctx) => AlertDialog(
                           title: const Text('Reset Attendance Record'),
                           content: Text(
-                            'Reset attendance log for "${widget.record.employeeName}" on ${widget.record.date} back to "Not Marked"?\n\n'
+                            'Reset attendance log for "${widget.record.employeeName}" on ${AppDateFormatter.formatString(widget.record.date)} back to "Not Marked"?\n\n'
                             'This safely clears times while preserving employee history and preventing record loss.',
                           ),
                           actions: [
@@ -2660,7 +2661,7 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
 
   String _formatDate(DateTime? d) {
     if (d == null) return 'Select Date';
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    return AppDateFormatter.format(d);
   }
 
   @override
@@ -3413,7 +3414,7 @@ class _AttendanceListViewState extends ConsumerState<_AttendanceListView> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              record.date,
+                                              AppDateFormatter.formatString(record.date),
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 color: context.textPrimary,

@@ -8,6 +8,7 @@ import 'package:software_house_erp/core/widgets/export_button.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/features/finance/expenses/domain/entities/expense_record.dart';
 import 'package:software_house_erp/features/finance/income/domain/entities/income_record.dart';
 import 'package:software_house_erp/features/hr/salaries/domain/entities/salary_record.dart';
@@ -312,7 +313,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     if (range == ReportDateRange.custom && currentFilter.dateRange == ReportDateRange.custom && currentFilter.customStartDate != null) {
       final s = currentFilter.customStartDate!;
       final e = currentFilter.customEndDate ?? DateTime.now();
-      chipText = 'Custom (${s.day}/${s.month} - ${e.day}/${e.month})';
+      chipText = 'Custom (${AppDateFormatter.format(s)} - ${AppDateFormatter.format(e)})';
     }
 
     return ChoiceChip(
@@ -658,8 +659,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                             final isSelected = _profitLossPeriodFilter == period;
                             String chipLabel = period;
                             if (period == 'Custom Date' && _profitLossCustomDateRange != null) {
-                              final startStr = DateFormat('dd MMM yyyy').format(_profitLossCustomDateRange!.start);
-                              final endStr = DateFormat('dd MMM yyyy').format(_profitLossCustomDateRange!.end);
+                              final startStr = AppDateFormatter.format(_profitLossCustomDateRange!.start);
+                              final endStr = AppDateFormatter.format(_profitLossCustomDateRange!.end);
                               chipLabel = 'Custom ($startStr - $endStr)';
                             }
                             
@@ -1065,7 +1066,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                             Text(
                               tempDateRange == null
                                   ? 'Select Date Range'
-                                  : '${tempDateRange!.start.day}/${tempDateRange!.start.month}/${tempDateRange!.start.year} - ${tempDateRange!.end.day}/${tempDateRange!.end.month}/${tempDateRange!.end.year}',
+                                  : '${AppDateFormatter.format(tempDateRange!.start)} - ${AppDateFormatter.format(tempDateRange!.end)}',
                               style: TextStyle(color: context.textPrimary, fontSize: 13),
                             ),
                             Icon(Icons.calendar_today_outlined, size: 16, color: context.textSecondary),
@@ -1641,8 +1642,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                             final isSelected = _expensesPeriodFilter == period;
                             String chipLabel = period;
                             if (period == 'Custom Date' && _expensesCustomDateRange != null) {
-                              final startStr = DateFormat('dd MMM yyyy').format(_expensesCustomDateRange!.start);
-                              final endStr = DateFormat('dd MMM yyyy').format(_expensesCustomDateRange!.end);
+                              final startStr = AppDateFormatter.format(_expensesCustomDateRange!.start);
+                              final endStr = AppDateFormatter.format(_expensesCustomDateRange!.end);
                               chipLabel = 'Custom ($startStr - $endStr)';
                             }
 
@@ -2145,8 +2146,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                             final isSelected = _advancesPeriodFilter == period;
                             String chipLabel = period;
                             if (period == 'Custom Date' && _advancesCustomDateRange != null) {
-                              final startStr = DateFormat('dd MMM yyyy').format(_advancesCustomDateRange!.start);
-                              final endStr = DateFormat('dd MMM yyyy').format(_advancesCustomDateRange!.end);
+                              final startStr = AppDateFormatter.format(_advancesCustomDateRange!.start);
+                              final endStr = AppDateFormatter.format(_advancesCustomDateRange!.end);
                               chipLabel = 'Custom ($startStr - $endStr)';
                             }
 
@@ -2407,8 +2408,8 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
                             final isSelected = _payrollPeriodFilter == period;
                             String chipLabel = period;
                             if (period == 'Custom Date' && _payrollCustomDateRange != null) {
-                              final startStr = DateFormat('dd MMM yyyy').format(_payrollCustomDateRange!.start);
-                              final endStr = DateFormat('dd MMM yyyy').format(_payrollCustomDateRange!.end);
+                              final startStr = AppDateFormatter.format(_payrollCustomDateRange!.start);
+                              final endStr = AppDateFormatter.format(_payrollCustomDateRange!.end);
                               chipLabel = 'Custom ($startStr - $endStr)';
                             }
 
@@ -3445,8 +3446,7 @@ class _FinancialReportsScreenState extends ConsumerState<FinancialReportsScreen>
     final theme = Theme.of(context);
     final reportsState = ref.watch(financialReportsProvider);
     final DateTime asOfDate = reportsState.endDate;
-    final DateFormat df = DateFormat('dd MMMM yyyy');
-    final String asOfFormatted = df.format(asOfDate);
+    final String asOfFormatted = AppDateFormatter.format(asOfDate);
 
     DataRow buildSectionHeader(String title) {
       return DataRow(

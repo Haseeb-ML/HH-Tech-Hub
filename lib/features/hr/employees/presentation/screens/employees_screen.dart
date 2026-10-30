@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
 import '../providers/employees_provider.dart';
@@ -865,7 +866,7 @@ class _EmployeeCard extends ConsumerWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  '${tr("Joined:")} ${employee.joiningDate.isNotEmpty ? employee.joiningDate : tr("N/A")}',
+                  '${tr("Joined:")} ${employee.joiningDate.isNotEmpty ? AppDateFormatter.formatString(employee.joiningDate) : tr("N/A")}',
                   style: TextStyle(color: context.textSecondary, fontSize: 12),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -2236,9 +2237,9 @@ class _ViewEmployeeDetailsDialog extends ConsumerWidget {
               // Details Grid
               _buildDetailItem(context, tr('CNIC Number'), employee.cnic.trim().isNotEmpty ? employee.cnic.trim() : tr('N/A')),
               _buildDetailItem(context, tr('Department'), employee.department),
-              _buildDetailItem(context, tr('Joining Date'), employee.joiningDate),
+              _buildDetailItem(context, tr('Joining Date'), AppDateFormatter.formatString(employee.joiningDate)),
               if (employee.leavingDate != null && employee.status == 'Terminated')
-                _buildDetailItem(context, tr('Leaving Date'), employee.leavingDate!),
+                _buildDetailItem(context, tr('Leaving Date'), AppDateFormatter.formatString(employee.leavingDate!)),
               _buildDetailItem(context, tr('Salary Type'), employee.salaryType),
               _buildDetailItem(context, tr('Base Salary'), 'Rs. ${employee.baseSalary.toStringAsFixed(0)} / month'),
               _buildDetailItem(context, tr('Email Address'), employee.email),

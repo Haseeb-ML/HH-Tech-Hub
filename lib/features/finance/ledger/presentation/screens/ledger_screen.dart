@@ -22,6 +22,7 @@ import 'package:software_house_erp/features/administration/shared/providers/admi
 import 'package:software_house_erp/core/utils/transaction_id_helper.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 
 DateTime? _extractTimestampFromId(String id) {
   try {
@@ -688,7 +689,7 @@ class LedgerScreen extends ConsumerWidget {
                                                 Expanded(
                                                   child: Text(
                                                     state.startDate != null && state.endDate != null
-                                                        ? '${state.startDate!.toIso8601String().substring(0,10)} - ${state.endDate!.toIso8601String().substring(0,10)}'
+                                                        ? '${AppDateFormatter.format(state.startDate)} - ${AppDateFormatter.format(state.endDate)}'
                                                         : tr('Date Range'),
                                                     style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
                                                     overflow: TextOverflow.ellipsis,
@@ -1117,7 +1118,7 @@ class LedgerScreen extends ConsumerWidget {
                             Expanded(
                               child: Text(
                                 startDate != null && endDate != null
-                                    ? '${startDate.toIso8601String().substring(0, 10)} - ${endDate.toIso8601String().substring(0, 10)}'
+                                    ? '${AppDateFormatter.format(startDate)} - ${AppDateFormatter.format(endDate)}'
                                     : tr('All Dates'),
                                 style: TextStyle(
                                   color: context.textPrimary,
@@ -1474,7 +1475,7 @@ class _LedgerListTile extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(entry.date.split('T').first, style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                      Text(AppDateFormatter.formatString(entry.date), style: TextStyle(color: context.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
                       Text(timeStr, style: TextStyle(color: context.textMuted, fontSize: 11)),
                     ],
                   ),

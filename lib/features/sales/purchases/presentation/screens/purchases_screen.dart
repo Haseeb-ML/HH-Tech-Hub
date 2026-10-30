@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/sales/shared/widgets/sales_sub_nav.dart';
 import '../providers/purchase_orders_provider.dart';
@@ -488,11 +489,11 @@ class _OrderRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Ordered: ${order.date}',
+                    'Ordered: ${AppDateFormatter.formatString(order.date)}',
                     style: TextStyle(color: context.textSecondary, fontSize: 11),
                   ),
                   Text(
-                    'Delivery: ${order.deliveryDate}',
+                    'Delivery: ${AppDateFormatter.formatString(order.deliveryDate)}',
                     style: TextStyle(color: context.textMuted, fontSize: 11),
                   ),
                 ],
@@ -697,7 +698,7 @@ class _AddEditPurchaseOrderDialogState extends ConsumerState<_AddEditPurchaseOrd
                         Expanded(
                           child: TextFormField(
                             readOnly: true,
-                            controller: TextEditingController(text: _date),
+                            controller: TextEditingController(text: AppDateFormatter.formatString(_date)),
                             decoration: const InputDecoration(
                               labelText: 'Order Date',
                               suffixIcon: Icon(Icons.calendar_today, size: 16),
@@ -722,7 +723,7 @@ class _AddEditPurchaseOrderDialogState extends ConsumerState<_AddEditPurchaseOrd
                         Expanded(
                           child: TextFormField(
                             readOnly: true,
-                            controller: TextEditingController(text: _deliveryDate),
+                            controller: TextEditingController(text: AppDateFormatter.formatString(_deliveryDate)),
                             decoration: const InputDecoration(
                               labelText: 'Expected Delivery Date',
                               suffixIcon: Icon(Icons.calendar_today, size: 16),

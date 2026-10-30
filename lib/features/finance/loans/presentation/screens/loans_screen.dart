@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/finance_sub_nav.dart';
 import '../providers/loans_provider.dart';
@@ -774,7 +775,7 @@ class _LoanCard extends ConsumerWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      'Start: ${loan.startDate.split('T').first}',
+                      'Start: ${AppDateFormatter.formatString(loan.startDate)}',
                       style: TextStyle(color: context.textSecondary, fontSize: 11),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -786,7 +787,7 @@ class _LoanCard extends ConsumerWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      loan.endDate.isNotEmpty ? 'Due: ${loan.endDate}' : 'No Due Date',
+                      loan.endDate.isNotEmpty ? 'Due: ${AppDateFormatter.formatString(loan.endDate)}' : 'No Due Date',
                       style: TextStyle(
                         color: loan.endDate.isNotEmpty ? context.primaryColor : context.textMuted,
                         fontSize: 11,
@@ -1936,7 +1937,7 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    _startDate.toIso8601String().substring(0, 10),
+                                    AppDateFormatter.format(_startDate),
                                     style: TextStyle(color: context.textPrimary, fontSize: 13),
                                   ),
                                   Icon(Icons.calendar_today, size: 16, color: context.primaryColor),
@@ -1974,7 +1975,7 @@ class _AddLoanDialogState extends ConsumerState<_AddLoanDialog> {
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
-                                          _endDate != null ? _endDate!.toIso8601String().substring(0, 10) : 'No Due Date (Optional)',
+                                          _endDate != null ? AppDateFormatter.format(_endDate) : 'No Due Date (Optional)',
                                           style: TextStyle(
                                             color: _endDate != null ? context.textPrimary : context.textMuted,
                                             fontSize: 13,
@@ -2414,9 +2415,9 @@ class _LoanDetailsDialog extends ConsumerWidget {
                             _buildDetailRow(context, icon: Icons.account_balance_outlined, label: 'Company Account', value: liveLoan.resolvedAccountName.isNotEmpty ? liveLoan.resolvedAccountName : 'Not Specified', isMobile: isMobile),
                           ],
                           const Divider(height: 16),
-                          _buildDetailRow(context, icon: Icons.calendar_today_outlined, label: 'Start Date', value: liveLoan.startDate.split('T').first, isMobile: isMobile),
+                          _buildDetailRow(context, icon: Icons.calendar_today_outlined, label: 'Start Date', value: AppDateFormatter.formatString(liveLoan.startDate), isMobile: isMobile),
                           const Divider(height: 16),
-                          _buildDetailRow(context, icon: Icons.alarm_outlined, label: 'Due Date', value: liveLoan.endDate.isNotEmpty ? liveLoan.endDate : 'No Due Date (Open-ended)', isMobile: isMobile),
+                          _buildDetailRow(context, icon: Icons.alarm_outlined, label: 'Due Date', value: liveLoan.endDate.isNotEmpty ? AppDateFormatter.formatString(liveLoan.endDate) : 'No Due Date (Open-ended)', isMobile: isMobile),
                           const Divider(height: 16),
                           _buildDetailRow(context, icon: Icons.notes_outlined, label: 'Terms / Notes', value: liveLoan.cleanDescription.isNotEmpty ? liveLoan.cleanDescription : 'No additional terms entered.', isMobile: isMobile),
                         ],
@@ -2487,7 +2488,7 @@ class _LoanDetailsDialog extends ConsumerWidget {
                                     child: Icon(Icons.check, size: 14, color: context.success),
                                   ),
                                   title: Text('Installment #${index + 1}', style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
-                                  subtitle: Text('${rep.date} • Paid via: ${rep.accountName}', style: TextStyle(color: context.textSecondary, fontSize: 11)),
+                                  subtitle: Text('${AppDateFormatter.formatString(rep.date)} • Paid via: ${rep.accountName}', style: TextStyle(color: context.textSecondary, fontSize: 11)),
                                   trailing: Text('Rs. ${rep.amount.toStringAsFixed(0)}', style: TextStyle(color: context.textPrimary, fontWeight: FontWeight.w800, fontSize: 13)),
                                 );
                               },

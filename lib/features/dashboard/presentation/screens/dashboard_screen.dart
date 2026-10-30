@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/app_date_formatter.dart';
 import '../../../../core/widgets/stat_card.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_builder.dart';
@@ -44,13 +45,7 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   String _formatDate(String dateStr) {
-    try {
-      final parsed = DateTime.parse(dateStr);
-      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${months[parsed.month - 1]} ${parsed.day.toString().padLeft(2, '0')}, ${parsed.year}';
-    } catch (_) {
-      return dateStr;
-    }
+    return AppDateFormatter.formatString(dateStr);
   }
 
   @override

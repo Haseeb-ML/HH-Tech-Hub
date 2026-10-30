@@ -1258,8 +1258,8 @@ class ExportHelper {
     }
 
     final numFormat = NumberFormat('#,##0.00');
-    final dateFormat = DateFormat('dd MMM yy');
-    final periodDateFormat = DateFormat('dd MMM yyyy');
+    final dateFormat = DateFormat('dd-MM-yyyy');
+    final periodDateFormat = DateFormat('dd-MM-yyyy');
     final now = DateTime.now();
 
     // Chronological sorting (oldest first) so running balance matches real statement progression

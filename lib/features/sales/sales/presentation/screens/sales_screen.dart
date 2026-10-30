@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
 import 'package:software_house_erp/features/sales/shared/widgets/sales_sub_nav.dart';
 import 'package:software_house_erp/features/clients/clients/presentation/providers/clients_provider.dart';
@@ -476,11 +477,11 @@ class _InvoiceRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Billed: ${invoice.date}',
+                    'Billed: ${AppDateFormatter.formatString(invoice.date)}',
                     style: TextStyle(color: context.textSecondary, fontSize: 11),
                   ),
                   Text(
-                    'Due: ${invoice.dueDate}',
+                    'Due: ${AppDateFormatter.formatString(invoice.dueDate)}',
                     style: TextStyle(color: context.textMuted, fontSize: 11),
                   ),
                 ],
@@ -710,7 +711,7 @@ class _AddEditInvoiceDialogState extends ConsumerState<_AddEditInvoiceDialog> {
                         Expanded(
                           child: TextFormField(
                             readOnly: true,
-                            controller: TextEditingController(text: _date),
+                            controller: TextEditingController(text: AppDateFormatter.formatString(_date)),
                             decoration: const InputDecoration(
                               labelText: 'Invoice Date',
                               suffixIcon: Icon(Icons.calendar_today, size: 16),
@@ -735,7 +736,7 @@ class _AddEditInvoiceDialogState extends ConsumerState<_AddEditInvoiceDialog> {
                         Expanded(
                           child: TextFormField(
                             readOnly: true,
-                            controller: TextEditingController(text: _dueDate),
+                            controller: TextEditingController(text: AppDateFormatter.formatString(_dueDate)),
                             decoration: InputDecoration(
                               labelText: tr('Due Date'),
                               suffixIcon: Icon(Icons.calendar_today, size: 16),
