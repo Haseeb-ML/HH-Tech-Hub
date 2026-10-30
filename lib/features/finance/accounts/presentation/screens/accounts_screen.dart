@@ -981,7 +981,8 @@ class _AccountCard extends ConsumerWidget {
                   .where((entry) => entry.accountId == account.id &&
                       (entry.category == 'Account Transfer' ||
                        entry.category == 'Company Deposit' ||
-                       entry.category == 'Personal Deposit') &&
+                       entry.category == 'Personal Deposit' ||
+                       entry.category == 'Balance Settlement') &&
                       entry.type == 'Debit')
                   .fold<double>(0.0, (sum, entry) => sum + entry.amount);
 
@@ -1006,7 +1007,8 @@ class _AccountCard extends ConsumerWidget {
                   .where((entry) => entry.accountId == account.id &&
                       (entry.category == 'Account Transfer' ||
                        entry.category == 'Other Expense' ||
-                       entry.category == 'Salary Advance') &&
+                       entry.category == 'Salary Advance' ||
+                       entry.category == 'Balance Settlement') &&
                       entry.type == 'Credit')
                   .fold<double>(0.0, (sum, entry) => sum + entry.amount);
 
@@ -1323,21 +1325,23 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
                   const SizedBox(height: 16),
                 ],
 
-                // Opening Balance
-                _buildLabel('Opening Balance'),
-                TextFormField(
-                  controller: _openingBalanceController,
-                  keyboardType: TextInputType.number,
-                  style: TextStyle(color: context.textPrimary),
-                  decoration: _buildInputDecoration('e.g. 10000'),
-                  validator: (val) {
-                    if (val != null && val.isNotEmpty && double.tryParse(val) == null) {
-                      return 'Enter a valid number';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
+                // Opening Balance (Company Accounts Only)
+                if (_accountScope != 'Personal') ...[
+                  _buildLabel('Opening Balance'),
+                  TextFormField(
+                    controller: _openingBalanceController,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: context.textPrimary),
+                    decoration: _buildInputDecoration('e.g. 10000'),
+                    validator: (val) {
+                      if (val != null && val.isNotEmpty && double.tryParse(val) == null) {
+                        return 'Enter a valid number';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                ],
 
                 // Actions Row
                 Align(
@@ -1359,10 +1363,15 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
                       ElevatedButton(
                         onPressed: () {
                           if (_formKey.currentState?.validate() == true) {
-                            final openingBal = double.tryParse(_openingBalanceController.text.trim().isEmpty ? "0" : _openingBalanceController.text) ?? 0.0;
+                            final isPersonalScope = _accountScope.toLowerCase() == 'personal';
+                            final openingBal = isPersonalScope
+                                ? (widget.account?.openingBalance ?? 0.0)
+                                : (double.tryParse(_openingBalanceController.text.trim().isEmpty ? "0" : _openingBalanceController.text) ?? 0.0);
                             final double calculatedBalance;
                             if (widget.account == null) {
-                              calculatedBalance = openingBal;
+                              calculatedBalance = isPersonalScope ? 0.0 : openingBal;
+                            } else if (isPersonalScope) {
+                              calculatedBalance = widget.account!.balance;
                             } else if (widget.account!.balance == widget.account!.openingBalance ||
                                 (widget.account!.openingBalance == 0.0 && widget.account!.balance == 0.0)) {
                               calculatedBalance = openingBal;
@@ -1370,7 +1379,6 @@ class AddEditAccountDialogState extends ConsumerState<AddEditAccountDialog> {
                               final diff = openingBal - widget.account!.openingBalance;
                               calculatedBalance = widget.account!.balance + diff;
                             }
-                            final isPersonalScope = _accountScope.toLowerCase() == 'personal';
                             final prefix = isPersonalScope ? 'acc_personal_' : 'acc_company_';
                             final acc = BankAccount(
                               id: widget.account?.id ?? '$prefix${DateTime.now().millisecondsSinceEpoch}',
@@ -1494,7 +1502,8 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
       entry.accountId == currentAccount.id &&
       (entry.category == 'Account Transfer' ||
        entry.category == 'Personal Deposit' ||
-       entry.category == 'Other Expense')).toList();
+       entry.category == 'Other Expense' ||
+       entry.category == 'Balance Settlement')).toList();
     final allProjects = ref.watch(projectsProvider).projects;
     
     final isPersonal = currentAccount.accountScope == 'Personal';
@@ -2393,14 +2402,15 @@ Future<void> _generateBankStatement(BuildContext context, WidgetRef ref, BankAcc
     }
   }
 
-  // Add Direct Ledger Entries (Salary Advances, Deposits, Transfers, Other Expenses)
+  // Add Direct Ledger Entries (Salary Advances, Deposits, Transfers, Other Expenses, Balance Settlement)
   final accountLedgers = ref.read(ledgerProvider).entries.where((l) =>
     l.accountId == account.id &&
     (l.category == 'Account Transfer' ||
      l.category == 'Personal Deposit' ||
      l.category == 'Company Deposit' ||
      l.category == 'Salary Advance' ||
-     l.category == 'Other Expense')).toList();
+     l.category == 'Other Expense' ||
+     l.category == 'Balance Settlement')).toList();
   for (var entry in accountLedgers) {
     try {
       final isDebit = entry.type == 'Debit';

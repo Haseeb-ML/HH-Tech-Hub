@@ -65,13 +65,14 @@ double calculateAuthoritativeAccountBalance({
 
   final totalLoanInflow = compBorrowedInflow + compLentRepaymentsInflow + internalPersonalInflow + personalExternalInflow;
 
-  // 3. Direct Ledger Inflow (Transfers in, Deposits)
+  // 3. Direct Ledger Inflow (Transfers in, Deposits, Balance Settlement)
   final directInflow = ledgerEntries
       .where((entry) =>
           entry.accountId == account.id &&
           (entry.category == 'Account Transfer' ||
               entry.category == 'Personal Deposit' ||
-              entry.category == 'Company Deposit') &&
+              entry.category == 'Company Deposit' ||
+              entry.category == 'Balance Settlement') &&
           entry.type == 'Debit')
       .fold<double>(0.0, (sum, entry) => sum + entry.amount);
 
@@ -101,13 +102,14 @@ double calculateAuthoritativeAccountBalance({
 
   final totalLoanOutflow = compLentOutflow + compBorrowedRepaymentsOutflow + internalPersonalOutflow + personalExternalOutflow;
 
-  // 6. Direct Ledger Outflow (Transfers out, Other Expense, Salary Advance)
+  // 6. Direct Ledger Outflow (Transfers out, Other Expense, Salary Advance, Balance Settlement)
   final directOutflow = ledgerEntries
       .where((entry) =>
           entry.accountId == account.id &&
           (entry.category == 'Account Transfer' ||
               entry.category == 'Other Expense' ||
-              entry.category == 'Salary Advance') &&
+              entry.category == 'Salary Advance' ||
+              entry.category == 'Balance Settlement') &&
           entry.type == 'Credit')
       .fold<double>(0.0, (sum, entry) => sum + entry.amount);
 

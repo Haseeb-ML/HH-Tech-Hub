@@ -88,7 +88,8 @@ class _CompanyAccountDetailScreenState
          entry.category == 'Personal Deposit' ||
          entry.category == 'Company Deposit' ||
          entry.category == 'Salary Advance' ||
-         entry.category == 'Other Expense')).toList();
+         entry.category == 'Other Expense' ||
+         entry.category == 'Balance Settlement')).toList();
 
     final directInflow = directAccountEntries
         .where((entry) => entry.type == 'Debit')

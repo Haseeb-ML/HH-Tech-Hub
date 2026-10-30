@@ -14,6 +14,7 @@ import 'package:software_house_erp/features/finance/ledger/presentation/provider
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
+import 'package:software_house_erp/features/finance/wallet/presentation/widgets/settle_balance_dialog.dart';
 
 class PersonalWalletScreen extends ConsumerStatefulWidget {
   const PersonalWalletScreen({super.key});
@@ -255,7 +256,8 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                   entry.category == 'Company Deposit' ||
                                   entry.category == 'Account Transfer' ||
                                   entry.category == 'Salary Advance' ||
-                                  entry.category == 'Other Expense')).toList();
+                                  entry.category == 'Other Expense' ||
+                                  entry.category == 'Balance Settlement')).toList();
 
                              final directInflow = directAccountEntries
                                  .where((entry) => entry.type == 'Debit')
@@ -340,6 +342,13 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                                 onSelected: (val) async {
                                                    if (val == 'details') {
                                                      context.push('/finance/wallet/details/${acc.id}');
+                                                   } else if (val == 'settle') {
+                                                     await showSettleAccountBalanceDialog(
+                                                       context,
+                                                       ref: ref,
+                                                       account: acc,
+                                                       currentBalance: currentCardBalance,
+                                                     );
                                                    } else if (val == 'edit' && canEditAccount) {
                                                     final result = await showDialog<BankAccount>(
                                                       context: context,
@@ -407,6 +416,24 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                                             color: context
                                                                 .textPrimary,
                                                             fontSize: 13)),
+                                                  ),
+                                                  PopupMenuItem(
+                                                    value: 'settle',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(Icons.restart_alt_rounded,
+                                                            size: 16,
+                                                            color: context.primaryColor),
+                                                        const SizedBox(width: 8),
+                                                        Text('Settle & Zero Balance',
+                                                            style: TextStyle(
+                                                                color: context
+                                                                    .textPrimary,
+                                                                fontSize: 13,
+                                                                fontWeight:
+                                                                    FontWeight.w600)),
+                                                      ],
+                                                    ),
                                                   ),
                                                   if (canEditAccount)
                                                     PopupMenuItem(

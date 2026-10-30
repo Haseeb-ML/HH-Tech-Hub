@@ -15,6 +15,7 @@ import 'package:software_house_erp/features/finance/ledger/presentation/provider
 import 'package:software_house_erp/core/utils/export_helper.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/transaction_detail_dialog.dart';
 import '../widgets/personal_account_transaction_dialog.dart';
+import '../widgets/settle_balance_dialog.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
@@ -94,7 +95,8 @@ class _PersonalWalletDetailScreenState
       entry.accountId == account.id &&
       (entry.category == 'Personal Deposit' ||
        entry.category == 'Account Transfer' ||
-       entry.category == 'Other Expense')).toList();
+       entry.category == 'Other Expense' ||
+       entry.category == 'Balance Settlement')).toList();
 
     final directInflow = directAccountEntries
       .where((entry) => entry.type == 'Debit')
@@ -400,6 +402,16 @@ class _PersonalWalletDetailScreenState
               }
             },
           ),
+          IconButton(
+            tooltip: 'Settle & Zero Balance',
+            icon: const Icon(Icons.restart_alt_rounded),
+            onPressed: () => showSettleAccountBalanceDialog(
+              context,
+              ref: ref,
+              account: account,
+              currentBalance: availableBalance,
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: ExportButton(
@@ -526,35 +538,65 @@ class _PersonalWalletDetailScreenState
                                         : const Color(0xFF2563EB)),
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Includes Rs. ${account.openingBalance.toStringAsFixed(0)} opening balance',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: context.isDarkMode
-                                    ? const Color(0xFF64748B)
-                                    : const Color(0xFF64748B),
+                            if (account.openingBalance > 0) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                'Includes Rs. ${account.openingBalance.toStringAsFixed(0)} opening balance',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: context.isDarkMode
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF64748B),
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: context.isDarkMode
-                              ? const Color(0xFF1E3A8A).withOpacity(0.5)
-                              : const Color(0xFFDBEAFE),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.account_balance_wallet_rounded,
-                          size: 28,
-                          color: context.isDarkMode
-                              ? const Color(0xFF93C5FD)
-                              : const Color(0xFF2563EB),
-                        ),
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 12,
+                        runSpacing: 8,
+                        children: [
+                          if (availableBalance.abs() >= 0.01)
+                            ElevatedButton.icon(
+                              onPressed: () => showSettleAccountBalanceDialog(
+                                context,
+                                ref: ref,
+                                account: account,
+                                currentBalance: availableBalance,
+                              ),
+                              icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                              label: const Text('Zero Balance'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: availableBalance > 0
+                                    ? const Color(0xFF2563EB)
+                                    : const Color(0xFFDC2626),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: context.isDarkMode
+                                  ? const Color(0xFF1E3A8A).withValues(alpha: 0.5)
+                                  : const Color(0xFFDBEAFE),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.account_balance_wallet_rounded,
+                              size: 28,
+                              color: context.isDarkMode
+                                  ? const Color(0xFF93C5FD)
+                                  : const Color(0xFF2563EB),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1185,7 +1227,7 @@ class _PersonalWalletDetailScreenState
                       physics: const NeverScrollableScrollPhysics(),
                       padding: EdgeInsets.zero,
                       itemCount: paginatedTransactions.length,
-                      separatorBuilder: (_, _i) =>
+                      separatorBuilder: (_, __) =>
                           const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final tx = paginatedTransactions[index];
