@@ -17,6 +17,7 @@ import 'package:software_house_erp/features/finance/shared/widgets/transaction_d
 import '../widgets/company_account_transaction_dialog.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 
 class CompanyAccountDetailScreen extends ConsumerStatefulWidget {
   final String accountId;
@@ -444,13 +445,17 @@ class _CompanyAccountDetailScreenState
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Rs. ${availableBalance.toStringAsFixed(0)}',
+                              CurrencyFormatter.formatAccountingBalance(availableBalance),
                               style: TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.w800,
-                                color: context.isDarkMode
-                                    ? const Color(0xFF60A5FA)
-                                    : const Color(0xFF2563EB),
+                                color: availableBalance < 0
+                                    ? (context.isDarkMode
+                                        ? const Color(0xFFF87171)
+                                        : const Color(0xFFDC2626))
+                                    : (context.isDarkMode
+                                        ? const Color(0xFF60A5FA)
+                                        : const Color(0xFF2563EB)),
                               ),
                             ),
                             const SizedBox(height: 6),

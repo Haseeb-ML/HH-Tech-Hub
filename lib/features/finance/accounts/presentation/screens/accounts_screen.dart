@@ -20,6 +20,7 @@ import 'package:intl/intl.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import 'package:software_house_erp/core/services/cloud_sync_service.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 
 class AccountsScreen extends ConsumerWidget {
   const AccountsScreen({super.key});
@@ -1079,7 +1080,7 @@ class _AccountCard extends ConsumerWidget {
                           style: TextStyle(color: context.textMuted, fontSize: isMob ? 11 : 11, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          'Rs. ${currentBalance.toStringAsFixed(0)}',
+                          CurrencyFormatter.formatAccountingBalance(currentBalance),
                           style: TextStyle(
                             color: currentBalance >= 0 ? context.success : context.error,
                             fontSize: isMob ? 14 : 14,
@@ -1708,9 +1709,11 @@ class _AccountDetailsDialogState extends ConsumerState<AccountDetailsDialog> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Rs. ${realBalance.toStringAsFixed(0)}',
+                                CurrencyFormatter.formatAccountingBalance(realBalance),
                                 style: TextStyle(
-                                  color: const Color(0xFF2563EB),
+                                  color: realBalance < 0
+                                      ? context.error
+                                      : const Color(0xFF2563EB),
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
                                 ),

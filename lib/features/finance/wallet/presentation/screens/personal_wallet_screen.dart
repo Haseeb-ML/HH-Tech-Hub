@@ -13,6 +13,7 @@ import 'package:software_house_erp/features/finance/loans/presentation/providers
 import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 
 class PersonalWalletScreen extends ConsumerStatefulWidget {
   const PersonalWalletScreen({super.key});
@@ -471,8 +472,14 @@ class _PersonalWalletScreenState extends ConsumerState<PersonalWalletScreen> {
                                                 ),
                                                 const SizedBox(height: 2),
                                                 Text(
-                                                  'Rs. ${currentCardBalance.toStringAsFixed(0)}',
-                                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: context.success),
+                                                  CurrencyFormatter.formatAccountingBalance(currentCardBalance),
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 18,
+                                                    color: currentCardBalance < 0
+                                                        ? context.error
+                                                        : (currentCardBalance > 0 ? context.success : context.textPrimary),
+                                                  ),
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
                                               ],

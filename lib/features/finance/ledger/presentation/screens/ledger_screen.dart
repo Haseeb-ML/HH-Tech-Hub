@@ -21,6 +21,7 @@ import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 import 'package:software_house_erp/core/utils/transaction_id_helper.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
+import 'package:software_house_erp/core/utils/currency_formatter.dart';
 
 DateTime? _extractTimestampFromId(String id) {
   try {
@@ -504,7 +505,7 @@ class LedgerScreen extends ConsumerWidget {
                                 StatCard(
                                   title: 'Current Balance',
                                   tooltipMessage: 'Detailed statistics and information regarding Current Balance.',
-                                  value: 'Rs. ${totalBalance.toStringAsFixed(0)}',
+                                  value: CurrencyFormatter.formatAccountingBalance(totalBalance),
                                   trendText: 'Available',
                                 ),
                                 StatCard(
