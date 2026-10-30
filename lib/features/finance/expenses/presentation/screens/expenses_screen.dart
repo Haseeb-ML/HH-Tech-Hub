@@ -373,7 +373,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                     ExportButton(
                                     title: 'Expense Tracker',
                                     fileName: 'expense_tracker_export',
-                                    headers: ['Expense ID', 'Expense Type', 'Comment', 'Date & Time', 'Paid By', 'Account', 'Amount (PKR)'],
+                                    headers: ['Expense ID', 'Expense Type', 'Comment', 'Date', 'Paid By', 'Account', 'Amount (PKR)'],
                                     rows: state.filteredExpenses.map((e) {
                                       final account = accountsState.accounts.where((a) => a.id == e.accountId).firstOrNull;
                                       final accountName = account != null ? '${account.name} (${account.accountScope})' : 'Unknown Account';

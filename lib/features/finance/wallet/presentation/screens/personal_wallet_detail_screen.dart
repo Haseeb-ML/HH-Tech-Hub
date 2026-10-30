@@ -1443,38 +1443,14 @@ class _PersonalWalletDetailScreenState
   }
 
   Widget _buildDateAndTimeCell(BuildContext context, String rawDate, String txId) {
-    final dt = _resolveTransactionDate(rawDate, txId);
     final dateStr = AppDateFormatter.formatString(rawDate);
-    String timeStr = '12:00 PM';
-    if (dt != null) {
-      final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
-      final period = dt.hour >= 12 ? 'PM' : 'AM';
-      final min = dt.minute.toString().padLeft(2, '0');
-      timeStr = '$hour:$min $period';
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          dateStr,
-          style: TextStyle(
-            color: context.textPrimary,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          timeStr,
-          style: TextStyle(
-            color: context.textMuted,
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
-      ],
+    return Text(
+      dateStr,
+      style: TextStyle(
+        color: context.textPrimary,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 

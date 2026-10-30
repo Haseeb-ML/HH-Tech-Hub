@@ -80,13 +80,7 @@ class TransactionDetailDialog extends StatelessWidget {
     final bgColor = isInflow ? context.successLight : context.errorLight;
     final typeLabel = isInflow ? 'Inflow (Debit)' : 'Outflow (Credit)';
 
-    String formattedDate = date;
-    try {
-      final dt = DateTime.parse(date);
-      formattedDate = AppDateFormatter.formatWithTime(dt);
-    } catch (_) {
-      formattedDate = AppDateFormatter.formatString(date);
-    }
+    final formattedDate = AppDateFormatter.formatString(date);
 
     final isOutflow = !isInflow;
     final prefix = isOutflow ? 'exp_' : 'inv_';
