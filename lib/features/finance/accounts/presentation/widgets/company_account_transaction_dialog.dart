@@ -206,7 +206,7 @@ class _CompanyAccountTransactionDialogState
                         child: Text('Account Transfer')),
                     DropdownMenuItem(
                         value: CompanyTransactionType.expense,
-                        child: Text('Other Expense')),
+                        child: Text('Other')),
                   ],
                   onChanged: (value) => setState(() => _type = value!),
                 ),
