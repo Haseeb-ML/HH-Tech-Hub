@@ -1241,7 +1241,7 @@ class _PersonalWalletDetailScreenState
                       physics: const NeverScrollableScrollPhysics(),
                       padding: EdgeInsets.zero,
                       itemCount: paginatedTransactions.length,
-                      separatorBuilder: (_, __) =>
+                      separatorBuilder: (context, index) =>
                           const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final tx = paginatedTransactions[index];
@@ -1500,7 +1500,28 @@ class _PersonalWalletDetailScreenState
   DateTime? _resolveTransactionDate(String value, String id) {
     final parsed = DateTime.tryParse(value);
     if (parsed == null) return null;
-    if (value.contains('T')) return parsed;
+    if (value.contains('T') && (parsed.hour != 0 || parsed.minute != 0 || parsed.second != 0)) {
+      return parsed;
+    }
+
+    try {
+      final match = RegExp(r'\d{12,14}').firstMatch(id);
+      if (match != null) {
+        final timestamp = int.tryParse(match.group(0)!);
+        if (timestamp != null && timestamp > 0 && timestamp < 8640000000000000) {
+          final createdAt = DateTime.fromMillisecondsSinceEpoch(timestamp);
+          return DateTime(
+            parsed.year,
+            parsed.month,
+            parsed.day,
+            createdAt.hour,
+            createdAt.minute,
+            createdAt.second,
+            createdAt.millisecond,
+          );
+        }
+      }
+    } catch (_) {}
 
     final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
     if (digits.length >= 13) {

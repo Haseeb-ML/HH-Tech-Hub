@@ -330,21 +330,42 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
     state = state.copyWith(isLoading: true);
 
     String isoDate = record.date;
-    try {
-      final match = RegExp(r'\d{12,14}').firstMatch(record.id);
-      if (match != null) {
-        final ms = int.tryParse(match.group(0)!);
-        if (ms != null && ms > 0 && ms < 8640000000000000) {
-          final timePart = DateTime.fromMillisecondsSinceEpoch(ms).toIso8601String().substring(10);
-          if (isoDate.length == 10) isoDate += timePart;
+    final parsed = DateTime.tryParse(isoDate);
+    final isMidnightOrDateOnly = isoDate.length == 10 ||
+        (parsed != null && parsed.hour == 0 && parsed.minute == 0 && parsed.second == 0);
+    if (isMidnightOrDateOnly) {
+      final baseDate = parsed ?? DateTime.now();
+      DateTime? resolved;
+      try {
+        final match = RegExp(r'\d{12,14}').firstMatch(record.id);
+        if (match != null) {
+          final ms = int.tryParse(match.group(0)!);
+          if (ms != null && ms > 0 && ms < 8640000000000000) {
+            final idTime = DateTime.fromMillisecondsSinceEpoch(ms);
+            resolved = DateTime(
+              baseDate.year,
+              baseDate.month,
+              baseDate.day,
+              idTime.hour,
+              idTime.minute,
+              idTime.second,
+              idTime.millisecond,
+            );
+          }
         }
-      }
-    } catch (_) {}
-    if (isoDate.length == 10) {
-      isoDate += DateTime.now().toIso8601String().substring(10);
+      } catch (_) {}
+      resolved ??= DateTime(
+        baseDate.year,
+        baseDate.month,
+        baseDate.day,
+        DateTime.now().hour,
+        DateTime.now().minute,
+        DateTime.now().second,
+      );
+      isoDate = resolved.toIso8601String();
     }
 
-    final recordToSave = record.date.length == 10 ? record.copyWith(date: isoDate) : record;
+    final recordToSave = record.copyWith(date: isoDate);
     await _repository.addExpense(recordToSave);
 
     // Resolve Account Name

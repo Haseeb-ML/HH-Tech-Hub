@@ -1362,7 +1362,9 @@ class _CompanyAccountDetailScreenState
   DateTime? _resolveTransactionDate(String value, String id) {
     final parsed = DateTime.tryParse(value);
     if (parsed == null) return null;
-    if (value.contains('T') && (parsed.hour != 0 || parsed.minute != 0)) return parsed;
+    if (value.contains('T') && (parsed.hour != 0 || parsed.minute != 0 || parsed.second != 0)) {
+      return parsed;
+    }
 
     try {
       final match = RegExp(r'\d{12,14}').firstMatch(id);
@@ -1382,6 +1384,25 @@ class _CompanyAccountDetailScreenState
         }
       }
     } catch (_) {}
+
+    final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length >= 13) {
+      final timestamp = int.tryParse(digits.substring(digits.length - 13));
+      final createdAt = timestamp == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(timestamp);
+      if (createdAt != null) {
+        return DateTime(
+          parsed.year,
+          parsed.month,
+          parsed.day,
+          createdAt.hour,
+          createdAt.minute,
+          createdAt.second,
+          createdAt.millisecond,
+        );
+      }
+    }
     return parsed;
   }
 
