@@ -189,6 +189,7 @@ class _PersonalWalletDetailScreenState
           description: 'Opening balance deposited when account was created',
           reference: 'Opening Balance',
           isPersonalExpense: false,
+          canManageInAccount: true,
         ),
       ...directAccountEntries.map((entry) => _WalletTx(
         id: entry.id,
@@ -199,6 +200,7 @@ class _PersonalWalletDetailScreenState
         description: entry.description,
         reference: entry.reference,
         isPersonalExpense: false,
+        canManageInAccount: true,
           )),
       ...personalIncomes.map((i) => _WalletTx(
             id: i.id,
@@ -1277,8 +1279,8 @@ class _PersonalWalletDetailScreenState
                               accountName: account.name,
                               accountScope: 'Personal',
                               reference: tx.reference,
-                              onDelete: () => _handleDeleteTransaction(tx, account),
-                              onEdit: () => _handleEditTransaction(tx, account),
+                              onDelete: tx.canManageInAccount ? () => _handleDeleteTransaction(tx, account) : null,
+                              onEdit: tx.canManageInAccount ? () => _handleEditTransaction(tx, account) : null,
                             );
                           },
                           child: Padding(
@@ -1392,28 +1394,39 @@ class _PersonalWalletDetailScreenState
                                 const SizedBox(width: 8),
                                 SizedBox(
                                   width: 80,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit_outlined, size: 16),
-                                        color: context.primaryColor,
-                                        tooltip: 'Edit / Update',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                        onPressed: () => _handleEditTransaction(tx, account),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, size: 16),
-                                        color: context.error,
-                                        tooltip: 'Delete',
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                        onPressed: () => _handleDeleteTransaction(tx, account),
-                                      ),
-                                    ],
-                                  ),
+                                  child: tx.canManageInAccount
+                                      ? Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(Icons.edit_outlined, size: 16),
+                                              color: context.primaryColor,
+                                              tooltip: 'Edit / Update',
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                              onPressed: () => _handleEditTransaction(tx, account),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            IconButton(
+                                              icon: const Icon(Icons.delete_outline, size: 16),
+                                              color: context.error,
+                                              tooltip: 'Delete',
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                              onPressed: () => _handleDeleteTransaction(tx, account),
+                                            ),
+                                          ],
+                                        )
+                                      : Center(
+                                          child: Text(
+                                            '—',
+                                            style: TextStyle(
+                                              color: context.textMuted,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
                                 ),
                               ],
                             ),
@@ -1921,6 +1934,7 @@ class _WalletTx {
   final String description;
   final String reference;
   final bool isPersonalExpense;
+  final bool canManageInAccount;
 
   _WalletTx({
     required this.id,
@@ -1931,5 +1945,6 @@ class _WalletTx {
     required this.description,
     this.reference = '-',
     required this.isPersonalExpense,
+    this.canManageInAccount = false,
   });
 }

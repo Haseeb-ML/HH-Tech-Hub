@@ -178,6 +178,7 @@ class _CompanyAccountDetailScreenState
           category: 'Opening Balance',
           description: 'Opening balance deposited when account was created',
           reference: 'Opening Balance',
+          canManageInAccount: true,
         ),
       ...directAccountEntries.map((entry) => _CompanyTx(
             id: entry.id,
@@ -187,6 +188,7 @@ class _CompanyAccountDetailScreenState
             category: entry.category,
             description: entry.description,
             reference: entry.reference,
+            canManageInAccount: true,
           )),
       ...companyIncomes.map((i) => _CompanyTx(
             id: i.id,
@@ -1154,8 +1156,8 @@ class _CompanyAccountDetailScreenState
                                           accountName: account.name,
                                           accountScope: 'Company',
                                           reference: tx.reference,
-                                          onDelete: () => _handleDeleteTransaction(tx, account),
-                                          onEdit: () => _handleEditTransaction(tx, account),
+                                          onDelete: tx.canManageInAccount ? () => _handleDeleteTransaction(tx, account) : null,
+                                          onEdit: tx.canManageInAccount ? () => _handleEditTransaction(tx, account) : null,
                                         );
                                       },
                                       child: Padding(
@@ -1284,28 +1286,39 @@ class _CompanyAccountDetailScreenState
                                             const SizedBox(width: 8),
                                             SizedBox(
                                               width: 80,
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  IconButton(
-                                                    icon: const Icon(Icons.edit_outlined, size: 16),
-                                                    color: context.primaryColor,
-                                                    tooltip: 'Edit / Update',
-                                                    padding: EdgeInsets.zero,
-                                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                                    onPressed: () => _handleEditTransaction(tx, account),
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  IconButton(
-                                                    icon: const Icon(Icons.delete_outline, size: 16),
-                                                    color: context.error,
-                                                    tooltip: 'Delete',
-                                                    padding: EdgeInsets.zero,
-                                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                                    onPressed: () => _handleDeleteTransaction(tx, account),
-                                                  ),
-                                                ],
-                                              ),
+                                              child: tx.canManageInAccount
+                                                  ? Row(
+                                                      mainAxisAlignment: MainAxisAlignment.center,
+                                                      children: [
+                                                        IconButton(
+                                                          icon: const Icon(Icons.edit_outlined, size: 16),
+                                                          color: context.primaryColor,
+                                                          tooltip: 'Edit / Update',
+                                                          padding: EdgeInsets.zero,
+                                                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                          onPressed: () => _handleEditTransaction(tx, account),
+                                                        ),
+                                                        const SizedBox(width: 4),
+                                                        IconButton(
+                                                          icon: const Icon(Icons.delete_outline, size: 16),
+                                                          color: context.error,
+                                                          tooltip: 'Delete',
+                                                          padding: EdgeInsets.zero,
+                                                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                          onPressed: () => _handleDeleteTransaction(tx, account),
+                                                        ),
+                                                      ],
+                                                    )
+                                                  : Center(
+                                                      child: Text(
+                                                        '—',
+                                                        style: TextStyle(
+                                                          color: context.textMuted,
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.w500,
+                                                        ),
+                                                      ),
+                                                    ),
                                             ),
                                           ],
                                         ),
@@ -1893,6 +1906,7 @@ class _CompanyTx {
   final String category;
   final String description;
   final String reference;
+  final bool canManageInAccount;
 
   _CompanyTx({
     required this.id,
@@ -1902,5 +1916,6 @@ class _CompanyTx {
     required this.category,
     required this.description,
     this.reference = '-',
+    this.canManageInAccount = false,
   });
 }
