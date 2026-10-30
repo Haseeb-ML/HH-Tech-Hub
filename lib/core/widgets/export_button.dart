@@ -62,20 +62,6 @@ class _ExportButtonState extends State<ExportButton> {
       }
 
       setState(() => _isLoading = false);
-
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('${isPdf ? "PDF" : "Excel"} report generated successfully.'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: successColor,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'OPEN',
-            textColor: Colors.white,
-            onPressed: () => ExportHelper.openFile(path),
-          ),
-        ),
-      );
     } catch (e) {
       setState(() => _isLoading = false);
       messenger.showSnackBar(
