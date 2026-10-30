@@ -1002,7 +1002,7 @@ class _CompanyAccountDetailScreenState
                       return SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: SizedBox(
-                          width: max(850.0, tableConstraints.maxWidth),
+                          width: max(960.0, tableConstraints.maxWidth),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -1079,6 +1079,17 @@ class _CompanyAccountDetailScreenState
                                                 fontWeight: FontWeight.bold)),
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
+                                    SizedBox(
+                                      width: 80,
+                                      child: Center(
+                                        child: Text('Actions',
+                                            style: TextStyle(
+                                                color: context.textPrimary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold)),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1143,6 +1154,8 @@ class _CompanyAccountDetailScreenState
                                           accountName: account.name,
                                           accountScope: 'Company',
                                           reference: tx.reference,
+                                          onDelete: () => _handleDeleteTransaction(tx, account),
+                                          onEdit: () => _handleEditTransaction(tx, account),
                                         );
                                       },
                                       child: Padding(
@@ -1266,6 +1279,32 @@ class _CompanyAccountDetailScreenState
                                                       fontWeight: FontWeight.w800,
                                                       fontSize: 13),
                                                 ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            SizedBox(
+                                              width: 80,
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(Icons.edit_outlined, size: 16),
+                                                    color: context.primaryColor,
+                                                    tooltip: 'Edit / Update',
+                                                    padding: EdgeInsets.zero,
+                                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                    onPressed: () => _handleEditTransaction(tx, account),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.delete_outline, size: 16),
+                                                    color: context.error,
+                                                    tooltip: 'Delete',
+                                                    padding: EdgeInsets.zero,
+                                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                    onPressed: () => _handleDeleteTransaction(tx, account),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ],
@@ -1416,6 +1455,433 @@ class _CompanyAccountDetailScreenState
         fontWeight: FontWeight.w600,
       ),
     );
+  }
+
+  Future<void> _handleDeleteTransaction(
+    _CompanyTx tx,
+    BankAccount account,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirm Deletion'),
+        content: Text(
+          'Are you sure you want to delete this transaction?\n\n'
+          '• Category: ${tx.category}\n'
+          '• Description: ${tx.description}\n'
+          '• Amount: Rs. ${tx.amount.toStringAsFixed(2)}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      // 1. Opening Balance
+      if (tx.id.startsWith('opening_') || tx.category == 'Opening Balance') {
+        final oldOpening = account.openingBalance;
+        final updatedAccount = account.copyWith(
+          openingBalance: 0.0,
+          balance: account.balance - oldOpening,
+        );
+        await ref.read(accountsProvider.notifier).updateAccount(updatedAccount);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening balance removed successfully')),
+        );
+        return;
+      }
+
+      // 2. Expense Record
+      final expensesState = ref.read(expensesProvider);
+      final isExp = tx.id.startsWith('exp_') || expensesState.expenses.any((e) => e.id == tx.id);
+      if (isExp) {
+        await ref.read(expensesProvider.notifier).deleteExpense(tx.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Expense deleted successfully')),
+        );
+        return;
+      }
+
+      // 3. Income Record
+      final incomeState = ref.read(incomeProvider);
+      final isInc = tx.id.startsWith('inv_') || tx.id.startsWith('rec_') || incomeState.incomes.any((i) => i.id == tx.id);
+      if (isInc) {
+        await ref.read(incomeProvider.notifier).deleteIncome(tx.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Income transaction deleted successfully')),
+        );
+        return;
+      }
+
+      // 4. General Ledger Entry (Deposits, Transfers, Settlements)
+      final ledgerState = ref.read(ledgerProvider);
+      final entry = ledgerState.entries.where((e) => e.id == tx.id).firstOrNull;
+      if (entry != null) {
+        if (entry.category == 'Account Transfer' && entry.reference.isNotEmpty) {
+          final paired = ledgerState.entries
+              .where((e) => e.reference == entry.reference && e.id != entry.id)
+              .firstOrNull;
+          if (paired != null) {
+            final pairedAdjust = paired.type == 'Debit' ? -paired.amount : paired.amount;
+            await ref.read(accountsProvider.notifier).adjustBalance(paired.accountId, pairedAdjust);
+            await ref.read(ledgerProvider.notifier).deleteLedgerEntry(paired.id);
+          }
+        }
+        final balanceAdjust = entry.type == 'Debit' ? -entry.amount : entry.amount;
+        await ref.read(accountsProvider.notifier).adjustBalance(account.id, balanceAdjust);
+        await ref.read(ledgerProvider.notifier).deleteLedgerEntry(tx.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaction deleted successfully')),
+        );
+        return;
+      }
+
+      // 5. Fallback delete
+      final balanceAdjust = tx.type == 'Income' ? -tx.amount : tx.amount;
+      await ref.read(accountsProvider.notifier).adjustBalance(account.id, balanceAdjust);
+      await ref.read(ledgerProvider.notifier).deleteLedgerEntry(tx.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Transaction deleted successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _handleEditTransaction(
+    _CompanyTx tx,
+    BankAccount account,
+  ) async {
+    // 1. Opening Balance
+    if (tx.id.startsWith('opening_') || tx.category == 'Opening Balance') {
+      final amountController = TextEditingController(text: account.openingBalance.toStringAsFixed(0));
+      final formKey = GlobalKey<FormState>();
+      final updated = await showDialog<double>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Update Opening Balance'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Account: ${account.name}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Opening Balance (Rs.)',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Enter opening balance';
+                    if (double.tryParse(v) == null || double.parse(v) < 0) return 'Enter a valid positive number';
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() == true) {
+                  Navigator.pop(ctx, double.parse(amountController.text.trim()));
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+
+      if (updated != null && mounted) {
+        final diff = updated - account.openingBalance;
+        final updatedAccount = account.copyWith(
+          openingBalance: updated,
+          balance: account.balance + diff,
+        );
+        await ref.read(accountsProvider.notifier).updateAccount(updatedAccount);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening balance updated successfully')),
+        );
+      }
+      return;
+    }
+
+    // 2. Expense Record
+    final expensesState = ref.read(expensesProvider);
+    final expense = expensesState.expenses.where((e) => e.id == tx.id).firstOrNull;
+    if (expense != null) {
+      final amountController = TextEditingController(text: expense.amount.toStringAsFixed(0));
+      final descController = TextEditingController(text: expense.description);
+      final vendorController = TextEditingController(text: expense.vendorName);
+      String category = expense.category;
+      final formKey = GlobalKey<FormState>();
+
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('Update Expense'),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Amount (Rs.)', border: OutlineInputBorder()),
+                      validator: (v) => v == null || double.tryParse(v) == null || double.parse(v) <= 0
+                          ? 'Enter valid amount'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: category,
+                      decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
+                      items: {
+                        'Salaries & Payroll',
+                        'Salary Advances',
+                        'Electricity & Utilities',
+                        'Internet & Telecom',
+                        'Rent & Occupancy',
+                        'Bills',
+                        'Supplies',
+                        'Refreshments',
+                        'Travel & Transport',
+                        'Office Inventory',
+                        'Assets Management',
+                        'Marketing & Advertising',
+                        'Office & Admin Expenses',
+                        'Repairs & Maintenance',
+                        'Depreciation',
+                        'Bank Charges & Fees',
+                        'Other',
+                        category,
+                      }.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                      onChanged: (val) {
+                        if (val != null) setDialogState(() => category = val);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: descController,
+                      decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: vendorController,
+                      decoration: const InputDecoration(labelText: 'Vendor / Beneficiary', border: OutlineInputBorder()),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: () {
+                  if (formKey.currentState?.validate() == true) {
+                    Navigator.pop(ctx, true);
+                  }
+                },
+                child: const Text('Save Changes'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (saved == true && mounted) {
+        final newAmount = double.parse(amountController.text.trim());
+        final updatedExpense = expense.copyWith(
+          amount: newAmount,
+          category: category,
+          description: descController.text.trim(),
+          vendorName: vendorController.text.trim(),
+        );
+        await ref.read(expensesProvider.notifier).updateExpense(expense, updatedExpense);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Expense updated successfully')),
+        );
+      }
+      return;
+    }
+
+    // 3. Income Record
+    final incomeState = ref.read(incomeProvider);
+    final income = incomeState.incomes.where((i) => i.id == tx.id).firstOrNull;
+    if (income != null) {
+      final amountController = TextEditingController(text: income.amount.toStringAsFixed(0));
+      final descController = TextEditingController(text: income.description);
+      final formKey = GlobalKey<FormState>();
+
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Update Income Transaction'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Amount (Rs.)', border: OutlineInputBorder()),
+                  validator: (v) => v == null || double.tryParse(v) == null || double.parse(v) <= 0
+                      ? 'Enter valid amount'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descController,
+                  decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() == true) {
+                  Navigator.pop(ctx, true);
+                }
+              },
+              child: const Text('Save Changes'),
+            ),
+          ],
+        ),
+      );
+
+      if (saved == true && mounted) {
+        final newAmount = double.parse(amountController.text.trim());
+        final updatedIncome = income.copyWith(
+          amount: newAmount,
+          description: descController.text.trim(),
+        );
+        await ref.read(incomeProvider.notifier).updateIncome(income, updatedIncome);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Income updated successfully')),
+        );
+      }
+      return;
+    }
+
+    // 4. Ledger Entry (Deposits, Transfers, Settlements)
+    final ledgerState = ref.read(ledgerProvider);
+    final entry = ledgerState.entries.where((e) => e.id == tx.id).firstOrNull;
+    if (entry != null) {
+      final amountController = TextEditingController(text: entry.amount.toStringAsFixed(0));
+      final descController = TextEditingController(text: entry.description);
+      final formKey = GlobalKey<FormState>();
+
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Update ${entry.category}'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Amount (Rs.)', border: OutlineInputBorder()),
+                  validator: (v) => v == null || double.tryParse(v) == null || double.parse(v) <= 0
+                      ? 'Enter valid amount'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descController,
+                  decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() == true) {
+                  Navigator.pop(ctx, true);
+                }
+              },
+              child: const Text('Save Changes'),
+            ),
+          ],
+        ),
+      );
+
+      if (saved == true && mounted) {
+        final newAmount = double.parse(amountController.text.trim());
+        final diff = newAmount - entry.amount;
+        final balanceAdjust = entry.type == 'Debit' ? diff : -diff;
+        if (balanceAdjust != 0) {
+          await ref.read(accountsProvider.notifier).adjustBalance(account.id, balanceAdjust);
+        }
+        if (entry.category == 'Account Transfer' && entry.reference.isNotEmpty) {
+          final paired = ledgerState.entries
+              .where((e) => e.reference == entry.reference && e.id != entry.id)
+              .firstOrNull;
+          if (paired != null) {
+            final pairedAdjust = paired.type == 'Debit' ? diff : -diff;
+            if (pairedAdjust != 0) {
+              await ref.read(accountsProvider.notifier).adjustBalance(paired.accountId, pairedAdjust);
+            }
+            await ref.read(ledgerProvider.notifier).updateLedgerEntry(paired.copyWith(amount: newAmount));
+          }
+        }
+
+        final updatedEntry = entry.copyWith(
+          amount: newAmount,
+          description: descController.text.trim(),
+        );
+        await ref.read(ledgerProvider.notifier).updateLedgerEntry(updatedEntry);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaction updated successfully')),
+        );
+      }
+      return;
+    }
   }
 }
 

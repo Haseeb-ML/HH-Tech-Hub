@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
-import 'package:intl/intl.dart';
 import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 
 class TransactionDetailDialog extends StatelessWidget {
@@ -17,6 +16,7 @@ class TransactionDetailDialog extends StatelessWidget {
   final String reference;
   final String? clientOrVendor;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   const TransactionDetailDialog({
     super.key,
@@ -32,6 +32,7 @@ class TransactionDetailDialog extends StatelessWidget {
     required this.reference,
     this.clientOrVendor,
     this.onDelete,
+    this.onEdit,
   });
 
   static Future<void> show(
@@ -48,6 +49,7 @@ class TransactionDetailDialog extends StatelessWidget {
     String? reference,
     String? clientOrVendor,
     VoidCallback? onDelete,
+    VoidCallback? onEdit,
     Map<String, dynamic>? data,
   }) {
     final map = data ?? {};
@@ -66,6 +68,7 @@ class TransactionDetailDialog extends StatelessWidget {
         reference: reference ?? map['reference']?.toString() ?? map['invoiceNumber']?.toString() ?? map['id']?.toString() ?? '',
         clientOrVendor: clientOrVendor ?? map['clientOrVendor']?.toString() ?? map['clientName']?.toString() ?? map['vendorName']?.toString(),
         onDelete: onDelete,
+        onEdit: onEdit,
       ),
     );
   }
@@ -252,35 +255,60 @@ class TransactionDetailDialog extends StatelessWidget {
 
             const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: onDelete != null ? MainAxisAlignment.spaceBetween : MainAxisAlignment.end,
+              mainAxisAlignment: (onDelete != null || onEdit != null)
+                  ? MainAxisAlignment.spaceBetween
+                  : MainAxisAlignment.end,
               children: [
-                if (onDelete != null)
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      onDelete!();
-                    },
-                    icon: Icon(Icons.delete_outline, size: 16, color: context.error),
-                    label: Text(
-                      tr('Delete'),
-                      style: TextStyle(color: context.error, fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: context.error,
-                      side: BorderSide(color: context.error.withValues(alpha: 0.5)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                ElevatedButton(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (onDelete != null)
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          onDelete!();
+                        },
+                        icon: Icon(Icons.delete_outline, size: 16, color: context.error),
+                        label: Text(
+                          tr('Delete'),
+                          style: TextStyle(color: context.error, fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: context.error,
+                          side: BorderSide(color: context.error.withValues(alpha: 0.5)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    if (onEdit != null)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          onEdit!();
+                        },
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: const Text(
+                          'Edit / Update',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: context.primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                  ],
+                ),
+                OutlinedButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: context.primaryColor,
-                    foregroundColor: Colors.white,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: context.border),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   ),
-                  child: Text(tr('Close')),
+                  child: Text(tr('Close'), style: TextStyle(color: context.textSecondary)),
                 ),
               ],
             ),
