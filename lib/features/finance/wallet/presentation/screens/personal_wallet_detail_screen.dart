@@ -379,29 +379,43 @@ class _PersonalWalletDetailScreenState
         ),
         actions: [
           if (canCreateTransaction)
-            IconButton(
-              tooltip: 'Add Transaction',
-              icon: const Icon(Icons.add_card_outlined),
-            onPressed: () async {
-              final transaction = await showPersonalAccountTransactionDialog(
-                context,
-                personalAccountId: account.id,
-              );
-              if (transaction == null || !context.mounted) return;
-              try {
-                await recordPersonalAccountTransaction(ref, transaction);
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Personal account transaction saved successfully.')),
-                );
-              } on StateError catch (error) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(error.message), backgroundColor: context.error),
-                );
-              }
-            },
-          ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final transaction = await showPersonalAccountTransactionDialog(
+                    context,
+                    personalAccountId: account.id,
+                  );
+                  if (transaction == null || !context.mounted) return;
+                  try {
+                    await recordPersonalAccountTransaction(ref, transaction);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Personal account transaction saved successfully.')),
+                    );
+                  } on StateError catch (error) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(error.message), backgroundColor: context.error),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text(
+                  'Add Transaction',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: context.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
           IconButton(
             tooltip: 'Settle & Zero Balance',
             icon: const Icon(Icons.restart_alt_rounded),
