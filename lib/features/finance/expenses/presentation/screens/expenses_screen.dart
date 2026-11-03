@@ -2111,11 +2111,16 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                                 final bool isSameDayAsNow = chosenDate.year == now.year &&
                                     chosenDate.month == now.month &&
                                     chosenDate.day == now.day;
-                                final DateTime fullDateTime = isSameDayAsNow
-                                    ? DateTime(chosenDate.year, chosenDate.month, chosenDate.day, now.hour, now.minute, now.second, now.millisecond)
-                                    : (widget.expense != null
-                                        ? (DateTime.tryParse(widget.expense!.date) ?? DateTime(chosenDate.year, chosenDate.month, chosenDate.day, now.hour, now.minute, now.second))
-                                        : DateTime(chosenDate.year, chosenDate.month, chosenDate.day, now.hour, now.minute, now.second));
+                                final existingTime = widget.expense != null ? DateTime.tryParse(widget.expense!.date) : null;
+                                final DateTime fullDateTime = DateTime(
+                                  chosenDate.year,
+                                  chosenDate.month,
+                                  chosenDate.day,
+                                  isSameDayAsNow ? now.hour : (existingTime?.hour ?? now.hour),
+                                  isSameDayAsNow ? now.minute : (existingTime?.minute ?? now.minute),
+                                  isSameDayAsNow ? now.second : (existingTime?.second ?? now.second),
+                                  isSameDayAsNow ? now.millisecond : (existingTime?.millisecond ?? 0),
+                                );
                                 final expenseDate = fullDateTime.toIso8601String();
 
                                 final expense = ExpenseRecord(
