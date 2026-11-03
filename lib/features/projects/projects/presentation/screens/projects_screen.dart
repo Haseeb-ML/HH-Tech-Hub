@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1248,6 +1249,53 @@ class _ProjectCard extends ConsumerWidget {
   }
 }
 
+class _DateTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.length < oldValue.text.length) {
+      if (oldValue.text.endsWith('-') && newValue.text.length == oldValue.text.length - 1) {
+        final text = newValue.text.substring(0, newValue.text.length - 1);
+        return TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      }
+      return newValue;
+    }
+
+    final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    final limited = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < limited.length; i++) {
+      buffer.write(limited[i]);
+      if ((i == 1 || i == 3) && i != limited.length - 1) {
+        buffer.write('-');
+      }
+    }
+
+    if (limited.length == 2 || limited.length == 4) {
+      buffer.write('-');
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
 class _AddEditProjectDialog extends ConsumerStatefulWidget {
   final Project? project;
   final bool resumeDraft;
@@ -1290,9 +1338,55 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
   String? _selectedClientAccountId;
   String? _selectedClientAccountName;
 
+  late final TextEditingController _startDateController;
+  late final TextEditingController _endDateController;
+
   DateTime _startDate = DateTime.now();
   TimeOfDay _startTime = TimeOfDay.now();
-  DateTime _endDate = DateTime.now().add(const Duration(days: 90));
+  DateTime? _endDate;
+
+  String _formatDateForDisplay(DateTime dt) {
+    return DateFormat('dd-MM-yyyy').format(dt);
+  }
+
+  DateTime? _parseInputDateNullable(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+
+    final formats = [
+      'dd-MM-yyyy',
+      'dd/MM/yyyy',
+      'dd.MM.yyyy',
+      'yyyy-MM-dd',
+      'yyyy/MM/dd',
+      'dd-MM-yyyy HH:mm',
+      'dd/MM/yyyy HH:mm',
+      'yyyy-MM-dd HH:mm:ss',
+      'yyyy-MM-dd HH:mm',
+      'yyyy-MM-ddTHH:mm:ss',
+      'yyyy-MM-ddTHH:mm',
+    ];
+
+    for (final fmt in formats) {
+      try {
+        return DateFormat(fmt).parseStrict(trimmed);
+      } catch (_) {
+        try {
+          return DateFormat(fmt).parse(trimmed);
+        } catch (_) {}
+      }
+    }
+
+    try {
+      return DateTime.parse(trimmed);
+    } catch (_) {}
+
+    return null;
+  }
+
+  DateTime _parseInputDate(String raw, {DateTime? fallback}) {
+    return _parseInputDateNullable(raw) ?? fallback ?? DateTime.now();
+  }
 
   List<String> _teamMembers = [];
   Future<void> _draftSaveQueue = Future<void>.value();
@@ -1311,12 +1405,19 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
       text: widget.project?.advancedPayment.toStringAsFixed(0) ?? '0',
     );
     _partialPaymentController = TextEditingController(text: '0');
+    _startDateController = TextEditingController(text: _formatDateForDisplay(_startDate));
+    _endDateController = TextEditingController();
 
     if (widget.project == null) {
       _nameController.addListener(_queueDraftSave);
       _descController.addListener(_queueDraftSave);
       _budgetController.addListener(_queueDraftSave);
       _advancedController.addListener(_queueDraftSave);
+      _startDateController.addListener(_queueDraftSave);
+      _endDateController.addListener(_queueDraftSave);
+      _endDateController.addListener(() {
+        if (mounted) setState(() {});
+      });
       if (widget.resumeDraft) {
         _restoreDraft();
       }
@@ -1326,9 +1427,10 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
       _selectedClientId = widget.project!.clientId;
       _selectedClientName = widget.project!.clientName;
       _status = widget.project!.status;
-      final parsedStart = DateTime.tryParse(widget.project!.startDate);
+      final parsedStart = _parseInputDateNullable(widget.project!.startDate) ?? DateTime.tryParse(widget.project!.startDate);
       if (parsedStart != null) {
         _startDate = parsedStart;
+        _startDateController.text = _formatDateForDisplay(parsedStart);
         if (parsedStart.hour != 0 || parsedStart.minute != 0) {
           _startTime = TimeOfDay(
             hour: parsedStart.hour,
@@ -1347,7 +1449,14 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
           }
         }
       }
-      _endDate = DateTime.tryParse(widget.project!.endDate) ?? DateTime.now();
+      final parsedEnd = _parseInputDateNullable(widget.project!.endDate) ?? DateTime.tryParse(widget.project!.endDate);
+      if (parsedEnd != null && widget.project!.endDate.trim().isNotEmpty) {
+        _endDate = parsedEnd;
+        _endDateController.text = _formatDateForDisplay(parsedEnd);
+      } else {
+        _endDate = null;
+        _endDateController.text = '';
+      }
       _teamMembers = List.from(widget.project!.teamMembers);
       _selectedBankAccountId = widget.project!.bankAccountId;
       _selectedBankAccountName = widget.project!.bankAccountName;
@@ -1376,6 +1485,8 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
     _budgetController.dispose();
     _advancedController.dispose();
     _partialPaymentController.dispose();
+    _startDateController.dispose();
+    _endDateController.dispose();
     super.dispose();
   }
 
@@ -1398,11 +1509,22 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
         _selectedBankAccountName = draft['bankAccountName'] as String?;
         _selectedClientAccountId = draft['clientAccountId'] as String?;
         _selectedClientAccountName = draft['clientAccountName'] as String?;
-        _startDate =
-            DateTime.tryParse(draft['startDate'] as String? ?? '') ??
-            _startDate;
-        _endDate =
-            DateTime.tryParse(draft['endDate'] as String? ?? '') ?? _endDate;
+        final draftStartStr = draft['startDate'] as String? ?? '';
+        final parsedDraftStart = _parseInputDateNullable(draftStartStr) ?? DateTime.tryParse(draftStartStr);
+        if (parsedDraftStart != null) {
+          _startDate = parsedDraftStart;
+          _startDateController.text = _formatDateForDisplay(parsedDraftStart);
+        }
+
+        final draftEndStr = draft['endDate'] as String? ?? '';
+        final parsedDraftEnd = _parseInputDateNullable(draftEndStr) ?? DateTime.tryParse(draftEndStr);
+        if (parsedDraftEnd != null && draftEndStr.trim().isNotEmpty) {
+          _endDate = parsedDraftEnd;
+          _endDateController.text = _formatDateForDisplay(parsedDraftEnd);
+        } else {
+          _endDate = null;
+          _endDateController.text = '';
+        }
         final startHour = draft['startHour'] as int?;
         final startMinute = draft['startMinute'] as int?;
         if (startHour != null && startMinute != null) {
@@ -1439,8 +1561,12 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
       'bankAccountName': _selectedBankAccountName,
       'clientAccountId': _selectedClientAccountId,
       'clientAccountName': _selectedClientAccountName,
-      'startDate': _startDate.toIso8601String(),
-      'endDate': _endDate.toIso8601String(),
+      'startDate': _startDateController.text.trim().isNotEmpty
+          ? _formatDateForDisplay(_parseInputDate(_startDateController.text, fallback: _startDate))
+          : _startDate.toIso8601String(),
+      'endDate': _endDateController.text.trim().isNotEmpty
+          ? _formatDateForDisplay(_parseInputDate(_endDateController.text, fallback: _endDate ?? DateTime.now()))
+          : '',
       'startHour': _startTime.hour,
       'startMinute': _startTime.minute,
       'teamMembers': _teamMembers,
@@ -2286,50 +2412,48 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel('Start Date'),
-                          OutlinedButton(
-                            onPressed: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _startDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2030),
-                              );
-                              if (picked != null) {
-                                setState(() => _startDate = picked);
-                                _queueDraftSave();
-                              }
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: context.border),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 14,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _startDate.toIso8601String().substring(
-                                    0,
-                                    10,
-                                  ),
-                                  style: TextStyle(
-                                    color: context.textPrimary,
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
+                          _buildLabel('Start Date', isRequired: true),
+                          TextFormField(
+                            controller: _startDateController,
+                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                            keyboardType: TextInputType.datetime,
+                            inputFormatters: [
+                              _DateTextFormatter(),
+                            ],
+                            decoration: _buildInputDecoration('dd-mm-yyyy').copyWith(
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  Icons.calendar_month_outlined,
+                                  size: 20,
                                   color: context.primaryColor,
                                 ),
-                              ],
+                                onPressed: () async {
+                                  final current = _parseInputDateNullable(_startDateController.text) ?? _startDate;
+                                  final pickedDate = await showDatePicker(
+                                    context: context,
+                                    initialDate: current,
+                                    firstDate: DateTime(2020),
+                                    lastDate: DateTime(2035),
+                                  );
+                                  if (pickedDate != null) {
+                                    setState(() {
+                                      _startDate = pickedDate;
+                                      _startDateController.text = _formatDateForDisplay(pickedDate);
+                                    });
+                                    _queueDraftSave();
+                                  }
+                                },
+                              ),
                             ),
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return 'Enter start date (dd-mm-yyyy)';
+                              }
+                              if (_parseInputDateNullable(val) == null) {
+                                return 'Invalid date format (dd-mm-yyyy)';
+                              }
+                              return null;
+                            },
                           ),
                         ],
                       ),
@@ -2338,49 +2462,68 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildLabel('End Date (Optional)'),
-                          OutlinedButton(
-                            onPressed: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _endDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2030),
-                              );
-                              if (picked != null) {
-                                setState(() => _endDate = picked);
-                                _queueDraftSave();
+                          TextFormField(
+                            controller: _endDateController,
+                            style: TextStyle(color: context.textPrimary, fontSize: 13),
+                            keyboardType: TextInputType.datetime,
+                            inputFormatters: [
+                              _DateTextFormatter(),
+                            ],
+                            decoration: _buildInputDecoration('dd-mm-yyyy (Optional)').copyWith(
+                              suffixIcon: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_endDateController.text.isNotEmpty)
+                                    IconButton(
+                                      icon: Icon(Icons.clear, size: 18, color: context.textMuted),
+                                      tooltip: 'Clear End Date',
+                                      onPressed: () {
+                                        setState(() {
+                                          _endDate = null;
+                                          _endDateController.clear();
+                                        });
+                                        _queueDraftSave();
+                                      },
+                                    ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.calendar_month_outlined,
+                                      size: 20,
+                                      color: context.primaryColor,
+                                    ),
+                                    onPressed: () async {
+                                      final current = _parseInputDateNullable(_endDateController.text) ?? _endDate ?? DateTime.now();
+                                      final pickedDate = await showDatePicker(
+                                        context: context,
+                                        initialDate: current,
+                                        firstDate: DateTime(2020),
+                                        lastDate: DateTime(2035),
+                                      );
+                                      if (pickedDate != null) {
+                                        setState(() {
+                                          _endDate = pickedDate;
+                                          _endDateController.text = _formatDateForDisplay(pickedDate);
+                                        });
+                                        _queueDraftSave();
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            validator: (val) {
+                              if (val != null && val.trim().isNotEmpty) {
+                                final parsed = _parseInputDateNullable(val);
+                                if (parsed == null) {
+                                  return 'Invalid date format (dd-mm-yyyy)';
+                                }
+                                final start = _parseInputDateNullable(_startDateController.text);
+                                if (start != null && parsed.isBefore(start)) {
+                                  return 'End date cannot be before start date';
+                                }
                               }
+                              return null;
                             },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: context.border),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 14,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  _endDate.toIso8601String().substring(
-                                    0,
-                                    10,
-                                  ),
-                                  style: TextStyle(
-                                    color: context.textPrimary,
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                  color: context.primaryColor,
-                                ),
-                              ],
-                            ),
                           ),
                         ],
                       ),
@@ -2391,50 +2534,48 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildLabel('Start Date'),
-                                OutlinedButton(
-                                  onPressed: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: _startDate,
-                                      firstDate: DateTime(2020),
-                                      lastDate: DateTime(2030),
-                                    );
-                                    if (picked != null) {
-                                      setState(() => _startDate = picked);
-                                      _queueDraftSave();
-                                    }
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(color: context.border),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 14,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        _startDate.toIso8601String().substring(
-                                          0,
-                                          10,
-                                        ),
-                                        style: TextStyle(
-                                          color: context.textPrimary,
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.calendar_today,
-                                        size: 16,
+                                _buildLabel('Start Date', isRequired: true),
+                                TextFormField(
+                                  controller: _startDateController,
+                                  style: TextStyle(color: context.textPrimary, fontSize: 13),
+                                  keyboardType: TextInputType.datetime,
+                                  inputFormatters: [
+                                    _DateTextFormatter(),
+                                  ],
+                                  decoration: _buildInputDecoration('dd-mm-yyyy').copyWith(
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        Icons.calendar_month_outlined,
+                                        size: 20,
                                         color: context.primaryColor,
                                       ),
-                                    ],
+                                      onPressed: () async {
+                                        final current = _parseInputDateNullable(_startDateController.text) ?? _startDate;
+                                        final pickedDate = await showDatePicker(
+                                          context: context,
+                                          initialDate: current,
+                                          firstDate: DateTime(2020),
+                                          lastDate: DateTime(2035),
+                                        );
+                                        if (pickedDate != null) {
+                                          setState(() {
+                                            _startDate = pickedDate;
+                                            _startDateController.text = _formatDateForDisplay(pickedDate);
+                                          });
+                                          _queueDraftSave();
+                                        }
+                                      },
+                                    ),
                                   ),
+                                  validator: (val) {
+                                    if (val == null || val.trim().isEmpty) {
+                                      return 'Enter start date (dd-mm-yyyy)';
+                                    }
+                                    if (_parseInputDateNullable(val) == null) {
+                                      return 'Invalid date format (dd-mm-yyyy)';
+                                    }
+                                    return null;
+                                  },
                                 ),
                               ],
                             ),
@@ -2445,49 +2586,68 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _buildLabel('End Date (Optional)'),
-                                OutlinedButton(
-                                  onPressed: () async {
-                                    final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: _endDate,
-                                      firstDate: DateTime(2020),
-                                      lastDate: DateTime(2030),
-                                    );
-                                    if (picked != null) {
-                                      setState(() => _endDate = picked);
-                                      _queueDraftSave();
+                                TextFormField(
+                                  controller: _endDateController,
+                                  style: TextStyle(color: context.textPrimary, fontSize: 13),
+                                  keyboardType: TextInputType.datetime,
+                                  inputFormatters: [
+                                    _DateTextFormatter(),
+                                  ],
+                                  decoration: _buildInputDecoration('dd-mm-yyyy (Optional)').copyWith(
+                                    suffixIcon: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (_endDateController.text.isNotEmpty)
+                                          IconButton(
+                                            icon: Icon(Icons.clear, size: 18, color: context.textMuted),
+                                            tooltip: 'Clear End Date',
+                                            onPressed: () {
+                                              setState(() {
+                                                _endDate = null;
+                                                _endDateController.clear();
+                                              });
+                                              _queueDraftSave();
+                                            },
+                                          ),
+                                        IconButton(
+                                          icon: Icon(
+                                            Icons.calendar_month_outlined,
+                                            size: 20,
+                                            color: context.primaryColor,
+                                          ),
+                                          onPressed: () async {
+                                            final current = _parseInputDateNullable(_endDateController.text) ?? _endDate ?? DateTime.now();
+                                            final pickedDate = await showDatePicker(
+                                              context: context,
+                                              initialDate: current,
+                                              firstDate: DateTime(2020),
+                                              lastDate: DateTime(2035),
+                                            );
+                                            if (pickedDate != null) {
+                                              setState(() {
+                                                _endDate = pickedDate;
+                                                _endDateController.text = _formatDateForDisplay(pickedDate);
+                                              });
+                                              _queueDraftSave();
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  validator: (val) {
+                                    if (val != null && val.trim().isNotEmpty) {
+                                      final parsed = _parseInputDateNullable(val);
+                                      if (parsed == null) {
+                                        return 'Invalid date format (dd-mm-yyyy)';
+                                      }
+                                      final start = _parseInputDateNullable(_startDateController.text);
+                                      if (start != null && parsed.isBefore(start)) {
+                                        return 'End date cannot be before start date';
+                                      }
                                     }
+                                    return null;
                                   },
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(color: context.border),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 14,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        _endDate.toIso8601String().substring(
-                                          0,
-                                          10,
-                                        ),
-                                        style: TextStyle(
-                                          color: context.textPrimary,
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.calendar_today,
-                                        size: 16,
-                                        color: context.primaryColor,
-                                      ),
-                                    ],
-                                  ),
                                 ),
                               ],
                             ),
@@ -2682,16 +2842,25 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                     _partialPaymentController.text,
                                   ) ??
                                   0.0;
+                              final parsedStart = _parseInputDate(_startDateController.text, fallback: _startDate);
                               final now = DateTime.now();
                               final startDateTime = DateTime(
-                                _startDate.year,
-                                _startDate.month,
-                                _startDate.day,
+                                parsedStart.year,
+                                parsedStart.month,
+                                parsedStart.day,
                                 _startTime.hour,
                                 _startTime.minute,
                                 now.second,
                                 now.millisecond,
                               );
+                              String endDateTimeStr = '';
+                              final trimmedEnd = _endDateController.text.trim();
+                              if (trimmedEnd.isNotEmpty) {
+                                final parsedEnd = _parseInputDateNullable(trimmedEnd) ?? _endDate;
+                                if (parsedEnd != null) {
+                                  endDateTimeStr = parsedEnd.toIso8601String().substring(0, 10);
+                                }
+                              }
                               final ca = _selectedClientAccountId != null
                                   ? ref.read(clientAccountsProvider).where((c) => c.id == _selectedClientAccountId).firstOrNull
                                   : ref.read(clientAccountsProvider).where((c) => c.name == _selectedClientAccountName).firstOrNull;
@@ -2717,10 +2886,7 @@ class _AddEditProjectDialogState extends ConsumerState<_AddEditProjectDialog> {
                                 clientId: _selectedClientId!,
                                 clientName: _selectedClientName!,
                                 startDate: startDateTime.toIso8601String(),
-                                endDate: _endDate.toIso8601String().substring(
-                                  0,
-                                  10,
-                                ),
+                                endDate: endDateTimeStr,
                                 status: _status,
                                 budget:
                                     double.tryParse(_budgetController.text) ??
