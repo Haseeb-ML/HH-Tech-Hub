@@ -818,12 +818,12 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                 const SizedBox(height: 16),
                 
                 // Client Name
-                _buildLabel('Client / Company Name', isRequired: true),
+                _buildLabel('Client Name'),
                 TextFormField(
                   controller: _nameController,
                   style: TextStyle(color: context.textPrimary),
-                  decoration: _buildInputDecoration('Enter company name'),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Please enter company name' : null,
+                  decoration: _buildInputDecoration('Enter client name'),
+                  validator: (val) => val == null || val.trim().isEmpty ? 'Please enter client name' : null,
                 ),
                 const SizedBox(height: 16),
 
@@ -836,12 +836,12 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                     validator: null,
                   ),
                   const SizedBox(height: 16),
-                  _buildLabel('Industry', isRequired: true),
+                  _buildLabel('Industry'),
                   TextFormField(
                     controller: _industryController,
                     style: TextStyle(color: context.textPrimary),
                     decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
+                    validator: null,
                   ),
                   const SizedBox(height: 16),
                   _buildLabel(tr('Email Address')),
@@ -857,7 +857,7 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  _buildLabel('Phone Number', isRequired: true),
+                  _buildLabel('Phone Number'),
                   TextFormField(
                     controller: _phoneController,
                     style: TextStyle(color: context.textPrimary),
@@ -868,10 +868,11 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                     ],
                     decoration: _buildInputDecoration('+923001234567'),
                     validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Please enter phone number';
-                      final regex = RegExp(r'^\+?[0-9]{10,15}$');
-                      if (!regex.hasMatch(val.trim())) {
-                        return 'Enter 10-15 digits (e.g. +923001234567)';
+                      if (val != null && val.trim().isNotEmpty) {
+                        final regex = RegExp(r'^\+?[0-9]{10,15}$');
+                        if (!regex.hasMatch(val.trim())) {
+                          return 'Enter 10-15 digits (e.g. +923001234567)';
+                        }
                       }
                       return null;
                     },
@@ -898,12 +899,12 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildLabel('Industry', isRequired: true),
+                            _buildLabel('Industry'),
                             TextFormField(
                               controller: _industryController,
                               style: TextStyle(color: context.textPrimary),
                               decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
-                              validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
+                              validator: null,
                             ),
                           ],
                         ),
@@ -938,7 +939,7 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildLabel('Phone Number', isRequired: true),
+                            _buildLabel('Phone Number'),
                             TextFormField(
                               controller: _phoneController,
                               style: TextStyle(color: context.textPrimary),
@@ -1012,7 +1013,7 @@ class AddClientDialogState extends ConsumerState<AddClientDialog> {
                           final duplicate = clients.where((client) {
                             if (client.id == widget.client?.id) return false;
                             final sameName = client.name.trim().toLowerCase() == name.toLowerCase();
-                            final samePhone = client.phone.trim() == phone;
+                            final samePhone = phone.isNotEmpty && client.phone.trim() == phone;
                             final sameEmail = email.isNotEmpty && client.email.trim().toLowerCase() == email.toLowerCase();
                             return sameName || samePhone || sameEmail;
                           }).firstOrNull;
@@ -1193,12 +1194,12 @@ class _EditClientDialogState extends ConsumerState<_EditClientDialog> {
                 const SizedBox(height: 16),
                 
                 // Client Name
-                _buildLabel('Client / Company Name', isRequired: true),
+                _buildLabel('Client Name'),
                 TextFormField(
                   controller: _nameController,
                   style: TextStyle(color: context.textPrimary),
-                  decoration: _buildInputDecoration('Enter company name'),
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Please enter company name' : null,
+                  decoration: _buildInputDecoration('Enter client name'),
+                  validator: (val) => val == null || val.trim().isEmpty ? 'Please enter client name' : null,
                 ),
                 const SizedBox(height: 16),
 
@@ -1211,12 +1212,12 @@ class _EditClientDialogState extends ConsumerState<_EditClientDialog> {
                     validator: (val) => val == null || val.trim().isEmpty ? 'Please enter contact name' : null,
                   ),
                   const SizedBox(height: 16),
-                  _buildLabel('Industry', isRequired: true),
+                  _buildLabel('Industry'),
                   TextFormField(
                     controller: _industryController,
                     style: TextStyle(color: context.textPrimary),
                     decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
-                    validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
+                    validator: null,
                   ),
                   const SizedBox(height: 16),
                   _buildLabel(tr('Email Address')),
@@ -1232,7 +1233,7 @@ class _EditClientDialogState extends ConsumerState<_EditClientDialog> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  _buildLabel('Phone Number', isRequired: true),
+                  _buildLabel('Phone Number'),
                   TextFormField(
                     controller: _phoneController,
                     style: TextStyle(color: context.textPrimary),
@@ -1243,10 +1244,11 @@ class _EditClientDialogState extends ConsumerState<_EditClientDialog> {
                     ],
                     decoration: _buildInputDecoration('+923001234567'),
                     validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Please enter phone number';
-                      final regex = RegExp(r'^\+?[0-9]{10,15}$');
-                      if (!regex.hasMatch(val.trim())) {
-                        return 'Enter 10-15 digits (e.g. +923001234567)';
+                      if (val != null && val.trim().isNotEmpty) {
+                        final regex = RegExp(r'^\+?[0-9]{10,15}$');
+                        if (!regex.hasMatch(val.trim())) {
+                          return 'Enter 10-15 digits (e.g. +923001234567)';
+                        }
                       }
                       return null;
                     },
@@ -1302,12 +1304,12 @@ class _EditClientDialogState extends ConsumerState<_EditClientDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildLabel('Industry', isRequired: true),
+                            _buildLabel('Industry'),
                             TextFormField(
                               controller: _industryController,
                               style: TextStyle(color: context.textPrimary),
                               decoration: _buildInputDecoration('e.g. E-Commerce, Tech'),
-                              validator: (val) => val == null || val.trim().isEmpty ? 'Please enter industry' : null,
+                              validator: null,
                             ),
                           ],
                         ),
@@ -1342,7 +1344,7 @@ class _EditClientDialogState extends ConsumerState<_EditClientDialog> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildLabel('Phone Number', isRequired: true),
+                            _buildLabel('Phone Number'),
                             TextFormField(
                               controller: _phoneController,
                               style: TextStyle(color: context.textPrimary),
