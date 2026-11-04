@@ -530,9 +530,28 @@ class ExpensesNotifier extends Notifier<ExpensesState> {
       module: 'Finance',
     );
 
-    await ref.read(accountsProvider.notifier).syncBalancesFromDb();
+        await ref.read(accountsProvider.notifier).syncBalancesFromDb();
     final updated = await _repository.getExpenses();
     state = state.copyWith(expenses: updated, isLoading: false);
+  }
+
+  Future<void> renameCategory(String oldName, String newName) async {
+    try {
+      final dbService = ref.read(databaseServiceProvider);
+      await dbService.db.customStatement(
+        "UPDATE expense_records_table SET category = ? WHERE category = ?",
+        [newName, oldName],
+      );
+      await dbService.db.customStatement(
+        "UPDATE ledger_entries_table SET category = ? WHERE category = ?",
+        [newName, oldName],
+      );
+      final updated = await _repository.getExpenses();
+      state = state.copyWith(expenses: updated);
+    } catch (_) {
+      final updated = await _repository.getExpenses();
+      state = state.copyWith(expenses: updated);
+    }
   }
 }
 

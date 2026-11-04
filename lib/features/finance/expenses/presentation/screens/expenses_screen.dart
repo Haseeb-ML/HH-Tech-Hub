@@ -8,6 +8,8 @@ import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/finance_sub_nav.dart';
 import '../providers/expenses_provider.dart';
+import '../providers/expense_categories_provider.dart';
+import '../widgets/manage_expense_categories_dialog.dart';
 import 'package:software_house_erp/core/widgets/export_button.dart';
 import '../../../accounts/presentation/providers/accounts_provider.dart';
 import '../../domain/entities/expense_record.dart';
@@ -105,9 +107,24 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                       ],
                     ),
                     const Divider(height: 20),
-                    Text(
-                      'Category',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondary),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Category',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.textSecondary),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                            ManageExpenseCategoriesDialog.show(context);
+                          },
+                          child: Text(
+                            'Manage Categories',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: context.primaryColor),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 6),
                     Container(
@@ -124,26 +141,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                           isExpanded: true,
                           dropdownColor: context.cardBg,
                           style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                          items: [
+                          items: {
                             'All',
-                            'Salaries & Payroll',
-                            'Salary Advances',
-                            'Electricity & Utilities',
-                            'Internet & Telecom',
-                            'Rent & Occupancy',
-                            'Bills',
-                            'Supplies',
-                            'Refreshments',
-                            'Travel & Transport',
-                            'Office Inventory',
-                            'Assets Management',
-                            'Marketing & Advertising',
-                            'Office & Admin Expenses',
-                            'Repairs & Maintenance',
-                            'Depreciation',
-                            'Bank Charges & Fees',
-                            'Other',
-                          ].map((c) => DropdownMenuItem<String>(
+                            ...ref.watch(expenseCategoriesProvider),
+                          }.map((c) => DropdownMenuItem<String>(
                             value: c,
                             child: Text(c == 'All' ? 'All Categories' : c),
                           )).toList(),
@@ -660,26 +661,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                         value: state.categoryFilter,
                                                         dropdownColor: context.cardBg,
                                                         style: TextStyle(color: context.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                                                        items: [
+                                                        items: {
                                                           'All',
-                                                          'Salaries & Payroll',
-                                                          'Salary Advances',
-                                                          'Electricity & Utilities',
-                                                          'Internet & Telecom',
-                                                          'Rent & Occupancy',
-                                                          'Bills',
-                                                          'Supplies',
-                                                          'Refreshments',
-                                                          'Travel & Transport',
-                                                          'Office Inventory',
-                                                          'Assets Management',
-                                                          'Marketing & Advertising',
-                                                          'Office & Admin Expenses',
-                                                          'Repairs & Maintenance',
-                                                          'Depreciation',
-                                                          'Bank Charges & Fees',
-                                                          'Other',
-                                                        ].map((c) {
+                                                          ...ref.watch(expenseCategoriesProvider),
+                                                        }.map((c) {
                                                           return DropdownMenuItem<String>(
                                                             value: c,
                                                             child: Text(c == 'All' ? 'Category: All' : c),
@@ -691,6 +676,23 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                                                             setState(() => _currentPage = 0);
                                                           }
                                                         },
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Tooltip(
+                                                    message: 'Manage Expense Categories',
+                                                    child: InkWell(
+                                                      onTap: () => ManageExpenseCategoriesDialog.show(context),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      child: Container(
+                                                        height: 40,
+                                                        width: 40,
+                                                        decoration: BoxDecoration(
+                                                          color: context.isDarkMode ? const Color(0xFF111827) : context.scaffoldBg,
+                                                          borderRadius: BorderRadius.circular(8),
+                                                          border: Border.all(color: context.border, width: 1),
+                                                        ),
+                                                        child: Icon(Icons.tune, size: 18, color: context.primaryColor),
                                                       ),
                                                     ),
                                                   ),
@@ -1978,39 +1980,67 @@ class _AddEditExpenseDialogState extends ConsumerState<_AddEditExpenseDialog> {
                     const SizedBox(height: 16),
 
                     // Category Select
-                    _buildLabel('Expense Category'),
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: _category,
-                      dropdownColor: context.cardBg,
-                      style: TextStyle(color: context.textPrimary, fontSize: 13),
-                      decoration: _buildInputDecoration('Select Category'),
-                      items: {
-                        'Salaries & Payroll',
-                        'Salary Advances',
-                        'Electricity & Utilities',
-                        'Internet & Telecom',
-                        'Rent & Occupancy',
-                        'Bills',
-                        'Supplies',
-                        'Refreshments',
-                        'Travel & Transport',
-                        'Office Inventory',
-                        'Assets Management',
-                        'Marketing & Advertising',
-                        'Office & Admin Expenses',
-                        'Repairs & Maintenance',
-                        'Depreciation',
-                        'Bank Charges & Fees',
-                        'Other',
-                        if (_category.isNotEmpty) _category,
-                      }.map((c) {
-                        return DropdownMenuItem<String>(value: c, child: Text(c));
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() => _category = val);
-                        }
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildLabel('Expense Category'),
+                        GestureDetector(
+                          onTap: () {
+                            ManageExpenseCategoriesDialog.show(
+                              context,
+                              currentCategory: _category,
+                              onCategorySelected: (cat) {
+                                setState(() => _category = cat);
+                              },
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.tune,
+                                  size: 13,
+                                  color: context.primaryColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Manage Categories',
+                                  style: TextStyle(
+                                    color: context.primaryColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Consumer(
+                      builder: (context, catRef, child) {
+                        final availableCategories = catRef.watch(expenseCategoriesProvider);
+                        final effectiveValue = availableCategories.contains(_category) ? _category : (availableCategories.isNotEmpty ? availableCategories.first : 'Other');
+                        return DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: effectiveValue,
+                          dropdownColor: context.cardBg,
+                          style: TextStyle(color: context.textPrimary, fontSize: 13),
+                          decoration: _buildInputDecoration('Select Category'),
+                          items: {
+                            ...availableCategories,
+                            if (_category.isNotEmpty) _category,
+                          }.map((c) {
+                            return DropdownMenuItem<String>(value: c, child: Text(c));
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _category = val);
+                            }
+                          },
+                        );
                       },
                     ),
                     const SizedBox(height: 16),
