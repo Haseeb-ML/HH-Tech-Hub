@@ -103,10 +103,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen>
   }
 
   String _displayDate(String dateStr) {
-    final parts = dateStr.split('-');
-    return parts.length == 3
-        ? '${_shortMonthName(int.parse(parts[1]))} ${parts[2]}, ${parts[0]}'
-        : dateStr;
+    return AppDateFormatter.formatString(dateStr);
   }
 
   @override
@@ -387,7 +384,7 @@ class _DailyViewState extends ConsumerState<_DailyView> {
                                         builder: (ctx) => AlertDialog(
                                           title: const Text('Mark All Present'),
                                           content: Text(
-                                            'Mark all active employees as Present for ${state.selectedDate}?\n\n'
+                                            'Mark all active employees as Present for ${AppDateFormatter.formatString(state.selectedDate)}?\n\n'
                                             'Note: Employees on Leave, Weekly Offs, and Holidays will NOT be overwritten.',
                                           ),
                                           actions: [
@@ -838,7 +835,7 @@ class _AttendanceRulesDialogState extends State<_AttendanceRulesDialog> {
                 children: [
                   ..._holidays.map(
                     (date) => Chip(
-                      label: Text(date),
+                      label: Text(AppDateFormatter.formatString(date)),
                       onDeleted: () => setState(() => _holidays.remove(date)),
                     ),
                   ),
