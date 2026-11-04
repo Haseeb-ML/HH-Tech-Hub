@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1321,24 +1322,36 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                 TextFormField(
                   controller: _joiningDateController,
                   style: TextStyle(color: context.textPrimary),
-                  readOnly: true,
-                  decoration: _buildInputDecoration(tr('Select Joining Date')).copyWith(
-                    suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.textSecondary),
+                  keyboardType: TextInputType.datetime,
+                  inputFormatters: [_DateTextFormatter()],
+                  decoration: _buildInputDecoration('dd-mm-yyyy').copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.calendar_today, size: 16, color: context.textSecondary),
+                      tooltip: tr('Select Joining Date'),
+                      onPressed: () async {
+                        DateTime initial = _parseInputDateNullable(_joiningDateController.text) ?? DateTime.now();
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: initial,
+                          firstDate: DateTime(1980),
+                          lastDate: DateTime(2100),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            _joiningDateController.text = DateFormat('dd-MM-yyyy').format(date);
+                          });
+                        }
+                      },
+                    ),
                   ),
-                  validator: (val) => val == null || val.trim().isEmpty ? tr('Joining Date is mandatory') : null,
-                  onTap: () async {
-                    DateTime initial = DateTime.tryParse(_joiningDateController.text) ?? DateTime.now();
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: initial,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100),
-                    );
-                    if (date != null) {
-                      setState(() {
-                        _joiningDateController.text = date.toIso8601String().substring(0, 10);
-                      });
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return tr('Joining Date is mandatory');
                     }
+                    if (_parseInputDateNullable(val) == null) {
+                      return tr('Please enter a valid date (dd-mm-yyyy)');
+                    }
+                    return null;
                   },
                 ),
                 const SizedBox(height: 24),
@@ -1382,7 +1395,13 @@ class _AddEmployeeDialogState extends ConsumerState<_AddEmployeeDialog> {
                             cnic: _cnicController.text.trim(),
                             designation: _designationController.text.trim(),
                             department: _department,
-                            joiningDate: _joiningDateController.text.trim(),
+                            joiningDate: () {
+                              final parsed = _parseInputDateNullable(_joiningDateController.text);
+                              if (parsed != null) {
+                                return DateFormat('dd-MM-yyyy').format(parsed);
+                              }
+                              return _joiningDateController.text.trim();
+                            }(),
                             status: 'Active',
                             salaryType: _salaryType,
                             baseSalary: double.tryParse(_salaryController.text) ?? 0.0,
@@ -1534,9 +1553,14 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
     _salaryController = TextEditingController(text: widget.employee.baseSalary.toStringAsFixed(0));
     _paymentMethod = widget.employee.paymentMethod;
     _status = widget.employee.status;
-    _joiningDateController = TextEditingController(text: widget.employee.joiningDate);
+    _joiningDateController = TextEditingController(
+        text: widget.employee.joiningDate.isNotEmpty
+            ? AppDateFormatter.formatString(widget.employee.joiningDate)
+            : '');
     _leavingDateController = TextEditingController(
-        text: widget.employee.leavingDate ?? DateTime.now().toIso8601String().substring(0, 10));
+        text: widget.employee.leavingDate != null && widget.employee.leavingDate!.isNotEmpty
+            ? AppDateFormatter.formatString(widget.employee.leavingDate!)
+            : '');
   }
 
   @override
@@ -1899,24 +1923,36 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                           TextFormField(
                             controller: _joiningDateController,
                             style: TextStyle(color: context.textPrimary),
-                            readOnly: true,
-                            decoration: _buildInputDecoration(tr('Select Joining Date')).copyWith(
-                              suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.textSecondary),
+                            keyboardType: TextInputType.datetime,
+                            inputFormatters: [_DateTextFormatter()],
+                            decoration: _buildInputDecoration('dd-mm-yyyy').copyWith(
+                              suffixIcon: IconButton(
+                                icon: Icon(Icons.calendar_today, size: 16, color: context.textSecondary),
+                                tooltip: tr('Select Joining Date'),
+                                onPressed: () async {
+                                  DateTime initial = _parseInputDateNullable(_joiningDateController.text) ?? DateTime.now();
+                                  final date = await showDatePicker(
+                                    context: context,
+                                    initialDate: initial,
+                                    firstDate: DateTime(1980),
+                                    lastDate: DateTime(2100),
+                                  );
+                                  if (date != null) {
+                                    setState(() {
+                                      _joiningDateController.text = DateFormat('dd-MM-yyyy').format(date);
+                                    });
+                                  }
+                                },
+                              ),
                             ),
-                            validator: (val) => val == null || val.trim().isEmpty ? tr('Joining Date is mandatory') : null,
-                            onTap: () async {
-                              DateTime initial = DateTime.tryParse(_joiningDateController.text) ?? DateTime.now();
-                              final date = await showDatePicker(
-                                context: context,
-                                initialDate: initial,
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2100),
-                              );
-                              if (date != null) {
-                                setState(() {
-                                  _joiningDateController.text = date.toIso8601String().substring(0, 10);
-                                });
+                            validator: (val) {
+                              if (val == null || val.trim().isEmpty) {
+                                return tr('Joining Date is mandatory');
                               }
+                              if (_parseInputDateNullable(val) == null) {
+                                return tr('Please enter a valid date (dd-mm-yyyy)');
+                              }
+                              return null;
                             },
                           ),
                         ],
@@ -1932,23 +1968,36 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                                 TextFormField(
                                   controller: _leavingDateController,
                                   style: TextStyle(color: context.textPrimary),
-                                  readOnly: true,
-                                  decoration: _buildInputDecoration('Select Leaving Date').copyWith(
-                                    suffixIcon: Icon(Icons.calendar_today, size: 16, color: context.textSecondary),
+                                  keyboardType: TextInputType.datetime,
+                                  inputFormatters: [_DateTextFormatter()],
+                                  decoration: _buildInputDecoration('dd-mm-yyyy').copyWith(
+                                    suffixIcon: IconButton(
+                                      icon: Icon(Icons.calendar_today, size: 16, color: context.textSecondary),
+                                      tooltip: tr('Select Leaving Date'),
+                                      onPressed: () async {
+                                        DateTime initial = _parseInputDateNullable(_leavingDateController.text) ?? DateTime.now();
+                                        final date = await showDatePicker(
+                                          context: context,
+                                          initialDate: initial,
+                                          firstDate: DateTime(1980),
+                                          lastDate: DateTime(2100),
+                                        );
+                                        if (date != null) {
+                                          setState(() {
+                                            _leavingDateController.text = DateFormat('dd-MM-yyyy').format(date);
+                                          });
+                                        }
+                                      },
+                                    ),
                                   ),
-                                  onTap: () async {
-                                    DateTime initial = DateTime.tryParse(_leavingDateController.text) ?? DateTime.now();
-                                    final date = await showDatePicker(
-                                      context: context,
-                                      initialDate: initial,
-                                      firstDate: DateTime(2000),
-                                      lastDate: DateTime(2100),
-                                    );
-                                    if (date != null) {
-                                      setState(() {
-                                        _leavingDateController.text = date.toIso8601String().substring(0, 10);
-                                      });
+                                  validator: (val) {
+                                    if (val == null || val.trim().isEmpty) {
+                                      return tr('Leaving Date is mandatory');
                                     }
+                                    if (_parseInputDateNullable(val) == null) {
+                                      return tr('Please enter a valid date (dd-mm-yyyy)');
+                                    }
+                                    return null;
                                   },
                                 ),
                               ],
@@ -2019,8 +2068,24 @@ class _EditEmployeeDialogState extends ConsumerState<_EditEmployeeDialog> {
                             designation: _designationController.text.trim(),
                             department: _department,
                             status: _status,
-                            joiningDate: _joiningDateController.text,
-                            leavingDate: _status == 'Terminated' ? _leavingDateController.text : null,
+                            joiningDate: () {
+                              final parsed = _parseInputDateNullable(_joiningDateController.text);
+                              if (parsed != null) {
+                                return DateFormat('dd-MM-yyyy').format(parsed);
+                              }
+                              return _joiningDateController.text.trim();
+                            }(),
+                            leavingDate: _status == 'Terminated'
+                                ? () {
+                                    final parsed = _parseInputDateNullable(_leavingDateController.text);
+                                    if (parsed != null) {
+                                      return DateFormat('dd-MM-yyyy').format(parsed);
+                                    }
+                                    return _leavingDateController.text.trim().isEmpty
+                                        ? null
+                                        : _leavingDateController.text.trim();
+                                  }()
+                                : null,
                             baseSalary: double.tryParse(_salaryController.text) ?? 0.0,
                             paymentMethod: _paymentMethod,
                           );
@@ -2338,4 +2403,86 @@ class _ViewEmployeeDetailsDialog extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _DateTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.length < oldValue.text.length) {
+      if (oldValue.text.endsWith('-') && newValue.text.length == oldValue.text.length - 1) {
+        final text = newValue.text.substring(0, newValue.text.length - 1);
+        return TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+      }
+      return newValue;
+    }
+
+    final digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    final limited = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < limited.length; i++) {
+      buffer.write(limited[i]);
+      if ((i == 1 || i == 3) && i != limited.length - 1) {
+        buffer.write('-');
+      }
+    }
+
+    if (limited.length == 2 || limited.length == 4) {
+      buffer.write('-');
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+DateTime? _parseInputDateNullable(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+
+  final formats = [
+    'dd-MM-yyyy',
+    'dd/MM/yyyy',
+    'dd.MM.yyyy',
+    'yyyy-MM-dd',
+    'yyyy/MM/dd',
+    'dd-MM-yyyy HH:mm',
+    'dd/MM/yyyy HH:mm',
+    'yyyy-MM-dd HH:mm:ss',
+    'yyyy-MM-dd HH:mm',
+    'yyyy-MM-ddTHH:mm:ss',
+    'yyyy-MM-ddTHH:mm',
+  ];
+
+  for (final fmt in formats) {
+    try {
+      return DateFormat(fmt).parseStrict(trimmed);
+    } catch (_) {
+      try {
+        return DateFormat(fmt).parse(trimmed);
+      } catch (_) {}
+    }
+  }
+
+  try {
+    return DateTime.parse(trimmed);
+  } catch (_) {}
+
+  return null;
 }

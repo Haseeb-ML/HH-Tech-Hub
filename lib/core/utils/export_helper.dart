@@ -13,6 +13,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
+import 'app_date_formatter.dart';
 
 class ExportHelper {
   static List<Map<String, dynamic>> sortTransactionsNewestFirst(
@@ -942,13 +943,13 @@ class ExportHelper {
     writeLabelValue(rowIdx, 0, 'Designation:', 1, employee.designation);
     writeLabelValue(rowIdx, 3, 'Department:', 4, employee.department);
     rowIdx++;
-    writeLabelValue(rowIdx, 0, 'Joining Date:', 1, employee.joiningDate);
+    writeLabelValue(rowIdx, 0, 'Joining Date:', 1, employee.joiningDate.isNotEmpty ? AppDateFormatter.formatString(employee.joiningDate) : 'N/A');
     writeLabelValue(
       rowIdx,
       3,
       'Leaving Date:',
       4,
-      employee.leavingDate ?? 'Present / Active',
+      employee.leavingDate != null && employee.leavingDate!.isNotEmpty ? AppDateFormatter.formatString(employee.leavingDate!) : 'Present / Active',
     );
     rowIdx++;
     writeLabelValue(rowIdx, 0, 'Status:', 1, employee.status);

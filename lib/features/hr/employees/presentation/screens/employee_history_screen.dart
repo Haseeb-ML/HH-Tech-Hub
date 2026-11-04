@@ -5,6 +5,7 @@ import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:software_house_erp/core/widgets/stat_card.dart';
 import 'package:software_house_erp/core/widgets/glass_card.dart';
 import 'package:software_house_erp/core/utils/currency_formatter.dart';
+import 'package:software_house_erp/core/utils/app_date_formatter.dart';
 import 'package:software_house_erp/core/utils/export_helper.dart';
 import 'package:software_house_erp/features/hr/shared/widgets/hr_sub_nav.dart';
 import '../../../employees/domain/entities/employee.dart';
@@ -590,10 +591,12 @@ class _EmployeeHistoryScreenState extends ConsumerState<EmployeeHistoryScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               _buildInfoLabel(tr('Date Joined')),
-                                              _buildInfoValue(emp.joiningDate),
+                                              _buildInfoValue(emp.joiningDate.isNotEmpty ? AppDateFormatter.formatString(emp.joiningDate) : tr('N/A')),
                                               const SizedBox(height: 16),
                                               _buildInfoLabel(tr('Date Resigned/Left')),
-                                              _buildInfoValue(emp.leavingDate ?? tr('Presently Employed')),
+                                              _buildInfoValue(emp.leavingDate != null && emp.leavingDate!.isNotEmpty
+                                                  ? AppDateFormatter.formatString(emp.leavingDate!)
+                                                  : tr('Presently Employed')),
                                             ],
                                           );
 
