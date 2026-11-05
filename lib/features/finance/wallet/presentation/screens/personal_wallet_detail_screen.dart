@@ -200,7 +200,7 @@ class _PersonalWalletDetailScreenState
         description: entry.description,
         reference: entry.reference,
         isPersonalExpense: false,
-        canManageInAccount: entry.category == 'Personal Deposit',
+        canManageInAccount: entry.category == 'Personal Deposit' || entry.category == 'Other Expense',
           )),
       ...personalIncomes.map((i) => _WalletTx(
             id: i.id,
@@ -1280,7 +1280,7 @@ class _PersonalWalletDetailScreenState
                               accountScope: 'Personal',
                               reference: tx.reference,
                               onDelete: tx.canManageInAccount ? () => _handleDeleteTransaction(tx, account) : null,
-                              onEdit: tx.canManageInAccount ? () => _handleEditTransaction(tx, account) : null,
+                              onEdit: (tx.canManageInAccount && tx.category != 'Other Expense') ? () => _handleEditTransaction(tx, account) : null,
                             );
                           },
                           child: Padding(
@@ -1398,15 +1398,17 @@ class _PersonalWalletDetailScreenState
                                       ? Row(
                                           mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
-                                            IconButton(
-                                              icon: const Icon(Icons.edit_outlined, size: 16),
-                                              color: context.primaryColor,
-                                              tooltip: 'Edit / Update',
-                                              padding: EdgeInsets.zero,
-                                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                              onPressed: () => _handleEditTransaction(tx, account),
-                                            ),
-                                            const SizedBox(width: 4),
+                                            if (tx.category != 'Other Expense') ...[
+                                              IconButton(
+                                                icon: const Icon(Icons.edit_outlined, size: 16),
+                                                color: context.primaryColor,
+                                                tooltip: 'Edit / Update',
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                onPressed: () => _handleEditTransaction(tx, account),
+                                              ),
+                                              const SizedBox(width: 4),
+                                            ],
                                             IconButton(
                                               icon: const Icon(Icons.delete_outline, size: 16),
                                               color: context.error,
