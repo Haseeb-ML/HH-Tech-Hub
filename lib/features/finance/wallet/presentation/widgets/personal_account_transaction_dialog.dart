@@ -57,9 +57,7 @@ Future<void> recordPersonalAccountTransaction(
     final destination = accounts.firstWhere((a) => a.id == targetId);
     final source = personal;
 
-    if (source.balance < transaction.amount) {
-      throw StateError('Insufficient balance in ${source.name}.');
-    }
+// Overdraft allowed for personal accounts
 
     await accountNotifier.adjustBalance(source.id, -transaction.amount);
     await accountNotifier.adjustBalance(destination.id, transaction.amount);
@@ -142,7 +140,7 @@ Future<void> recordPersonalAccountTransaction(
   final source = personalToCompany ? personal : company;
   final destination = personalToCompany ? company : personal;
 
-  if (source.balance < transaction.amount) {
+  if (!source.isPersonal && source.balance < transaction.amount) {
     throw StateError('Insufficient balance in ${source.name}.');
   }
 
