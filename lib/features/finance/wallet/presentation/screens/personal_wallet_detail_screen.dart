@@ -200,7 +200,9 @@ class _PersonalWalletDetailScreenState
         description: entry.description,
         reference: entry.reference,
         isPersonalExpense: false,
-        canManageInAccount: entry.category == 'Personal Deposit' || entry.category == 'Other Expense',
+        canManageInAccount: entry.category == 'Personal Deposit' ||
+            entry.category == 'Other Expense' ||
+            (entry.category == 'Account Transfer' && entry.id.contains('_PTRF-')),
           )),
       ...personalIncomes.map((i) => _WalletTx(
             id: i.id,
