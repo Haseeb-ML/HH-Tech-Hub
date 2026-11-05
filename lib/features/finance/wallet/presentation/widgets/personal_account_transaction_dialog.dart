@@ -237,9 +237,6 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
         ? _personalAccountId
         : personalAccounts.firstOrNull?.id;
     final selectedAccount = personalAccounts.where((a) => a.id == personalId).firstOrNull;
-    final ownerName = selectedAccount != null
-        ? (selectedAccount.ownerName.isNotEmpty ? selectedAccount.ownerName : selectedAccount.name)
-        : 'Personal';
     final otherPersonalAccounts = personalAccounts.where((a) => a.id != personalId).toList();
     final dialogTitle = selectedAccount != null
         ? (selectedAccount.ownerName.isNotEmpty && selectedAccount.ownerName != selectedAccount.name
@@ -271,9 +268,9 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
                     const DropdownMenuItem(
                         value: PersonalTransactionType.transfer,
                         child: Text('Company / Personal Transfer')),
-                    DropdownMenuItem(
+                    const DropdownMenuItem(
                         value: PersonalTransactionType.personalTransfer,
-                        child: Text('$ownerName Transfer (Personal to Personal)')),
+                        child: Text('Personal Account Transfer')),
                   ],
                   onChanged: (value) => setState(() => _type = value!),
                 ),
