@@ -9,10 +9,12 @@ import 'package:software_house_erp/features/administration/shared/providers/admi
 
 enum PersonalTransactionType { deposit, transfer, personalTransfer, expense }
 enum PersonalTransferDirection { companyToPersonal, personalToCompany }
+enum PersonalToPersonalDirection { sendTo, receiveFrom }
 
 class PersonalAccountTransaction {
   final PersonalTransactionType type;
   final PersonalTransferDirection direction;
+  final PersonalToPersonalDirection personalToPersonalDirection;
   final String personalAccountId;
   final String? companyAccountId;
   final String? targetPersonalAccountId;
@@ -23,6 +25,7 @@ class PersonalAccountTransaction {
   const PersonalAccountTransaction({
     required this.type,
     required this.direction,
+    this.personalToPersonalDirection = PersonalToPersonalDirection.sendTo,
     required this.personalAccountId,
     required this.companyAccountId,
     this.targetPersonalAccountId,
@@ -54,8 +57,10 @@ Future<void> recordPersonalAccountTransaction(
 
   if (transaction.type == PersonalTransactionType.personalTransfer) {
     final targetId = transaction.targetPersonalAccountId!;
-    final destination = accounts.firstWhere((a) => a.id == targetId);
-    final source = personal;
+    final targetPersonal = accounts.firstWhere((a) => a.id == targetId);
+    final isSend = transaction.personalToPersonalDirection == PersonalToPersonalDirection.sendTo;
+    final source = isSend ? personal : targetPersonal;
+    final destination = isSend ? targetPersonal : personal;
 
 // Overdraft allowed for personal accounts
 
@@ -210,6 +215,7 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
   final _descriptionController = TextEditingController();
   PersonalTransactionType _type = PersonalTransactionType.deposit;
   PersonalTransferDirection _direction = PersonalTransferDirection.companyToPersonal;
+  PersonalToPersonalDirection _personalTransferDirection = PersonalToPersonalDirection.sendTo;
   String? _personalAccountId;
   String? _companyAccountId;
   String? _targetPersonalAccountId;
@@ -297,12 +303,37 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
                         ],
                       ),
                     )
-                  else
+                  else ...[
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: SegmentedButton<PersonalToPersonalDirection>(
+                        segments: const [
+                          ButtonSegment(
+                            value: PersonalToPersonalDirection.sendTo,
+                            icon: Icon(Icons.arrow_upward, size: 16),
+                            label: Text('Transfer To'),
+                          ),
+                          ButtonSegment(
+                            value: PersonalToPersonalDirection.receiveFrom,
+                            icon: Icon(Icons.arrow_downward, size: 16),
+                            label: Text('Receive From'),
+                          ),
+                        ],
+                        selected: {_personalTransferDirection},
+                        onSelectionChanged: (value) =>
+                            setState(() => _personalTransferDirection = value.first),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: otherPersonalAccounts.any((a) => a.id == _targetPersonalAccountId)
                           ? _targetPersonalAccountId
                           : null,
-                      decoration: const InputDecoration(labelText: 'Transfer to Personal Account'),
+                      decoration: InputDecoration(
+                        labelText: _personalTransferDirection == PersonalToPersonalDirection.sendTo
+                            ? 'Transfer to Personal Account'
+                            : 'Receive from Personal Account',
+                      ),
                       items: otherPersonalAccounts.map((account) {
                         final label = account.ownerName.isNotEmpty && account.ownerName != account.name
                             ? '${account.ownerName} (${account.name})'
@@ -310,10 +341,13 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
                         return DropdownMenuItem(value: account.id, child: Text(label));
                       }).toList(),
                       validator: (value) => _type == PersonalTransactionType.personalTransfer && value == null
-                          ? 'Select recipient personal account'
+                          ? (_personalTransferDirection == PersonalToPersonalDirection.sendTo
+                              ? 'Select recipient personal account'
+                              : 'Select source personal account')
                           : null,
                       onChanged: (value) => setState(() => _targetPersonalAccountId = value),
                     ),
+                  ],
                 ],
                 if (_type == PersonalTransactionType.transfer) ...[
                   const SizedBox(height: 12),
@@ -392,6 +426,7 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
               PersonalAccountTransaction(
                 type: _type,
                 direction: _direction,
+                personalToPersonalDirection: _personalTransferDirection,
                 personalAccountId: personalId ?? _personalAccountId!,
                 companyAccountId: _companyAccountId,
                 targetPersonalAccountId: _targetPersonalAccountId,
