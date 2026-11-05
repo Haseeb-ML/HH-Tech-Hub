@@ -12,6 +12,7 @@ import 'package:software_house_erp/features/finance/income/presentation/provider
 import 'package:software_house_erp/core/localization/app_localization.dart';
 import 'package:software_house_erp/features/finance/loans/presentation/providers/loans_provider.dart';
 import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
+import 'package:software_house_erp/features/finance/ledger/domain/entities/ledger_entry.dart';
 import 'package:software_house_erp/core/utils/export_helper.dart';
 import 'package:software_house_erp/features/finance/shared/widgets/transaction_detail_dialog.dart';
 import '../widgets/personal_account_transaction_dialog.dart';
@@ -1895,34 +1896,52 @@ class _PersonalWalletDetailScreenState
       );
 
       if (saved == true && mounted) {
-        final newAmount = double.parse(amountController.text.trim());
-        final diff = newAmount - entry.amount;
-        final balanceAdjust = entry.type == 'Debit' ? diff : -diff;
-        if (balanceAdjust != 0) {
-          await ref.read(accountsProvider.notifier).adjustBalance(account.id, balanceAdjust);
-        }
-        if (entry.category == 'Account Transfer' && entry.reference.isNotEmpty) {
-          final paired = ledgerState.entries
-              .where((e) => e.reference == entry.reference && e.id != entry.id)
-              .firstOrNull;
-          if (paired != null) {
-            final pairedAdjust = paired.type == 'Debit' ? diff : -diff;
-            if (pairedAdjust != 0) {
-              await ref.read(accountsProvider.notifier).adjustBalance(paired.accountId, pairedAdjust);
-            }
-            await ref.read(ledgerProvider.notifier).updateLedgerEntry(paired.copyWith(amount: newAmount));
-          }
-        }
+        try {
+          final newAmount = double.parse(amountController.text.trim());
+          final diff = newAmount - entry.amount;
+          final ledgerNotifier = ref.read(ledgerProvider.notifier);
+          final accountsNotifier = ref.read(accountsProvider.notifier);
 
-        final updatedEntry = entry.copyWith(
-          amount: newAmount,
-          description: descController.text.trim(),
-        );
-        await ref.read(ledgerProvider.notifier).updateLedgerEntry(updatedEntry);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaction updated successfully')),
-        );
+          // 1. Save ledger rows first so any sync triggered by balance changes
+          //    already carries the updated amount/description.
+          LedgerEntry? paired;
+          if (entry.category == 'Account Transfer' && entry.reference.isNotEmpty) {
+            paired = ledgerState.entries
+                .where((e) => e.reference == entry.reference && e.id != entry.id)
+                .firstOrNull;
+          }
+          if (paired != null) {
+            await ledgerNotifier.updateLedgerEntry(paired.copyWith(amount: newAmount));
+          }
+          await ledgerNotifier.updateLedgerEntry(entry.copyWith(
+            amount: newAmount,
+            description: descController.text.trim(),
+          ));
+
+          // 2. Re-balance both accounts by the amount difference.
+          if (diff != 0) {
+            await accountsNotifier.adjustBalance(
+              account.id,
+              entry.type == 'Debit' ? diff : -diff,
+            );
+            if (paired != null) {
+              await accountsNotifier.adjustBalance(
+                paired.accountId,
+                paired.type == 'Debit' ? diff : -diff,
+              );
+            }
+          }
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Transaction updated successfully')),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating: $e'), backgroundColor: Colors.red),
+          );
+        }
       }
       return;
     }
