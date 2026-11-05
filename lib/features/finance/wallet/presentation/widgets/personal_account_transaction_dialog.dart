@@ -217,9 +217,6 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
                     DropdownMenuItem(
                         value: PersonalTransactionType.transfer,
                         child: Text('Company / Personal Transfer')),
-                    DropdownMenuItem(
-                        value: PersonalTransactionType.expense,
-                        child: Text('Other')),
                   ],
                   onChanged: (value) => setState(() => _type = value!),
                 ),

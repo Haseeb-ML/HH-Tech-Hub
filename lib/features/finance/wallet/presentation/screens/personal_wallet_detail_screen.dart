@@ -200,7 +200,7 @@ class _PersonalWalletDetailScreenState
         description: entry.description,
         reference: entry.reference,
         isPersonalExpense: false,
-        canManageInAccount: true,
+        canManageInAccount: entry.category == 'Personal Deposit',
           )),
       ...personalIncomes.map((i) => _WalletTx(
             id: i.id,
