@@ -1,3 +1,4 @@
+import 'package:software_house_erp/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
@@ -6,7 +7,7 @@ import 'package:software_house_erp/features/finance/ledger/presentation/provider
 import 'package:software_house_erp/core/auth/models/app_permissions.dart';
 import 'package:software_house_erp/features/administration/shared/providers/admin_provider.dart';
 
-enum PersonalTransactionType { deposit, transfer, expense }
+enum PersonalTransactionType { deposit, transfer, personalTransfer, expense }
 enum PersonalTransferDirection { companyToPersonal, personalToCompany }
 
 class PersonalAccountTransaction {
@@ -14,6 +15,7 @@ class PersonalAccountTransaction {
   final PersonalTransferDirection direction;
   final String personalAccountId;
   final String? companyAccountId;
+  final String? targetPersonalAccountId;
   final double amount;
   final DateTime date;
   final String description;
@@ -23,6 +25,7 @@ class PersonalAccountTransaction {
     required this.direction,
     required this.personalAccountId,
     required this.companyAccountId,
+    this.targetPersonalAccountId,
     required this.amount,
     required this.date,
     required this.description,
@@ -48,6 +51,54 @@ Future<void> recordPersonalAccountTransaction(
           ? 'EXP-${DateTime.now().millisecondsSinceEpoch}'
           : 'TRF-${DateTime.now().millisecondsSinceEpoch}');
   final date = transaction.date.toIso8601String();
+
+  if (transaction.type == PersonalTransactionType.personalTransfer) {
+    final targetId = transaction.targetPersonalAccountId!;
+    final destination = accounts.firstWhere((a) => a.id == targetId);
+    final source = personal;
+
+    if (source.balance < transaction.amount) {
+      throw StateError('Insufficient balance in ${source.name}.');
+    }
+
+    await accountNotifier.adjustBalance(source.id, -transaction.amount);
+    await accountNotifier.adjustBalance(destination.id, transaction.amount);
+
+    final sourceLabel = source.ownerName.isNotEmpty ? '${source.ownerName} Personal Account' : source.name;
+    final destinationLabel = destination.ownerName.isNotEmpty ? '${destination.ownerName} Personal Account' : destination.name;
+    final sourceDescription = transaction.description.isEmpty
+        ? 'Transferred to $destinationLabel'
+        : 'Transferred to $destinationLabel • ${transaction.description}';
+    final destinationDescription = transaction.description.isEmpty
+        ? 'Received from $sourceLabel'
+        : 'Received from $sourceLabel • ${transaction.description}';
+
+    final ptrfRef = 'PTRF-${DateTime.now().millisecondsSinceEpoch}';
+
+    await ledgerNotifier.addLedgerEntry(LedgerEntry(
+      id: 'led_transfer_out_$ptrfRef',
+      date: date,
+      accountId: source.id,
+      accountName: source.name,
+      type: 'Credit',
+      category: 'Account Transfer',
+      amount: transaction.amount,
+      reference: ptrfRef,
+      description: sourceDescription,
+    ));
+    await ledgerNotifier.addLedgerEntry(LedgerEntry(
+      id: 'led_transfer_in_$ptrfRef',
+      date: date,
+      accountId: destination.id,
+      accountName: destination.name,
+      type: 'Debit',
+      category: 'Account Transfer',
+      amount: transaction.amount,
+      reference: ptrfRef,
+      description: destinationDescription,
+    ));
+    return;
+  }
 
   if (transaction.type == PersonalTransactionType.deposit) {
     await accountNotifier.adjustBalance(personal.id, transaction.amount);
@@ -163,6 +214,7 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
   PersonalTransferDirection _direction = PersonalTransferDirection.companyToPersonal;
   String? _personalAccountId;
   String? _companyAccountId;
+  String? _targetPersonalAccountId;
   final DateTime _date = DateTime.now();
 
   @override
@@ -187,6 +239,10 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
         ? _personalAccountId
         : personalAccounts.firstOrNull?.id;
     final selectedAccount = personalAccounts.where((a) => a.id == personalId).firstOrNull;
+    final ownerName = selectedAccount != null
+        ? (selectedAccount.ownerName.isNotEmpty ? selectedAccount.ownerName : selectedAccount.name)
+        : 'Personal';
+    final otherPersonalAccounts = personalAccounts.where((a) => a.id != personalId).toList();
     final dialogTitle = selectedAccount != null
         ? (selectedAccount.ownerName.isNotEmpty && selectedAccount.ownerName != selectedAccount.name
             ? '${selectedAccount.ownerName} Personal Account'
@@ -210,16 +266,60 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
                   isExpanded: true,
                   initialValue: _type,
                   decoration: const InputDecoration(labelText: 'Transaction Type'),
-                  items: const [
-                    DropdownMenuItem(
+                  items: [
+                    const DropdownMenuItem(
                         value: PersonalTransactionType.deposit,
                         child: Text('Personal Deposit')),
-                    DropdownMenuItem(
+                    const DropdownMenuItem(
                         value: PersonalTransactionType.transfer,
                         child: Text('Company / Personal Transfer')),
+                    DropdownMenuItem(
+                        value: PersonalTransactionType.personalTransfer,
+                        child: Text('$ownerName Transfer (Personal to Personal)')),
                   ],
                   onChanged: (value) => setState(() => _type = value!),
                 ),
+                if (_type == PersonalTransactionType.personalTransfer) ...[
+                  const SizedBox(height: 12),
+                  if (otherPersonalAccounts.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: context.warningLight,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: context.warning),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 18, color: context.warning),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'No other personal accounts found. Create another personal account in Finance > Accounts first.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      initialValue: otherPersonalAccounts.any((a) => a.id == _targetPersonalAccountId)
+                          ? _targetPersonalAccountId
+                          : null,
+                      decoration: const InputDecoration(labelText: 'Transfer to Personal Account'),
+                      items: otherPersonalAccounts.map((account) {
+                        final label = account.ownerName.isNotEmpty && account.ownerName != account.name
+                            ? '${account.ownerName} (${account.name})'
+                            : account.name;
+                        return DropdownMenuItem(value: account.id, child: Text(label));
+                      }).toList(),
+                      validator: (value) => _type == PersonalTransactionType.personalTransfer && value == null
+                          ? 'Select recipient personal account'
+                          : null,
+                      onChanged: (value) => setState(() => _targetPersonalAccountId = value),
+                    ),
+                ],
                 if (_type == PersonalTransactionType.transfer) ...[
                   const SizedBox(height: 12),
                   FittedBox(
@@ -299,6 +399,7 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
                 direction: _direction,
                 personalAccountId: personalId ?? _personalAccountId!,
                 companyAccountId: _companyAccountId,
+                targetPersonalAccountId: _targetPersonalAccountId,
                 amount: double.parse(_amountController.text),
                 date: _date,
                 description: _descriptionController.text.trim(),
