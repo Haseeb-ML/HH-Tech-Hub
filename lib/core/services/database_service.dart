@@ -438,77 +438,9 @@ class DriftDatabaseService implements DatabaseService {
   Future<void> initialize() async {
     try {
       await AuthLocalRepository(db).initializeSchemaAndSeedDefaults();
-      await _migrateHassanAccountData();
     } catch (e) {
       // Ignore or log error
     }
-  }
-
-  Future<void> _migrateHassanAccountData() async {
-    try {
-      const oldAccountId = 'acc_personal_1793174279547';
-      const targetAccountId = 'acc_company_1794044273863';
-      const targetAccountName = 'Hassan Meezan Bank';
-
-      // Check if migration is needed
-      final personalExpenses = await (db.select(db.expenseRecordsTable)
-            ..where((tbl) => tbl.accountId.equals(oldAccountId)))
-          .get();
-      final personalLedgers = await (db.select(db.ledgerEntriesTable)
-            ..where((tbl) => tbl.accountId.equals(oldAccountId)))
-          .get();
-
-      if (personalExpenses.isEmpty && personalLedgers.isEmpty) {
-        return; // Already migrated or no old entries
-      }
-
-      // 1. Update expense_records
-      await (db.update(db.expenseRecordsTable)
-            ..where((tbl) => tbl.accountId.equals(oldAccountId)))
-          .write(const ExpenseRecordsTableCompanion(
-        accountId: Value(targetAccountId),
-      ));
-
-      // 2. Update income_records
-      await (db.update(db.incomeRecordsTable)
-            ..where((tbl) => tbl.accountId.equals(oldAccountId)))
-          .write(const IncomeRecordsTableCompanion(
-        accountId: Value(targetAccountId),
-      ));
-
-      // 3. Update ledger_entries
-      await (db.update(db.ledgerEntriesTable)
-            ..where((tbl) => tbl.accountId.equals(oldAccountId)))
-          .write(const LedgerEntriesTableCompanion(
-        accountId: Value(targetAccountId),
-        accountName: Value(targetAccountName),
-      ));
-
-      // 4. Update projects table
-      await (db.update(db.projectsTable)
-            ..where((tbl) => tbl.bankAccountId.equals(oldAccountId)))
-          .write(const ProjectsTableCompanion(
-        bankAccountId: Value(targetAccountId),
-        bankAccountName: Value(targetAccountName),
-      ));
-
-      // 5. Update bank_accounts:
-      // Hassan Personal Account -> balance = 0, openingBalance = 0
-      await (db.update(db.bankAccountsTable)
-            ..where((tbl) => tbl.id.equals(oldAccountId)))
-          .write(const BankAccountsTableCompanion(
-        balance: Value(0.0),
-        openingBalance: Value(0.0),
-      ));
-
-      // Hassan Meezan Bank -> balance = -689716, openingBalance = 450000
-      await (db.update(db.bankAccountsTable)
-            ..where((tbl) => tbl.id.equals(targetAccountId)))
-          .write(const BankAccountsTableCompanion(
-        balance: Value(-689716.0),
-        openingBalance: Value(450000.0),
-      ));
-    } catch (_) {}
   }
   
   // Transactions
