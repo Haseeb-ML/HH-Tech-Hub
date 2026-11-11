@@ -1,0 +1,72 @@
+﻿[
+    {
+        "id":  "acc_company_1793707304030",
+        "name":  "Huzaifa easypaisa account",
+        "type":  "Wallet",
+        "accountNumber":  "",
+        "bankName":  "",
+        "balance":  -453686,
+        "status":  "Active",
+        "updatedAt":  "2026-11-03T12:01:45.169323+00:00"
+    },
+    {
+        "id":  "acc_company_1793708260886",
+        "name":  "Huzaifa Meezan Bank",
+        "type":  "Bank",
+        "accountNumber":  "",
+        "bankName":  "",
+        "balance":  -142761,
+        "status":  "Active",
+        "updatedAt":  "2026-11-03T12:17:41.761165+00:00"
+    },
+    {
+        "id":  "acc_company_1793708286763",
+        "name":  "Huzaifa Jazz Cash",
+        "type":  "Wallet",
+        "accountNumber":  "",
+        "bankName":  "",
+        "balance":  -700,
+        "status":  "Active",
+        "updatedAt":  "2026-11-03T12:18:07.161496+00:00"
+    },
+    {
+        "id":  "acc_company_1793870212212",
+        "name":  "HH Tech Hub",
+        "type":  "Bank",
+        "accountNumber":  "",
+        "bankName":  "Meezan Bank",
+        "balance":  -17000,
+        "status":  "Active",
+        "updatedAt":  "2026-11-05T09:16:51.808535+00:00"
+    },
+    {
+        "id":  "acc_personal_1793870256203",
+        "name":  "Huzaifa Personal Account",
+        "type":  "Bank",
+        "accountNumber":  "",
+        "bankName":  "",
+        "balance":  0,
+        "status":  "Active",
+        "updatedAt":  "2026-11-05T09:17:35.44782+00:00"
+    },
+    {
+        "id":  "acc_personal_1793174279547",
+        "name":  "Hassan Personal Account",
+        "type":  "Bank",
+        "accountNumber":  "03318777880",
+        "bankName":  "Meezan Bank",
+        "balance":  0,
+        "status":  "Active",
+        "updatedAt":  "2026-10-28T07:58:00.707215+00:00"
+    },
+    {
+        "id":  "acc_company_1794044273863",
+        "name":  "Hassan Meezan Bank",
+        "type":  "Bank",
+        "accountNumber":  "",
+        "bankName":  "Meezan Bank",
+        "balance":  -689716,
+        "status":  "Active",
+        "updatedAt":  "2026-11-07T09:37:54.548548+00:00"
+    }
+]
