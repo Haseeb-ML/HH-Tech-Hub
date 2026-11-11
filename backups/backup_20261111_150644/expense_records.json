@@ -1,0 +1,3252 @@
+﻿[
+    {
+        "id":  "exp_1793791128700",
+        "date":  "2025-07-11T16:18:48.000",
+        "amount":  5000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Marketing \u0026 Advertising",
+        "vendorName":  "",
+        "description":  "Face book Fee",
+        "updatedAt":  "2026-11-04T11:18:48.788452+00:00"
+    },
+    {
+        "id":  "exp_1793791277308",
+        "date":  "2025-07-15T16:21:17.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Sweaper",
+        "updatedAt":  "2026-11-04T11:21:17.131542+00:00"
+    },
+    {
+        "id":  "exp_1793791542002",
+        "date":  "2025-07-16T16:25:42.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Repairs \u0026 Maintenance",
+        "vendorName":  "",
+        "description":  "Chair repair",
+        "updatedAt":  "2026-11-04T11:25:42.021604+00:00"
+    },
+    {
+        "id":  "exp_1793880271246",
+        "date":  "2025-11-08T17:04:31.000",
+        "amount":  51000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent nov 25",
+        "updatedAt":  "2026-11-05T12:04:30.787857+00:00"
+    },
+    {
+        "id":  "exp_1793880668672",
+        "date":  "2025-11-02T17:11:08.000",
+        "amount":  5100,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "FB Fee",
+        "updatedAt":  "2026-11-05T12:11:08.214788+00:00"
+    },
+    {
+        "id":  "exp_1793175949305",
+        "date":  "2025-05-15T12:00:00.000",
+        "amount":  1000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-10-28T08:25:49.657507+00:00"
+    },
+    {
+        "id":  "exp_1793791775887",
+        "date":  "2025-07-17T16:29:35.000",
+        "amount":  300,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "laptop charger pin",
+        "updatedAt":  "2026-11-04T11:29:35.875033+00:00"
+    },
+    {
+        "id":  "exp_1793791900338",
+        "date":  "2025-07-18T16:31:40.000",
+        "amount":  1000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel",
+        "updatedAt":  "2026-11-04T11:31:40.534296+00:00"
+    },
+    {
+        "id":  "exp_1793799219940",
+        "date":  "2025-08-09T18:33:39.000",
+        "amount":  1300,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel lunch tea",
+        "updatedAt":  "2026-11-04T13:33:39.647308+00:00"
+    },
+    {
+        "id":  "exp_1793799268642",
+        "date":  "2025-07-23T18:34:28.000",
+        "amount":  15000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car body paint  546",
+        "updatedAt":  "2026-11-04T13:34:28.438028+00:00"
+    },
+    {
+        "id":  "exp_1793799695018",
+        "date":  "2025-08-21T18:41:35.000",
+        "amount":  350,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile call package",
+        "updatedAt":  "2026-11-04T13:41:35.109477+00:00"
+    },
+    {
+        "id":  "exp_1793176001733",
+        "date":  "2025-05-15T12:00:00.000",
+        "amount":  900,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Lunch and tea",
+        "updatedAt":  "2026-10-28T08:26:42.291527+00:00"
+    },
+    {
+        "id":  "exp_1794042655438",
+        "date":  "2026-03-11T14:10:55.000",
+        "amount":  250,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tissue",
+        "updatedAt":  "2026-11-07T09:10:56.069403+00:00"
+    },
+    {
+        "id":  "exp_1794042687579",
+        "date":  "2026-03-12T14:11:27.000",
+        "amount":  51000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent mar 26",
+        "updatedAt":  "2026-11-07T09:11:28.269846+00:00"
+    },
+    {
+        "id":  "exp_1793799723754",
+        "date":  "2025-08-21T18:42:03.000",
+        "amount":  400,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Agreement print",
+        "updatedAt":  "2026-11-04T13:42:03.696123+00:00"
+    },
+    {
+        "id":  "exp_1794043202032",
+        "date":  "2026-04-06T14:20:02.000",
+        "amount":  10000,
+        "accountId":  "acc_company_1793708260886",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "China bed sheet",
+        "updatedAt":  "2026-11-07T09:20:02.676976+00:00"
+    },
+    {
+        "id":  "exp_1794043624678",
+        "date":  "2026-04-09T14:27:04.000",
+        "amount":  800,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Lunch",
+        "updatedAt":  "2026-11-07T09:27:05.125394+00:00"
+    },
+    {
+        "id":  "exp_1793799800032",
+        "date":  "2025-08-25T18:43:20.000",
+        "amount":  2000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-04T13:43:19.958333+00:00"
+    },
+    {
+        "id":  "exp_1793881187126",
+        "date":  "2025-11-19T17:19:47.000",
+        "amount":  6500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfr to hassan",
+        "updatedAt":  "2026-11-05T12:19:46.839167+00:00"
+    },
+    {
+        "id":  "exp_1793882168796",
+        "date":  "2025-11-24T17:36:08.000",
+        "amount":  3000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-05T12:36:08.31793+00:00"
+    },
+    {
+        "id":  "exp_1793882253167",
+        "date":  "2025-11-26T17:37:33.000",
+        "amount":  34000,
+        "accountId":  "acc_company_1793708260886",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-05T12:37:33.128798+00:00"
+    },
+    {
+        "id":  "exp_1793883215220",
+        "date":  "2025-12-05T17:53:35.000",
+        "amount":  20000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "For electric bill",
+        "updatedAt":  "2026-11-05T12:53:34.71612+00:00"
+    },
+    {
+        "id":  "exp_1793176173077",
+        "date":  "2025-05-15T12:00:00.000",
+        "amount":  3000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car Patrol",
+        "updatedAt":  "2026-10-28T08:29:33.727634+00:00"
+    },
+    {
+        "id":  "exp_1793870842944",
+        "date":  "2025-09-02T14:27:22.000",
+        "amount":  350,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile call package",
+        "updatedAt":  "2026-11-05T09:27:22.514135+00:00"
+    },
+    {
+        "id":  "exp_1793871279381",
+        "date":  "2025-07-21T14:34:39.000",
+        "amount":  3000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Chat GPT",
+        "updatedAt":  "2026-11-05T09:34:38.951323+00:00"
+    },
+    {
+        "id":  "exp_1793871324853",
+        "date":  "2025-07-18T14:35:24.000",
+        "amount":  1542,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "Client Hostinger",
+        "updatedAt":  "2026-11-05T09:35:24.198792+00:00"
+    },
+    {
+        "id":  "exp_1794037580548",
+        "date":  "2025-12-06T12:46:20.000",
+        "amount":  5000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "For expanses",
+        "updatedAt":  "2026-11-07T07:46:21.4045+00:00"
+    },
+    {
+        "id":  "exp_1794037613184",
+        "date":  "2025-12-08T12:46:53.000",
+        "amount":  51000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent Dec 25",
+        "updatedAt":  "2026-11-07T07:46:53.752217+00:00"
+    },
+    {
+        "id":  "exp_1794038303300",
+        "date":  "2025-12-28T12:58:23.000",
+        "amount":  6526,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "Nayatel bill",
+        "updatedAt":  "2026-11-07T07:58:24.141257+00:00"
+    },
+    {
+        "id":  "exp_1793176214660",
+        "date":  "2025-05-15T12:00:00.000",
+        "amount":  100,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Ice",
+        "updatedAt":  "2026-10-28T08:30:14.95434+00:00"
+    },
+    {
+        "id":  "exp_1794039823073",
+        "date":  "2026-02-03T13:23:43.000",
+        "amount":  2280,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Paper pen pencils etc",
+        "updatedAt":  "2026-11-07T08:23:43.78716+00:00"
+    },
+    {
+        "id":  "exp_1794040410298",
+        "date":  "2026-02-18T13:33:30.000",
+        "amount":  17000,
+        "accountId":  "acc_company_1793870212212",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Saudia project payment",
+        "updatedAt":  "2026-11-07T08:33:31.158854+00:00"
+    },
+    {
+        "id":  "exp_1794041023959",
+        "date":  "2026-02-26T13:43:43.000",
+        "amount":  5000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Hamza Karyana",
+        "updatedAt":  "2026-11-07T08:43:44.487213+00:00"
+    },
+    {
+        "id":  "exp_1793700092164",
+        "date":  "2025-05-19T15:01:32.000",
+        "amount":  5156,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Crockery",
+        "updatedAt":  "2026-11-03T10:01:32.870576+00:00"
+    },
+    {
+        "id":  "exp_1793700148805",
+        "date":  "2025-05-19T15:02:28.000",
+        "amount":  350,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Daily Register",
+        "updatedAt":  "2026-11-03T10:02:29.806764+00:00"
+    },
+    {
+        "id":  "exp_1794042536085",
+        "date":  "2026-03-09T14:08:56.000",
+        "amount":  5000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "SAbir khan payment",
+        "updatedAt":  "2026-11-07T09:08:56.569065+00:00"
+    },
+    {
+        "id":  "exp_1793705488985",
+        "date":  "2025-05-26T16:31:28.000",
+        "amount":  8647,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "Nayatel new installation on instalment",
+        "updatedAt":  "2026-11-03T11:31:30.202923+00:00"
+    },
+    {
+        "id":  "exp_1793784820493",
+        "date":  "2025-06-13T14:33:40.000",
+        "amount":  1150,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Extensions board 2",
+        "updatedAt":  "2026-11-04T09:33:40.708758+00:00"
+    },
+    {
+        "id":  "exp_1793785721610",
+        "date":  "2025-06-20T14:48:41.000",
+        "amount":  1000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tea imran hotel",
+        "updatedAt":  "2026-11-04T09:48:41.534389+00:00"
+    },
+    {
+        "id":  "exp_1794042978788",
+        "date":  "2026-04-01T14:16:18.000",
+        "amount":  5300,
+        "accountId":  "acc_company_1793708260886",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "FB id fee",
+        "updatedAt":  "2026-11-07T09:16:19.711751+00:00"
+    },
+    {
+        "id":  "exp_1794043008796",
+        "date":  "2026-04-01T14:16:48.000",
+        "amount":  1700,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Chat gpt",
+        "updatedAt":  "2026-11-07T09:16:49.266629+00:00"
+    },
+    {
+        "id":  "exp_1794043405774",
+        "date":  "2026-04-08T14:23:25.000",
+        "amount":  2630,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "Iconic property",
+        "updatedAt":  "2026-11-07T09:23:26.388203+00:00"
+    },
+    {
+        "id":  "exp_1793791820124",
+        "date":  "2025-07-17T16:30:20.000",
+        "amount":  13500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "26 days ride expanse huzaifa",
+        "updatedAt":  "2026-11-04T11:30:19.934625+00:00"
+    },
+    {
+        "id":  "exp_1793791861048",
+        "date":  "2025-07-18T16:31:01.000",
+        "amount":  1150,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "A4 paper rim",
+        "updatedAt":  "2026-11-04T11:31:00.909117+00:00"
+    },
+    {
+        "id":  "exp_1793791975988",
+        "date":  "2025-07-22T16:32:55.000",
+        "amount":  2000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-04T11:32:55.739873+00:00"
+    },
+    {
+        "id":  "exp_1793792026345",
+        "date":  "2025-07-24T16:33:46.000",
+        "amount":  2000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Pir sb refreshment",
+        "updatedAt":  "2026-11-04T11:33:46.688471+00:00"
+    },
+    {
+        "id":  "exp_1793792961982",
+        "date":  "2025-07-29T16:49:21.000",
+        "amount":  350,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile call package",
+        "updatedAt":  "2026-11-04T11:49:21.756371+00:00"
+    },
+    {
+        "id":  "exp_1793880524687",
+        "date":  "2025-11-13T17:08:44.000",
+        "amount":  600,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "FB Adds",
+        "updatedAt":  "2026-11-05T12:08:44.324818+00:00"
+    },
+    {
+        "id":  "exp_1793793061394",
+        "date":  "2025-07-29T16:51:01.000",
+        "amount":  2100,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Repairs \u0026 Maintenance",
+        "vendorName":  "",
+        "description":  "Motor repairing",
+        "updatedAt":  "2026-11-04T11:51:01.519611+00:00"
+    },
+    {
+        "id":  "exp_1793880827060",
+        "date":  "2025-11-18T17:13:47.000",
+        "amount":  5550,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "Nayatel bill",
+        "updatedAt":  "2026-11-05T12:13:46.846626+00:00"
+    },
+    {
+        "id":  "exp_1793880856284",
+        "date":  "2025-11-18T17:14:16.000",
+        "amount":  1070,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Meta adds",
+        "updatedAt":  "2026-11-05T12:14:15.729599+00:00"
+    },
+    {
+        "id":  "exp_1793793143869",
+        "date":  "2025-07-29T16:52:23.000",
+        "amount":  1000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tea etc",
+        "updatedAt":  "2026-11-04T11:52:23.542411+00:00"
+    },
+    {
+        "id":  "exp_1793883048064",
+        "date":  "2025-12-03T17:50:48.000",
+        "amount":  3200,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "POS",
+        "updatedAt":  "2026-11-05T12:50:47.7731+00:00"
+    },
+    {
+        "id":  "exp_1793175867701",
+        "date":  "2025-05-15T12:00:00.000",
+        "amount":  49050,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Material for wooden work",
+        "updatedAt":  "2026-10-28T08:24:28.499778+00:00"
+    },
+    {
+        "id":  "exp_1794039044684",
+        "date":  "2026-01-10T13:10:44.000",
+        "amount":  51000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent jan 26",
+        "updatedAt":  "2026-11-07T08:10:45.176217+00:00"
+    },
+    {
+        "id":  "exp_1794040269193",
+        "date":  "2026-02-10T13:31:09.000",
+        "amount":  3509,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Fb adds",
+        "updatedAt":  "2026-11-07T08:31:09.670161+00:00"
+    },
+    {
+        "id":  "exp_1794040911692",
+        "date":  "2026-02-25T13:41:51.000",
+        "amount":  5000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Hamza karyana payment",
+        "updatedAt":  "2026-11-07T08:41:52.148968+00:00"
+    },
+    {
+        "id":  "exp_1794042235374",
+        "date":  "2026-03-02T14:03:55.000",
+        "amount":  170,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tissue roll",
+        "updatedAt":  "2026-11-07T09:03:56.095517+00:00"
+    },
+    {
+        "id":  "exp_1794042779706",
+        "date":  "2026-03-17T14:12:59.000",
+        "amount":  5700,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "Qasr e Jamal",
+        "updatedAt":  "2026-11-07T09:13:00.374175+00:00"
+    },
+    {
+        "id":  "exp_1794043234422",
+        "date":  "2026-04-08T14:20:34.000",
+        "amount":  1000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Adds",
+        "updatedAt":  "2026-11-07T09:20:34.906784+00:00"
+    },
+    {
+        "id":  "exp_1793705554181",
+        "date":  "2025-05-27T16:32:34.000",
+        "amount":  800,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Laptop service charges",
+        "updatedAt":  "2026-11-03T11:32:34.892222+00:00"
+    },
+    {
+        "id":  "exp_1793705626561",
+        "date":  "2025-05-28T16:33:46.000",
+        "amount":  2210,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Dinner tissue tea",
+        "updatedAt":  "2026-11-03T11:33:47.009493+00:00"
+    },
+    {
+        "id":  "exp_1793782534794",
+        "date":  "2025-05-29T13:55:34.000",
+        "amount":  3000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Hard disc 500gb",
+        "updatedAt":  "2026-11-04T08:55:35.422701+00:00"
+    },
+    {
+        "id":  "exp_1793782567014",
+        "date":  "2025-05-29T13:56:07.000",
+        "amount":  420,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tea",
+        "updatedAt":  "2026-11-04T08:56:06.704308+00:00"
+    },
+    {
+        "id":  "exp_1793784149356",
+        "date":  "2025-06-02T14:22:29.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Sweaper",
+        "updatedAt":  "2026-11-04T09:22:29.144787+00:00"
+    },
+    {
+        "id":  "exp_1793784408676",
+        "date":  "2025-06-02T14:26:48.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Lunch tea",
+        "updatedAt":  "2026-11-04T09:26:48.855629+00:00"
+    },
+    {
+        "id":  "exp_1793784455959",
+        "date":  "2025-06-04T14:27:35.000",
+        "amount":  740,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Roti tea",
+        "updatedAt":  "2026-11-04T09:27:36.026075+00:00"
+    },
+    {
+        "id":  "exp_1794040328801",
+        "date":  "2026-02-13T13:32:08.000",
+        "amount":  800,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Fb adds",
+        "updatedAt":  "2026-11-07T08:32:09.331108+00:00"
+    },
+    {
+        "id":  "exp_1794040987905",
+        "date":  "2026-02-25T13:43:07.000",
+        "amount":  3000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "CAr patrol",
+        "updatedAt":  "2026-11-07T08:43:08.408037+00:00"
+    },
+    {
+        "id":  "exp_1794043776248",
+        "date":  "2026-04-13T14:29:36.000",
+        "amount":  51000,
+        "accountId":  "acc_company_1793708260886",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent april 26",
+        "updatedAt":  "2026-11-07T09:29:37.271262+00:00"
+    },
+    {
+        "id":  "exp_1793880329802",
+        "date":  "2025-11-09T17:05:29.000",
+        "amount":  27500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to huzaifa for fee",
+        "updatedAt":  "2026-11-05T12:05:29.520614+00:00"
+    },
+    {
+        "id":  "exp_1793880701886",
+        "date":  "2025-11-02T17:11:41.000",
+        "amount":  7000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Chat gpt",
+        "updatedAt":  "2026-11-05T12:11:41.466818+00:00"
+    },
+    {
+        "id":  "exp_1793272043525",
+        "date":  "2025-05-17T00:00:00.000",
+        "amount":  1350,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Lunch and tea",
+        "updatedAt":  "2026-10-29T11:07:22.617162+00:00"
+    },
+    {
+        "id":  "exp_1793782617663",
+        "date":  "2025-05-30T13:56:57.000",
+        "amount":  5000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Facebook fee huzaifa acount",
+        "updatedAt":  "2026-11-04T08:56:57.502461+00:00"
+    },
+    {
+        "id":  "exp_1793782663291",
+        "date":  "2025-05-30T13:57:43.000",
+        "amount":  270,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tea roti",
+        "updatedAt":  "2026-11-04T08:57:43.438089+00:00"
+    },
+    {
+        "id":  "exp_1793793304412",
+        "date":  "2025-08-01T16:55:04.000",
+        "amount":  5100,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Marketing \u0026 Advertising",
+        "vendorName":  "",
+        "description":  "Facebook monthly fee",
+        "updatedAt":  "2026-11-04T11:55:04.32988+00:00"
+    },
+    {
+        "id":  "exp_1793799323332",
+        "date":  "2025-08-10T18:35:23.000",
+        "amount":  1300,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Raza shop bill",
+        "updatedAt":  "2026-11-04T13:35:24.075072+00:00"
+    },
+    {
+        "id":  "exp_1793799746367",
+        "date":  "2025-08-23T18:42:26.000",
+        "amount":  200,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Sugar",
+        "updatedAt":  "2026-11-04T13:42:26.198027+00:00"
+    },
+    {
+        "id":  "exp_1793800132739",
+        "date":  "2025-08-27T18:48:52.000",
+        "amount":  1750,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Pizza party",
+        "updatedAt":  "2026-11-04T13:48:52.900536+00:00"
+    },
+    {
+        "id":  "exp_1793800183309",
+        "date":  "2025-08-27T18:49:43.000",
+        "amount":  55000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Huzaifa fee august 25",
+        "updatedAt":  "2026-11-04T13:49:43.237835+00:00"
+    },
+    {
+        "id":  "exp_1793800217607",
+        "date":  "2025-08-28T18:50:17.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-04T13:50:17.325571+00:00"
+    },
+    {
+        "id":  "exp_1793782707012",
+        "date":  "2025-06-01T13:58:27.000",
+        "amount":  650,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "ice tea roti",
+        "updatedAt":  "2026-11-04T08:58:26.798425+00:00"
+    },
+    {
+        "id":  "exp_1793783594061",
+        "date":  "2025-06-01T14:13:14.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Meta Adds",
+        "updatedAt":  "2026-11-04T09:13:14.265847+00:00"
+    },
+    {
+        "id":  "exp_1793800351856",
+        "date":  "2025-08-29T18:52:31.000",
+        "amount":  5500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Raza shop bill",
+        "updatedAt":  "2026-11-04T13:52:31.757869+00:00"
+    },
+    {
+        "id":  "exp_1793783682848",
+        "date":  "2025-06-02T14:14:42.000",
+        "amount":  51000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Rent office june 2025",
+        "updatedAt":  "2026-11-04T09:14:43.0151+00:00"
+    },
+    {
+        "id":  "exp_1793881224005",
+        "date":  "2025-11-20T17:20:24.000",
+        "amount":  4500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-05T12:20:23.496407+00:00"
+    },
+    {
+        "id":  "exp_1793783740631",
+        "date":  "2025-06-02T14:15:40.000",
+        "amount":  50000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Advance Security",
+        "updatedAt":  "2026-11-04T09:15:40.829556+00:00"
+    },
+    {
+        "id":  "exp_1793882493602",
+        "date":  "2025-11-27T17:41:33.000",
+        "amount":  2000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-05T12:41:33.586752+00:00"
+    },
+    {
+        "id":  "exp_1793783789365",
+        "date":  "2025-06-02T14:16:29.000",
+        "amount":  600,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Office Agreement",
+        "updatedAt":  "2026-11-04T09:16:29.168664+00:00"
+    },
+    {
+        "id":  "exp_1793883279337",
+        "date":  "2025-12-05T17:54:39.000",
+        "amount":  9300,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Cursor",
+        "updatedAt":  "2026-11-05T12:54:38.723255+00:00"
+    },
+    {
+        "id":  "exp_1794037646598",
+        "date":  "2025-12-08T12:47:26.000",
+        "amount":  600,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Glass 6",
+        "updatedAt":  "2026-11-07T07:47:27.231655+00:00"
+    },
+    {
+        "id":  "exp_1793700524070",
+        "date":  "2025-05-14T15:08:44.000",
+        "amount":  100000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office security",
+        "updatedAt":  "2026-11-03T10:08:44.661194+00:00"
+    },
+    {
+        "id":  "exp_1793700640482",
+        "date":  "2025-05-14T15:10:40.000",
+        "amount":  25000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "15 days rent of may 2025",
+        "updatedAt":  "2026-11-03T10:10:41.438536+00:00"
+    },
+    {
+        "id":  "exp_1793704787281",
+        "date":  "2025-05-20T16:19:47.000",
+        "amount":  1750,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Cold drink lunch ice",
+        "updatedAt":  "2026-11-03T11:19:47.888909+00:00"
+    },
+    {
+        "id":  "exp_1793705206288",
+        "date":  "2025-05-22T16:26:46.000",
+        "amount":  760,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "ice lunch tea",
+        "updatedAt":  "2026-11-03T11:26:47.37742+00:00"
+    },
+    {
+        "id":  "exp_1793705275162",
+        "date":  "2025-05-24T16:27:55.000",
+        "amount":  400,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Juice",
+        "updatedAt":  "2026-11-03T11:27:55.499999+00:00"
+    },
+    {
+        "id":  "exp_1793793238304",
+        "date":  "2025-07-29T16:53:58.000",
+        "amount":  1000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Huzaifa for expanse",
+        "updatedAt":  "2026-11-04T11:53:58.355498+00:00"
+    },
+    {
+        "id":  "exp_1793793358028",
+        "date":  "2025-08-05T16:55:58.000",
+        "amount":  350,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile call package",
+        "updatedAt":  "2026-11-04T11:55:57.862068+00:00"
+    },
+    {
+        "id":  "exp_1793800389229",
+        "date":  "2025-08-30T18:53:09.000",
+        "amount":  20000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Alayan car rent",
+        "updatedAt":  "2026-11-04T13:53:09.389109+00:00"
+    },
+    {
+        "id":  "exp_1793872455439",
+        "date":  "2025-09-16T14:54:15.000",
+        "amount":  300,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile call package",
+        "updatedAt":  "2026-11-05T09:54:14.963716+00:00"
+    },
+    {
+        "id":  "exp_1793873080323",
+        "date":  "2025-09-17T15:04:40.000",
+        "amount":  5683,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "Nayatel bill",
+        "updatedAt":  "2026-11-05T10:04:39.685632+00:00"
+    },
+    {
+        "id":  "exp_1793873381370",
+        "date":  "2025-09-24T15:09:41.000",
+        "amount":  400,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-05T10:09:40.943672+00:00"
+    },
+    {
+        "id":  "exp_1793873406073",
+        "date":  "2025-09-24T15:10:06.000",
+        "amount":  3000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-05T10:10:05.300098+00:00"
+    },
+    {
+        "id":  "exp_1793879808041",
+        "date":  "2025-10-02T16:56:48.000",
+        "amount":  7000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Chat gpt",
+        "updatedAt":  "2026-11-05T11:56:47.583558+00:00"
+    },
+    {
+        "id":  "exp_1793883096092",
+        "date":  "2025-12-04T17:51:36.000",
+        "amount":  20000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-05T12:51:35.80177+00:00"
+    },
+    {
+        "id":  "exp_1794038109613",
+        "date":  "2025-12-10T12:55:09.000",
+        "amount":  5000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-07T07:55:10.127983+00:00"
+    },
+    {
+        "id":  "exp_1794038887282",
+        "date":  "2026-01-08T13:08:07.000",
+        "amount":  310,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Paper pencils",
+        "updatedAt":  "2026-11-07T08:08:07.913263+00:00"
+    },
+    {
+        "id":  "exp_1794039321915",
+        "date":  "2026-01-26T13:15:21.000",
+        "amount":  3595,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "Nayatel bill Half",
+        "updatedAt":  "2026-11-07T08:15:22.385449+00:00"
+    },
+    {
+        "id":  "exp_1793784536108",
+        "date":  "2025-06-04T14:28:56.000",
+        "amount":  18000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Salaries \u0026 Payroll",
+        "vendorName":  "",
+        "description":  "Sami Butt 10 days salary",
+        "updatedAt":  "2026-11-04T09:28:56.22014+00:00"
+    },
+    {
+        "id":  "exp_1793784885602",
+        "date":  "2025-06-06T14:34:45.000",
+        "amount":  3000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Salary Advances",
+        "vendorName":  "",
+        "description":  "Waseem Graphic Designer advance",
+        "updatedAt":  "2026-11-04T09:34:45.340712+00:00"
+    },
+    {
+        "id":  "exp_1793784980811",
+        "date":  "2025-06-06T14:36:20.000",
+        "amount":  10000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Huzaifa laptop amount return",
+        "updatedAt":  "2026-11-04T09:36:20.92515+00:00"
+    },
+    {
+        "id":  "exp_1793785079241",
+        "date":  "2025-06-13T14:37:59.000",
+        "amount":  1300,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "icr lunch tea tissue cold drink",
+        "updatedAt":  "2026-11-04T09:37:59.150696+00:00"
+    },
+    {
+        "id":  "exp_1793785418943",
+        "date":  "2025-06-17T14:43:38.000",
+        "amount":  15000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Salaries \u0026 Payroll",
+        "vendorName":  "",
+        "description":  "Sami butt final salary 8 days",
+        "updatedAt":  "2026-11-04T09:43:39.158008+00:00"
+    },
+    {
+        "id":  "exp_1793785447486",
+        "date":  "2025-06-17T14:44:07.000",
+        "amount":  300,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "sweaper",
+        "updatedAt":  "2026-11-04T09:44:07.265962+00:00"
+    },
+    {
+        "id":  "exp_1793785480468",
+        "date":  "2025-06-17T14:44:40.000",
+        "amount":  400,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "ice biscuit",
+        "updatedAt":  "2026-11-04T09:44:40.149696+00:00"
+    },
+    {
+        "id":  "exp_1793785594460",
+        "date":  "2025-06-20T14:46:34.000",
+        "amount":  450,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "ice",
+        "updatedAt":  "2026-11-04T09:46:34.627877+00:00"
+    },
+    {
+        "id":  "exp_1794038696287",
+        "date":  "2026-01-03T13:04:56.000",
+        "amount":  3500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Adds",
+        "updatedAt":  "2026-11-07T08:04:57.245813+00:00"
+    },
+    {
+        "id":  "exp_1794039108299",
+        "date":  "2026-01-11T13:11:48.000",
+        "amount":  4000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Graphics tolls",
+        "updatedAt":  "2026-11-07T08:11:48.953044+00:00"
+    },
+    {
+        "id":  "exp_1794039721096",
+        "date":  "2026-02-01T13:22:01.000",
+        "amount":  2400,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Staff sunday lunch",
+        "updatedAt":  "2026-11-07T08:22:01.604237+00:00"
+    },
+    {
+        "id":  "exp_1794040099914",
+        "date":  "2026-02-10T13:28:19.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Olper Biscuits",
+        "updatedAt":  "2026-11-07T08:28:20.388613+00:00"
+    },
+    {
+        "id":  "exp_1794040294063",
+        "date":  "2026-02-12T13:31:34.000",
+        "amount":  350,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Milk sugar",
+        "updatedAt":  "2026-11-07T08:31:34.605993+00:00"
+    },
+    {
+        "id":  "exp_1794040957772",
+        "date":  "2026-02-25T13:42:37.000",
+        "amount":  2000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-07T08:42:38.458308+00:00"
+    },
+    {
+        "id":  "exp_1793783840379",
+        "date":  "2025-06-02T14:17:20.000",
+        "amount":  4000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Telephone set",
+        "updatedAt":  "2026-11-04T09:17:20.145042+00:00"
+    },
+    {
+        "id":  "exp_1793784109953",
+        "date":  "2025-06-02T14:21:49.000",
+        "amount":  600,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Duster",
+        "updatedAt":  "2026-11-04T09:21:50.101924+00:00"
+    },
+    {
+        "id":  "exp_1793789433606",
+        "date":  "2025-06-25T15:50:33.000",
+        "amount":  8000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-04T10:50:33.315804+00:00"
+    },
+    {
+        "id":  "exp_1793789478882",
+        "date":  "2025-06-25T15:51:18.000",
+        "amount":  20000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car rent Alayan",
+        "updatedAt":  "2026-11-04T10:51:18.649494+00:00"
+    },
+    {
+        "id":  "exp_1793789518752",
+        "date":  "2025-06-25T15:51:58.000",
+        "amount":  30000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Mac book laptop",
+        "updatedAt":  "2026-11-04T10:51:58.796348+00:00"
+    },
+    {
+        "id":  "exp_1793800429085",
+        "date":  "2025-08-31T18:53:49.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Charity",
+        "vendorName":  "",
+        "description":  "Charity",
+        "updatedAt":  "2026-11-04T13:53:48.86158+00:00"
+    },
+    {
+        "id":  "exp_1793869517471",
+        "date":  "2025-08-28T14:05:17.000",
+        "amount":  10100,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer from Huzaifa",
+        "updatedAt":  "2026-11-05T09:05:17.277319+00:00"
+    },
+    {
+        "id":  "exp_1793870897251",
+        "date":  "2025-09-02T14:28:17.000",
+        "amount":  5100,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Facebook fee",
+        "updatedAt":  "2026-11-05T09:28:16.529596+00:00"
+    },
+    {
+        "id":  "exp_1794042815127",
+        "date":  "2026-03-26T14:13:35.000",
+        "amount":  6767,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "NAyatel bill",
+        "updatedAt":  "2026-11-07T09:13:36.105576+00:00"
+    },
+    {
+        "id":  "exp_1793785764933",
+        "date":  "2025-06-23T14:49:24.000",
+        "amount":  400,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Biscuit",
+        "updatedAt":  "2026-11-04T09:49:24.669099+00:00"
+    },
+    {
+        "id":  "exp_1793880229838",
+        "date":  "2025-11-06T17:03:49.000",
+        "amount":  20000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-05T12:03:49.411176+00:00"
+    },
+    {
+        "id":  "exp_1793788932607",
+        "date":  "2025-06-23T15:42:12.000",
+        "amount":  23800,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "4 Chairs and rent",
+        "updatedAt":  "2026-11-04T10:42:13.278349+00:00"
+    },
+    {
+        "id":  "exp_1793788984626",
+        "date":  "2025-06-23T15:43:04.000",
+        "amount":  1170,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tea ice",
+        "updatedAt":  "2026-11-04T10:43:04.479115+00:00"
+    },
+    {
+        "id":  "exp_1793880624635",
+        "date":  "2025-11-13T17:10:24.000",
+        "amount":  3000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-05T12:10:24.219335+00:00"
+    },
+    {
+        "id":  "exp_1793789051169",
+        "date":  "2025-06-24T15:44:11.000",
+        "amount":  820,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Extension set 2",
+        "updatedAt":  "2026-11-04T10:44:11.254533+00:00"
+    },
+    {
+        "id":  "exp_1793789101886",
+        "date":  "2025-06-24T15:45:01.000",
+        "amount":  730,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Crockery tea cup 6",
+        "updatedAt":  "2026-11-04T10:45:01.837359+00:00"
+    },
+    {
+        "id":  "exp_1793880968293",
+        "date":  "2025-11-18T17:16:08.000",
+        "amount":  2000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-05T12:16:08.153801+00:00"
+    },
+    {
+        "id":  "exp_1793789124650",
+        "date":  "2025-06-24T15:45:24.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Sweaper",
+        "updatedAt":  "2026-11-04T10:45:24.389445+00:00"
+    },
+    {
+        "id":  "exp_1793882129795",
+        "date":  "2025-11-25T17:35:29.000",
+        "amount":  3600,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "FB adds",
+        "updatedAt":  "2026-11-05T12:35:30.342761+00:00"
+    },
+    {
+        "id":  "exp_1793789252561",
+        "date":  "2025-06-24T15:47:32.000",
+        "amount":  271450,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Ac 2ton Haier Electric cattle Water dispancer instalation charges",
+        "updatedAt":  "2026-11-04T10:47:32.637104+00:00"
+    },
+    {
+        "id":  "exp_1793789319766",
+        "date":  "2025-06-24T15:48:39.000",
+        "amount":  94000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Other",
+        "vendorName":  "",
+        "description":  "Huzaifa Fee 2months june july",
+        "updatedAt":  "2026-11-04T10:48:39.601594+00:00"
+    },
+    {
+        "id":  "exp_1793789404482",
+        "date":  "2025-06-25T15:50:04.000",
+        "amount":  63500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Ups Battery wires installation",
+        "updatedAt":  "2026-11-04T10:50:04.648516+00:00"
+    },
+    {
+        "id":  "exp_1793870747505",
+        "date":  "2025-09-01T14:25:47.000",
+        "amount":  1200,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Filmora",
+        "updatedAt":  "2026-11-05T09:25:46.923491+00:00"
+    },
+    {
+        "id":  "exp_1793870792469",
+        "date":  "2025-09-01T14:26:32.000",
+        "amount":  1100,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "AI video editor",
+        "updatedAt":  "2026-11-05T09:26:31.807911+00:00"
+    },
+    {
+        "id":  "exp_1793871136421",
+        "date":  "2025-08-27T14:32:16.000",
+        "amount":  21382,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "Apna store By Eman Domain 1 year Hosting 2 year",
+        "updatedAt":  "2026-11-05T09:32:16.038724+00:00"
+    },
+    {
+        "id":  "exp_1793871211830",
+        "date":  "2025-07-29T14:33:31.000",
+        "amount":  3600,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Chat GPT",
+        "updatedAt":  "2026-11-05T09:33:31.312104+00:00"
+    },
+    {
+        "id":  "exp_1793871482762",
+        "date":  "2025-06-25T14:38:02.000",
+        "amount":  1200,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Adobe photoshop",
+        "updatedAt":  "2026-11-05T09:38:02.127182+00:00"
+    },
+    {
+        "id":  "exp_1793872798263",
+        "date":  "2025-09-13T14:59:58.000",
+        "amount":  26000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Huzaifa uni fee",
+        "updatedAt":  "2026-11-05T09:59:57.86528+00:00"
+    },
+    {
+        "id":  "exp_1793872914530",
+        "date":  "2025-09-12T15:01:54.000",
+        "amount":  20000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Alayan car rent",
+        "updatedAt":  "2026-11-05T10:01:54.325285+00:00"
+    },
+    {
+        "id":  "exp_1793873254811",
+        "date":  "2025-09-24T15:07:34.000",
+        "amount":  600,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Client",
+        "updatedAt":  "2026-11-05T10:07:34.246807+00:00"
+    },
+    {
+        "id":  "exp_1793880109229",
+        "date":  "2025-10-30T17:01:49.000",
+        "amount":  1300,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "FB adds",
+        "updatedAt":  "2026-11-05T12:01:49.019846+00:00"
+    },
+    {
+        "id":  "exp_1793272226217",
+        "date":  "2025-05-18T00:00:00.000",
+        "amount":  2000,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-10-29T11:10:24.979852+00:00"
+    },
+    {
+        "id":  "exp_1793880153573",
+        "date":  "2025-11-06T17:02:33.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-05T12:02:33.338612+00:00"
+    },
+    {
+        "id":  "exp_1793272335064",
+        "date":  "2025-05-18T00:00:00.000",
+        "amount":  21900,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Assets Management",
+        "vendorName":  "",
+        "description":  "New mobile for office use",
+        "updatedAt":  "2026-10-29T11:12:14.100812+00:00"
+    },
+    {
+        "id":  "exp_1793880920662",
+        "date":  "2025-11-18T17:15:20.000",
+        "amount":  10000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-05T12:15:20.365014+00:00"
+    },
+    {
+        "id":  "exp_1793271813224",
+        "date":  "2025-05-17T00:00:00.000",
+        "amount":  300,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Repairs \u0026 Maintenance",
+        "vendorName":  "",
+        "description":  "Electrition",
+        "updatedAt":  "2026-10-29T11:03:31.986261+00:00"
+    },
+    {
+        "id":  "exp_1793700952216",
+        "date":  "2025-05-19T15:15:52.000",
+        "amount":  3280,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Sweet tea etc",
+        "updatedAt":  "2026-11-03T10:15:53.034441+00:00"
+    },
+    {
+        "id":  "exp_1793881258424",
+        "date":  "2025-11-24T17:20:58.000",
+        "amount":  3000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "FB Adds",
+        "updatedAt":  "2026-11-05T12:20:57.934967+00:00"
+    },
+    {
+        "id":  "exp_1793880183238",
+        "date":  "2025-11-07T17:03:03.000",
+        "amount":  600,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "FB adds",
+        "updatedAt":  "2026-11-05T12:03:02.766053+00:00"
+    },
+    {
+        "id":  "exp_1793880586481",
+        "date":  "2025-11-14T17:09:46.000",
+        "amount":  1000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "POS adds",
+        "updatedAt":  "2026-11-05T12:09:46.312261+00:00"
+    },
+    {
+        "id":  "exp_1794043082682",
+        "date":  "2026-04-01T14:18:02.000",
+        "amount":  3800,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Adds",
+        "updatedAt":  "2026-11-07T09:18:03.153382+00:00"
+    },
+    {
+        "id":  "exp_1794043454431",
+        "date":  "2026-04-08T14:24:14.000",
+        "amount":  470,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "Al naseer chicken",
+        "updatedAt":  "2026-11-07T09:24:14.987136+00:00"
+    },
+    {
+        "id":  "exp_1794042847669",
+        "date":  "2026-03-30T14:14:07.000",
+        "amount":  400,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Olpers",
+        "updatedAt":  "2026-11-07T09:14:08.180238+00:00"
+    },
+    {
+        "id":  "exp_1794043302164",
+        "date":  "2026-04-08T14:21:42.000",
+        "amount":  380,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "olper lux",
+        "updatedAt":  "2026-11-07T09:21:42.98777+00:00"
+    },
+    {
+        "id":  "exp_1793880442156",
+        "date":  "2025-11-10T17:07:22.000",
+        "amount":  7650,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "RAza shop bill",
+        "updatedAt":  "2026-11-05T12:07:22.014666+00:00"
+    },
+    {
+        "id":  "exp_1793882583017",
+        "date":  "2025-11-29T17:43:03.000",
+        "amount":  7000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car new battery",
+        "updatedAt":  "2026-11-05T12:43:02.598626+00:00"
+    },
+    {
+        "id":  "exp_1793279636328",
+        "date":  "2024-10-29T00:00:00.000",
+        "amount":  40500,
+        "accountId":  "general_khata",
+        "category":  "Repairs \u0026 Maintenance",
+        "vendorName":  "",
+        "description":  "...",
+        "updatedAt":  "2026-11-06T11:36:53.202676+00:00"
+    },
+    {
+        "id":  "exp_1793270517483",
+        "date":  "2025-06-05T00:00:00.000",
+        "amount":  140,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Bills",
+        "vendorName":  "",
+        "description":  "rr",
+        "updatedAt":  "2026-11-06T11:36:53.202676+00:00"
+    },
+    {
+        "id":  "exp_1793279462916",
+        "date":  "2024-04-03T00:00:00.000",
+        "amount":  4500,
+        "accountId":  "general_khata",
+        "category":  "Supplies",
+        "vendorName":  "",
+        "description":  "nothing",
+        "updatedAt":  "2026-11-06T11:36:53.202676+00:00"
+    },
+    {
+        "id":  "exp_1793272549041",
+        "date":  "2025-05-18T00:00:00.000",
+        "amount":  950,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Mouse for laptop",
+        "updatedAt":  "2026-10-29T11:15:48.258389+00:00"
+    },
+    {
+        "id":  "exp_1793280133022",
+        "date":  "2025-10-29T00:00:00.000",
+        "amount":  3500,
+        "accountId":  "general_khata",
+        "category":  "Other",
+        "vendorName":  "",
+        "description":  "bill",
+        "updatedAt":  "2026-11-06T11:36:53.202676+00:00"
+    },
+    {
+        "id":  "exp_1793342767052",
+        "date":  "2025-10-30T00:00:00.000",
+        "amount":  6789,
+        "accountId":  "acc_personal_1793174340576",
+        "category":  "Supplies",
+        "vendorName":  "",
+        "description":  "nnn",
+        "updatedAt":  "2026-11-06T11:36:53.202676+00:00"
+    },
+    {
+        "id":  "exp_1794037686051",
+        "date":  "2025-12-08T12:48:06.000",
+        "amount":  4600,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Adds",
+        "updatedAt":  "2026-11-07T07:48:06.546854+00:00"
+    },
+    {
+        "id":  "exp_1794038752396",
+        "date":  "2026-01-04T13:05:52.000",
+        "amount":  1600,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Soap surf etc",
+        "updatedAt":  "2026-11-07T08:05:52.996723+00:00"
+    },
+    {
+        "id":  "exp_1794039135799",
+        "date":  "2026-01-12T13:12:15.000",
+        "amount":  220,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Repairs \u0026 Maintenance",
+        "vendorName":  "",
+        "description":  "Bulb 12w",
+        "updatedAt":  "2026-11-07T08:12:16.154426+00:00"
+    },
+    {
+        "id":  "exp_1793700048929",
+        "date":  "2025-05-18T15:00:48.000",
+        "amount":  1200,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Laptop lemination",
+        "updatedAt":  "2026-11-03T10:00:49.850549+00:00"
+    },
+    {
+        "id":  "exp_1793700677860",
+        "date":  "2025-05-14T15:11:17.000",
+        "amount":  25000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Dealer comission for office",
+        "updatedAt":  "2026-11-03T10:11:18.702585+00:00"
+    },
+    {
+        "id":  "exp_1793700790000",
+        "date":  "2025-05-14T15:13:10.000",
+        "amount":  110000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Huzaifa Laptop",
+        "updatedAt":  "2026-11-03T10:13:11.191604+00:00"
+    },
+    {
+        "id":  "exp_1793880746686",
+        "date":  "2025-11-02T17:12:26.000",
+        "amount":  4200,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "canva adobe",
+        "updatedAt":  "2026-11-05T12:12:26.418708+00:00"
+    },
+    {
+        "id":  "exp_1793700902813",
+        "date":  "2025-05-19T15:15:02.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174340576",
+        "category":  "Repairs \u0026 Maintenance",
+        "vendorName":  "",
+        "description":  "Electrition work",
+        "updatedAt":  "2026-11-03T10:15:04.085165+00:00"
+    },
+    {
+        "id":  "exp_1794039165996",
+        "date":  "2026-01-21T13:12:45.000",
+        "amount":  3000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Adds",
+        "updatedAt":  "2026-11-07T08:12:46.334408+00:00"
+    },
+    {
+        "id":  "exp_1794039766842",
+        "date":  "2026-02-03T13:22:46.000",
+        "amount":  1150,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tea olpers",
+        "updatedAt":  "2026-11-07T08:22:47.469387+00:00"
+    },
+    {
+        "id":  "exp_1794043327178",
+        "date":  "2026-04-07T14:22:07.000",
+        "amount":  14114,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Electricity \u0026 Utilities",
+        "vendorName":  "",
+        "description":  "Electricity bill",
+        "updatedAt":  "2026-11-07T09:22:07.683355+00:00"
+    },
+    {
+        "id":  "exp_1793701016045",
+        "date":  "2025-05-19T15:16:56.000",
+        "amount":  1000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Other",
+        "vendorName":  "",
+        "description":  "Huzaifa personal",
+        "updatedAt":  "2026-11-03T10:16:57.119288+00:00"
+    },
+    {
+        "id":  "exp_1793873298646",
+        "date":  "2025-09-24T15:08:18.000",
+        "amount":  300,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile call package",
+        "updatedAt":  "2026-11-05T10:08:17.987683+00:00"
+    },
+    {
+        "id":  "exp_1793883154316",
+        "date":  "2025-12-05T17:52:34.000",
+        "amount":  14355,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Electricity \u0026 Utilities",
+        "vendorName":  "",
+        "description":  "Electricity bill",
+        "updatedAt":  "2026-11-05T12:52:33.844808+00:00"
+    },
+    {
+        "id":  "exp_1794038182471",
+        "date":  "2025-12-16T12:56:22.000",
+        "amount":  3270,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Adds",
+        "updatedAt":  "2026-11-07T07:56:23.105637+00:00"
+    },
+    {
+        "id":  "exp_1793701150166",
+        "date":  "2025-05-19T15:19:10.000",
+        "amount":  1000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Marketing \u0026 Advertising",
+        "vendorName":  "",
+        "description":  "Facebook fee",
+        "updatedAt":  "2026-11-03T10:19:11.136695+00:00"
+    },
+    {
+        "id":  "exp_1794040169509",
+        "date":  "2025-02-10T13:29:29.000",
+        "amount":  3509,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Fb adds",
+        "updatedAt":  "2026-11-07T08:29:30.250694+00:00"
+    },
+    {
+        "id":  "exp_1793704721501",
+        "date":  "2025-05-20T16:18:41.000",
+        "amount":  2000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-03T11:18:42.450363+00:00"
+    },
+    {
+        "id":  "exp_1793704950191",
+        "date":  "2025-05-21T16:22:30.000",
+        "amount":  15202,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Domain for company website",
+        "updatedAt":  "2026-11-03T11:22:31.004543+00:00"
+    },
+    {
+        "id":  "exp_1793705245792",
+        "date":  "2025-05-24T16:27:25.000",
+        "amount":  300,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile package",
+        "updatedAt":  "2026-11-03T11:27:26.732345+00:00"
+    },
+    {
+        "id":  "exp_1793705352613",
+        "date":  "2025-05-24T16:29:12.000",
+        "amount":  11500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "SSD and Ram for laptop dell",
+        "updatedAt":  "2026-11-03T11:29:13.600596+00:00"
+    },
+    {
+        "id":  "exp_1794042383488",
+        "date":  "2026-03-07T14:06:23.000",
+        "amount":  100,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Wash room cleaner",
+        "updatedAt":  "2026-11-07T09:06:24.111689+00:00"
+    },
+    {
+        "id":  "exp_1794042410564",
+        "date":  "2026-03-07T14:06:50.000",
+        "amount":  2100,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-07T09:06:51.077835+00:00"
+    },
+    {
+        "id":  "exp_1793700361513",
+        "date":  "2025-05-18T15:06:01.000",
+        "amount":  360,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Table white gola",
+        "updatedAt":  "2026-11-03T10:06:02.08641+00:00"
+    },
+    {
+        "id":  "exp_1793700429559",
+        "date":  "2025-05-17T15:07:09.000",
+        "amount":  2800,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Main door lock etc",
+        "updatedAt":  "2026-11-03T10:07:10.54942+00:00"
+    },
+    {
+        "id":  "exp_1793705409972",
+        "date":  "2025-05-26T16:30:09.000",
+        "amount":  1100,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Lunch tea ice",
+        "updatedAt":  "2026-11-03T11:30:10.998072+00:00"
+    },
+    {
+        "id":  "exp_1793784847987",
+        "date":  "2025-06-13T14:34:07.000",
+        "amount":  180,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tea biscuit",
+        "updatedAt":  "2026-11-04T09:34:07.703043+00:00"
+    },
+    {
+        "id":  "exp_1794038945618",
+        "date":  "2026-01-08T13:09:05.000",
+        "amount":  300,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile balance off",
+        "updatedAt":  "2026-11-07T08:09:06.245476+00:00"
+    },
+    {
+        "id":  "exp_1794039520492",
+        "date":  "2026-01-29T13:18:40.000",
+        "amount":  800,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Sugar milk etc",
+        "updatedAt":  "2026-11-07T08:18:41.338+00:00"
+    },
+    {
+        "id":  "exp_1794040001911",
+        "date":  "2026-02-05T13:26:41.000",
+        "amount":  16502,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Electricity \u0026 Utilities",
+        "vendorName":  "",
+        "description":  "Electricity bill",
+        "updatedAt":  "2026-11-07T08:26:42.273634+00:00"
+    },
+    {
+        "id":  "exp_1794040805384",
+        "date":  "2026-02-23T13:40:05.000",
+        "amount":  1300,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "FB adds",
+        "updatedAt":  "2026-11-07T08:40:05.912437+00:00"
+    },
+    {
+        "id":  "exp_1794043126661",
+        "date":  "2026-04-06T14:18:46.000",
+        "amount":  300,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "olpers",
+        "updatedAt":  "2026-11-07T09:18:47.123125+00:00"
+    },
+    {
+        "id":  "exp_1794043532787",
+        "date":  "2026-04-09T14:25:32.000",
+        "amount":  5382,
+        "accountId":  "acc_company_1793708260886",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "China bed sheets",
+        "updatedAt":  "2026-11-07T09:25:33.822771+00:00"
+    },
+    {
+        "id":  "exp_1793785685683",
+        "date":  "2025-06-20T14:48:05.000",
+        "amount":  400,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Repairs \u0026 Maintenance",
+        "vendorName":  "",
+        "description":  "Ehsan electrition for water pump",
+        "updatedAt":  "2026-11-04T09:48:05.514981+00:00"
+    },
+    {
+        "id":  "exp_1793873201262",
+        "date":  "2025-09-18T15:06:41.000",
+        "amount":  10000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Salman laptop Dell instalment",
+        "updatedAt":  "2026-11-05T10:06:40.938279+00:00"
+    },
+    {
+        "id":  "exp_1793873335311",
+        "date":  "2025-09-24T15:08:55.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "AC service",
+        "updatedAt":  "2026-11-05T10:08:54.547049+00:00"
+    },
+    {
+        "id":  "exp_1793873540824",
+        "date":  "2025-09-24T15:12:20.000",
+        "amount":  25000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-05T10:12:20.138852+00:00"
+    },
+    {
+        "id":  "exp_1793879777341",
+        "date":  "2025-10-02T16:56:17.000",
+        "amount":  5100,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Facebook fee",
+        "updatedAt":  "2026-11-05T11:56:18.29201+00:00"
+    },
+    {
+        "id":  "exp_1793879855555",
+        "date":  "2025-10-02T16:57:35.000",
+        "amount":  4200,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Canva adobe illutrator",
+        "updatedAt":  "2026-11-05T11:57:35.282528+00:00"
+    },
+    {
+        "id":  "exp_1793879941994",
+        "date":  "2025-10-07T16:59:01.000",
+        "amount":  51000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent of Oct 25",
+        "updatedAt":  "2026-11-05T11:59:01.472527+00:00"
+    },
+    {
+        "id":  "exp_1793879970885",
+        "date":  "2025-10-07T16:59:30.000",
+        "amount":  17621,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Electricity \u0026 Utilities",
+        "vendorName":  "",
+        "description":  "Electricity bill",
+        "updatedAt":  "2026-11-05T11:59:30.372441+00:00"
+    },
+    {
+        "id":  "exp_1793880013711",
+        "date":  "2025-10-16T17:00:13.000",
+        "amount":  1500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran and raza bill",
+        "updatedAt":  "2026-11-05T12:00:13.31904+00:00"
+    },
+    {
+        "id":  "exp_1794038225484",
+        "date":  "2025-12-16T12:57:05.000",
+        "amount":  2000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-07T07:57:06.076937+00:00"
+    },
+    {
+        "id":  "exp_1794038981804",
+        "date":  "2026-01-08T13:09:41.000",
+        "amount":  350,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Sugar biscuits",
+        "updatedAt":  "2026-11-07T08:09:42.283899+00:00"
+    },
+    {
+        "id":  "exp_1794039611968",
+        "date":  "2026-01-31T13:20:11.000",
+        "amount":  3996,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "FB Adds",
+        "updatedAt":  "2026-11-07T08:20:12.475096+00:00"
+    },
+    {
+        "id":  "exp_1794039641375",
+        "date":  "2026-01-31T13:20:41.000",
+        "amount":  790,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "EVeryday Milk",
+        "updatedAt":  "2026-11-07T08:20:41.752303+00:00"
+    },
+    {
+        "id":  "exp_1793790942615",
+        "date":  "2025-07-10T16:15:42.000",
+        "amount":  1540,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Pir sb Refreshment",
+        "updatedAt":  "2026-11-04T11:15:42.652328+00:00"
+    },
+    {
+        "id":  "exp_1793791179339",
+        "date":  "2025-07-14T16:19:39.000",
+        "amount":  730,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Crockery tea set",
+        "updatedAt":  "2026-11-04T11:19:39.120183+00:00"
+    },
+    {
+        "id":  "exp_1793791356928",
+        "date":  "2025-07-15T16:22:36.000",
+        "amount":  10000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Mac book instalment",
+        "updatedAt":  "2026-11-04T11:22:36.87448+00:00"
+    },
+    {
+        "id":  "exp_1793791436694",
+        "date":  "2025-07-16T16:23:56.000",
+        "amount":  300,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile package",
+        "updatedAt":  "2026-11-04T11:23:56.525425+00:00"
+    },
+    {
+        "id":  "exp_1793791642424",
+        "date":  "2025-07-16T16:27:22.000",
+        "amount":  3000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel raza shop",
+        "updatedAt":  "2026-11-04T11:27:22.484704+00:00"
+    },
+    {
+        "id":  "exp_1793791691218",
+        "date":  "2025-07-17T16:28:11.000",
+        "amount":  1900,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Nestle Water bottle",
+        "updatedAt":  "2026-11-04T11:28:11.116076+00:00"
+    },
+    {
+        "id":  "exp_1794042904714",
+        "date":  "2026-03-28T14:15:04.000",
+        "amount":  7500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Al karam and ali client payment",
+        "updatedAt":  "2026-11-07T09:15:05.261134+00:00"
+    },
+    {
+        "id":  "exp_1793791927234",
+        "date":  "2025-07-21T16:32:07.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Sweaper",
+        "updatedAt":  "2026-11-04T11:32:06.994315+00:00"
+    },
+    {
+        "id":  "exp_1794043362931",
+        "date":  "2026-04-09T14:22:42.000",
+        "amount":  350,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "soap lemon max",
+        "updatedAt":  "2026-11-07T09:22:43.370309+00:00"
+    },
+    {
+        "id":  "exp_1793880474637",
+        "date":  "2025-11-11T17:07:54.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Abubakar dinner",
+        "updatedAt":  "2026-11-05T12:07:54.15377+00:00"
+    },
+    {
+        "id":  "exp_1793880793266",
+        "date":  "2025-11-16T17:13:13.000",
+        "amount":  9000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-05T12:13:12.770064+00:00"
+    },
+    {
+        "id":  "exp_1793881308745",
+        "date":  "2025-11-25T17:21:48.000",
+        "amount":  15000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-05T12:21:48.781998+00:00"
+    },
+    {
+        "id":  "exp_1793882676311",
+        "date":  "2025-12-01T17:44:36.000",
+        "amount":  680,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Milk biscuit",
+        "updatedAt":  "2026-11-05T12:44:36.224019+00:00"
+    },
+    {
+        "id":  "exp_1794037967291",
+        "date":  "2025-12-08T12:52:47.000",
+        "amount":  800,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Adds",
+        "updatedAt":  "2026-11-07T07:52:48.248287+00:00"
+    },
+    {
+        "id":  "exp_1793792908898",
+        "date":  "2025-07-26T16:48:28.000",
+        "amount":  2000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel",
+        "updatedAt":  "2026-11-04T11:48:29.124584+00:00"
+    },
+    {
+        "id":  "exp_1793793118591",
+        "date":  "2025-07-29T16:51:58.000",
+        "amount":  1000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-04T11:51:58.3613+00:00"
+    },
+    {
+        "id":  "exp_1793870702469",
+        "date":  "2025-09-01T14:25:02.000",
+        "amount":  4200,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Canva Adobe illstrater",
+        "updatedAt":  "2026-11-05T09:25:02.212514+00:00"
+    },
+    {
+        "id":  "exp_1794038788003",
+        "date":  "2026-01-08T13:06:28.000",
+        "amount":  2500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "FB adds",
+        "updatedAt":  "2026-11-07T08:06:28.568389+00:00"
+    },
+    {
+        "id":  "exp_1794039203128",
+        "date":  "2026-01-21T13:13:23.000",
+        "amount":  2000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-07T08:13:23.596671+00:00"
+    },
+    {
+        "id":  "exp_1793271370530",
+        "date":  "2025-05-16T00:00:00.000",
+        "amount":  10000,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Assets Management",
+        "vendorName":  "",
+        "description":  "Decoration Frames",
+        "updatedAt":  "2026-10-29T10:56:09.698998+00:00"
+    },
+    {
+        "id":  "exp_1793271582077",
+        "date":  "2025-05-16T00:00:00.000",
+        "amount":  61000,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Office chairs and sofas and rikshaw rent",
+        "updatedAt":  "2026-10-29T10:59:41.206864+00:00"
+    },
+    {
+        "id":  "exp_1793272591111",
+        "date":  "2025-05-18T00:00:00.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Laptop conactor",
+        "updatedAt":  "2026-10-29T11:16:29.870348+00:00"
+    },
+    {
+        "id":  "exp_1794039224676",
+        "date":  "2026-01-18T13:13:44.000",
+        "amount":  1000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Sweaper",
+        "updatedAt":  "2026-11-07T08:13:45.147837+00:00"
+    },
+    {
+        "id":  "exp_1793700234712",
+        "date":  "2025-07-03T15:03:54.712",
+        "amount":  1200,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Soap surf etc",
+        "updatedAt":  "2026-11-03T10:03:55.578392+00:00"
+    },
+    {
+        "id":  "exp_1793789633283",
+        "date":  "2025-05-26T15:53:53.000",
+        "amount":  2390,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tea sugar milk",
+        "updatedAt":  "2026-11-04T10:53:53.506825+00:00"
+    },
+    {
+        "id":  "exp_1793800314575",
+        "date":  "2025-08-28T18:51:54.000",
+        "amount":  160,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Gel pen",
+        "updatedAt":  "2026-11-04T13:51:54.394813+00:00"
+    },
+    {
+        "id":  "exp_1793869585903",
+        "date":  "2025-09-03T14:06:25.000",
+        "amount":  5000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer from Huzaifa",
+        "updatedAt":  "2026-11-05T09:06:25.404399+00:00"
+    },
+    {
+        "id":  "exp_1793869799164",
+        "date":  "2025-09-01T14:09:59.000",
+        "amount":  7000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Chat GPT per month",
+        "updatedAt":  "2026-11-05T09:09:58.823623+00:00"
+    },
+    {
+        "id":  "exp_1793870949429",
+        "date":  "2025-09-02T14:29:09.000",
+        "amount":  15000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer from Huzaifa",
+        "updatedAt":  "2026-11-05T09:29:08.722902+00:00"
+    },
+    {
+        "id":  "exp_1793871045784",
+        "date":  "2025-08-25T14:30:45.000",
+        "amount":  9000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer from Huzaifa",
+        "updatedAt":  "2026-11-05T09:30:45.172879+00:00"
+    },
+    {
+        "id":  "exp_1793871393662",
+        "date":  "2025-07-11T14:36:33.000",
+        "amount":  2700,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Video editing",
+        "updatedAt":  "2026-11-05T09:36:32.964667+00:00"
+    },
+    {
+        "id":  "exp_1793871423455",
+        "date":  "2025-07-14T14:37:03.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Seo expert",
+        "updatedAt":  "2026-11-05T09:37:02.685966+00:00"
+    },
+    {
+        "id":  "exp_1793871552777",
+        "date":  "2025-06-17T14:39:12.000",
+        "amount":  700,
+        "accountId":  "acc_company_1793708286763",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Seo expert",
+        "updatedAt":  "2026-11-05T09:39:12.07007+00:00"
+    },
+    {
+        "id":  "exp_1793871661390",
+        "date":  "2025-06-16T14:41:01.000",
+        "amount":  15079,
+        "accountId":  "acc_company_1793708260886",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "Clinical management system domain 1 year hosting 2 year",
+        "updatedAt":  "2026-11-05T09:41:00.978171+00:00"
+    },
+    {
+        "id":  "exp_1793872003788",
+        "date":  "2025-09-05T14:46:43.000",
+        "amount":  51000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent sep 25",
+        "updatedAt":  "2026-11-05T09:46:43.68971+00:00"
+    },
+    {
+        "id":  "exp_1793872098176",
+        "date":  "2025-09-05T14:48:18.000",
+        "amount":  48290,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Electricity \u0026 Utilities",
+        "vendorName":  "",
+        "description":  "Electricity bill",
+        "updatedAt":  "2026-11-05T09:48:17.609372+00:00"
+    },
+    {
+        "id":  "exp_1793872153404",
+        "date":  "2025-09-05T14:49:13.000",
+        "amount":  200,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Charity",
+        "vendorName":  "",
+        "description":  "Charity",
+        "updatedAt":  "2026-11-05T09:49:12.896874+00:00"
+    },
+    {
+        "id":  "exp_1793872189760",
+        "date":  "2025-09-11T14:49:49.000",
+        "amount":  1000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-05T09:49:49.122744+00:00"
+    },
+    {
+        "id":  "exp_1793872216550",
+        "date":  "2025-09-11T14:50:16.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Charity",
+        "vendorName":  "",
+        "description":  "Charity",
+        "updatedAt":  "2026-11-05T09:50:16.095248+00:00"
+    },
+    {
+        "id":  "exp_1793872386784",
+        "date":  "2025-09-13T14:53:06.000",
+        "amount":  13000,
+        "accountId":  "acc_company_1793708260886",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "Mr farooq adsense web project",
+        "updatedAt":  "2026-11-05T09:53:06.401053+00:00"
+    },
+    {
+        "id":  "exp_1793872420300",
+        "date":  "2025-09-15T14:53:40.300",
+        "amount":  2000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "AI Tools",
+        "vendorName":  "",
+        "description":  "Seo tolls",
+        "updatedAt":  "2026-11-05T09:53:39.571552+00:00"
+    },
+    {
+        "id":  "exp_1793872537501",
+        "date":  "2025-09-16T14:55:37.000",
+        "amount":  600,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Huzaifa uber ride",
+        "updatedAt":  "2026-11-05T09:55:37.257883+00:00"
+    },
+    {
+        "id":  "exp_1793872737376",
+        "date":  "2025-09-10T14:58:57.000",
+        "amount":  10000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to huzaifa",
+        "updatedAt":  "2026-11-05T09:58:57.310539+00:00"
+    },
+    {
+        "id":  "exp_1793873030866",
+        "date":  "2025-09-16T15:03:50.000",
+        "amount":  1250,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Office refreshment",
+        "updatedAt":  "2026-11-05T10:03:51.088868+00:00"
+    },
+    {
+        "id":  "exp_1793873137896",
+        "date":  "2025-09-18T15:05:37.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-05T10:05:37.322715+00:00"
+    },
+    {
+        "id":  "exp_1794042124825",
+        "date":  "2026-03-01T14:02:04.000",
+        "amount":  3000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-07T09:02:05.564872+00:00"
+    },
+    {
+        "id":  "exp_1794042281616",
+        "date":  "2026-03-03T14:04:41.000",
+        "amount":  3500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Fb adds",
+        "updatedAt":  "2026-11-07T09:04:42.14309+00:00"
+    },
+    {
+        "id":  "exp_1794042332719",
+        "date":  "2026-03-03T14:05:32.000",
+        "amount":  3000,
+        "accountId":  "acc_company_1793708260886",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-07T09:05:33.523777+00:00"
+    },
+    {
+        "id":  "exp_1794038074080",
+        "date":  "2025-12-10T12:54:34.000",
+        "amount":  5000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Salman Dell laptop",
+        "updatedAt":  "2026-11-07T07:54:34.855373+00:00"
+    },
+    {
+        "id":  "exp_1793799084579",
+        "date":  "2025-08-06T18:31:24.000",
+        "amount":  49000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent aug 25 49000+2000 motor repairing",
+        "updatedAt":  "2026-11-04T13:31:24.370586+00:00"
+    },
+    {
+        "id":  "exp_1794038824559",
+        "date":  "2026-01-08T13:07:04.000",
+        "amount":  1500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-07T08:07:05.340654+00:00"
+    },
+    {
+        "id":  "exp_1794039281358",
+        "date":  "2026-01-26T13:14:41.000",
+        "amount":  3000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "Nayatel bill Half",
+        "updatedAt":  "2026-11-07T08:14:42.055321+00:00"
+    },
+    {
+        "id":  "exp_1794039934829",
+        "date":  "2026-02-05T13:25:34.000",
+        "amount":  3600,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Meta Adds",
+        "vendorName":  "",
+        "description":  "Fb adds",
+        "updatedAt":  "2026-11-07T08:25:35.659922+00:00"
+    },
+    {
+        "id":  "exp_1794040714178",
+        "date":  "2026-02-20T13:38:34.000",
+        "amount":  5000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Karim Elact Payment",
+        "updatedAt":  "2026-11-07T08:38:35.034862+00:00"
+    },
+    {
+        "id":  "exp_1794041128252",
+        "date":  "2026-02-26T13:45:28.000",
+        "amount":  7000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Sabir Karyana",
+        "updatedAt":  "2026-11-07T08:45:29.017407+00:00"
+    },
+    {
+        "id":  "exp_1794042447870",
+        "date":  "2026-03-06T14:07:27.000",
+        "amount":  6000,
+        "accountId":  "acc_company_1793708260886",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-07T09:07:28.298511+00:00"
+    },
+    {
+        "id":  "exp_1793271721210",
+        "date":  "2025-05-17T00:00:00.000",
+        "amount":  2000,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Carpainter Labour",
+        "updatedAt":  "2026-10-29T11:02:00.686996+00:00"
+    },
+    {
+        "id":  "exp_1793271774206",
+        "date":  "2025-05-17T00:00:00.000",
+        "amount":  800,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Lunch and tea",
+        "updatedAt":  "2026-10-29T11:02:53.080849+00:00"
+    },
+    {
+        "id":  "exp_1793271901762",
+        "date":  "2025-05-17T00:00:00.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Carpainter bykea",
+        "updatedAt":  "2026-10-29T11:05:00.850697+00:00"
+    },
+    {
+        "id":  "exp_1793271938881",
+        "date":  "2025-05-17T00:00:00.000",
+        "amount":  4000,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-10-29T11:05:37.818933+00:00"
+    },
+    {
+        "id":  "exp_1793272122892",
+        "date":  "2025-05-17T00:00:00.000",
+        "amount":  270,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Repairs \u0026 Maintenance",
+        "vendorName":  "",
+        "description":  "Elfi",
+        "updatedAt":  "2026-10-29T11:08:41.758377+00:00"
+    },
+    {
+        "id":  "exp_1793799117663",
+        "date":  "2025-08-06T18:31:57.000",
+        "amount":  5000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-04T13:31:57.476016+00:00"
+    },
+    {
+        "id":  "exp_1793799181079",
+        "date":  "2025-08-06T18:33:01.000",
+        "amount":  5000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Huzaifa multi expanse",
+        "updatedAt":  "2026-11-04T13:33:01.103601+00:00"
+    },
+    {
+        "id":  "exp_1793799416177",
+        "date":  "2025-08-13T18:36:56.000",
+        "amount":  3000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Raza shop bill",
+        "updatedAt":  "2026-11-04T13:36:55.951592+00:00"
+    },
+    {
+        "id":  "exp_1793272191669",
+        "date":  "2025-05-17T00:00:00.000",
+        "amount":  9000,
+        "accountId":  "acc_company_1793271147628",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Carpainter labour",
+        "updatedAt":  "2026-10-29T11:09:50.730049+00:00"
+    },
+    {
+        "id":  "exp_1794039972321",
+        "date":  "2026-02-05T13:26:12.000",
+        "amount":  400,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Photocopy",
+        "updatedAt":  "2026-11-07T08:26:12.702341+00:00"
+    },
+    {
+        "id":  "exp_1794040770593",
+        "date":  "2026-02-24T13:39:30.000",
+        "amount":  5000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Karim elect payment",
+        "updatedAt":  "2026-11-07T08:39:31.153742+00:00"
+    },
+    {
+        "id":  "exp_1794042079137",
+        "date":  "2026-03-01T14:01:19.000",
+        "amount":  500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "Hamza Karyana",
+        "updatedAt":  "2026-11-07T09:01:20.527864+00:00"
+    },
+    {
+        "id":  "exp_1794042482967",
+        "date":  "2026-03-06T14:08:02.000",
+        "amount":  1000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Domain \u0026 Hosting",
+        "vendorName":  "",
+        "description":  "Sabir khan",
+        "updatedAt":  "2026-11-07T09:08:03.607224+00:00"
+    },
+    {
+        "id":  "exp_1794043053103",
+        "date":  "2026-04-01T14:17:33.000",
+        "amount":  400,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "olpers",
+        "updatedAt":  "2026-11-07T09:17:33.705743+00:00"
+    },
+    {
+        "id":  "exp_1793879897387",
+        "date":  "2025-10-06T16:58:17.000",
+        "amount":  300,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile call package",
+        "updatedAt":  "2026-11-05T11:58:17.070872+00:00"
+    },
+    {
+        "id":  "INV-EXP-INV-90382",
+        "date":  "2026-10-30T00:00:00.000",
+        "amount":  5600,
+        "accountId":  "acc_default",
+        "category":  "Office Inventory",
+        "vendorName":  "Inventory Purchase",
+        "description":  "Inventory purchase - A4 Papers",
+        "updatedAt":  "2026-11-07T09:30:24.070007+00:00"
+    },
+    {
+        "id":  "exp_1793791003690",
+        "date":  "2025-07-11T16:16:43.000",
+        "amount":  1600,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel lunch tea",
+        "updatedAt":  "2026-11-04T11:16:43.482162+00:00"
+    },
+    {
+        "id":  "exp_1793791241615",
+        "date":  "2025-07-14T16:20:41.000",
+        "amount":  600,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office Inventory",
+        "vendorName":  "",
+        "description":  "Wash room sleeper",
+        "updatedAt":  "2026-11-04T11:20:41.429275+00:00"
+    },
+    {
+        "id":  "exp_1793799367755",
+        "date":  "2025-08-12T18:36:07.000",
+        "amount":  300,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Mobile call package",
+        "updatedAt":  "2026-11-04T13:36:07.634324+00:00"
+    },
+    {
+        "id":  "exp_1793799507228",
+        "date":  "2025-08-18T18:38:27.000",
+        "amount":  5246,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "Nayatel monthly bill",
+        "updatedAt":  "2026-11-04T13:38:27.336083+00:00"
+    },
+    {
+        "id":  "exp_1793799948207",
+        "date":  "2025-08-25T18:45:48.000",
+        "amount":  1000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Charity",
+        "vendorName":  "",
+        "description":  "Charity",
+        "updatedAt":  "2026-11-04T13:45:48.779245+00:00"
+    },
+    {
+        "id":  "exp_1793799987802",
+        "date":  "2025-08-26T18:46:27.000",
+        "amount":  2000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-04T13:46:27.523627+00:00"
+    },
+    {
+        "id":  "exp_1793800024656",
+        "date":  "2025-08-27T18:47:04.000",
+        "amount":  1000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel bill",
+        "updatedAt":  "2026-11-04T13:47:04.42013+00:00"
+    },
+    {
+        "id":  "exp_1794039683646",
+        "date":  "2026-01-31T13:21:23.000",
+        "amount":  260,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Everyday milk",
+        "updatedAt":  "2026-11-07T08:21:24.120655+00:00"
+    },
+    {
+        "id":  "exp_1794040039135",
+        "date":  "2026-02-06T13:27:19.000",
+        "amount":  400,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "client tea biscuit",
+        "updatedAt":  "2026-11-07T08:27:19.65169+00:00"
+    },
+    {
+        "id":  "exp_1794040066888",
+        "date":  "2026-02-10T13:27:46.000",
+        "amount":  51000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent Fab26",
+        "updatedAt":  "2026-11-07T08:27:47.295406+00:00"
+    },
+    {
+        "id":  "exp_1794040852536",
+        "date":  "2026-02-24T13:40:52.000",
+        "amount":  6500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "NAyatel bill",
+        "updatedAt":  "2026-11-07T08:40:53.260988+00:00"
+    },
+    {
+        "id":  "exp_1794042170516",
+        "date":  "2026-03-01T14:02:50.000",
+        "amount":  6000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Hassan Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to hassan",
+        "updatedAt":  "2026-11-07T09:02:51.069816+00:00"
+    },
+    {
+        "id":  "exp_1794042200339",
+        "date":  "2026-03-01T14:03:20.000",
+        "amount":  3000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Huzaifa Personal Account",
+        "vendorName":  "",
+        "description":  "Transfer to huzaifa",
+        "updatedAt":  "2026-11-07T09:03:21.112344+00:00"
+    },
+    {
+        "id":  "exp_1794042588282",
+        "date":  "2026-03-09T14:09:48.000",
+        "amount":  2000,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-07T09:09:48.956969+00:00"
+    },
+    {
+        "id":  "exp_1794043159736",
+        "date":  "2026-04-06T14:19:19.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Sweaper",
+        "updatedAt":  "2026-11-07T09:19:20.338055+00:00"
+    },
+    {
+        "id":  "exp_1794043597091",
+        "date":  "2026-04-09T14:26:37.000",
+        "amount":  1500,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Travel \u0026 Transport",
+        "vendorName":  "",
+        "description":  "Car patrol",
+        "updatedAt":  "2026-11-07T09:26:37.772687+00:00"
+    },
+    {
+        "id":  "exp_1793789668922",
+        "date":  "2025-06-27T15:54:28.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Repairs \u0026 Maintenance",
+        "vendorName":  "",
+        "description":  "ups plug",
+        "updatedAt":  "2026-11-04T10:54:28.762138+00:00"
+    },
+    {
+        "id":  "exp_1793789745888",
+        "date":  "2025-06-27T15:55:45.000",
+        "amount":  10000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Salaries \u0026 Payroll",
+        "vendorName":  "",
+        "description":  "Fareeha Salary",
+        "updatedAt":  "2026-11-04T10:55:45.777006+00:00"
+    },
+    {
+        "id":  "exp_1793789865533",
+        "date":  "2025-06-27T15:57:45.000",
+        "amount":  300,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Color print",
+        "updatedAt":  "2026-11-04T10:57:45.450777+00:00"
+    },
+    {
+        "id":  "exp_1793789915330",
+        "date":  "2025-06-30T15:58:35.000",
+        "amount":  1980,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Lunch tea",
+        "updatedAt":  "2026-11-04T10:58:35.192777+00:00"
+    },
+    {
+        "id":  "exp_1793790008399",
+        "date":  "2025-07-01T16:00:08.000",
+        "amount":  110,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Tissue roll",
+        "updatedAt":  "2026-11-04T11:00:08.572369+00:00"
+    },
+    {
+        "id":  "exp_1793790064557",
+        "date":  "2025-07-02T16:01:04.000",
+        "amount":  680,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Door stoper online",
+        "updatedAt":  "2026-11-04T11:01:04.239749+00:00"
+    },
+    {
+        "id":  "exp_1793790104280",
+        "date":  "2025-07-03T16:01:44.000",
+        "amount":  1500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Imran hotel lunch tea",
+        "updatedAt":  "2026-11-04T11:01:44.250537+00:00"
+    },
+    {
+        "id":  "exp_1793790131142",
+        "date":  "2025-07-04T16:02:11.000",
+        "amount":  500,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Office \u0026 Admin Expenses",
+        "vendorName":  "",
+        "description":  "Sweaper",
+        "updatedAt":  "2026-11-04T11:02:10.886899+00:00"
+    },
+    {
+        "id":  "exp_1793790165938",
+        "date":  "2025-07-04T16:02:45.000",
+        "amount":  1220,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Lunch",
+        "updatedAt":  "2026-11-04T11:02:45.926895+00:00"
+    },
+    {
+        "id":  "exp_1793790220798",
+        "date":  "2025-07-08T16:03:40.000",
+        "amount":  1200,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Refreshments",
+        "vendorName":  "",
+        "description":  "Lunch tea",
+        "updatedAt":  "2026-11-04T11:03:40.837505+00:00"
+    },
+    {
+        "id":  "exp_1793790354398",
+        "date":  "2025-07-07T16:05:54.000",
+        "amount":  25000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Salaries \u0026 Payroll",
+        "vendorName":  "",
+        "description":  "Waseem graphic designer salary",
+        "updatedAt":  "2026-11-04T11:05:54.660671+00:00"
+    },
+    {
+        "id":  "exp_1793790466279",
+        "date":  "2025-07-08T16:07:46.000",
+        "amount":  51000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office rent july 2025",
+        "updatedAt":  "2026-11-04T11:07:46.112913+00:00"
+    },
+    {
+        "id":  "exp_1793790515648",
+        "date":  "2025-07-08T16:08:35.000",
+        "amount":  50000,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Rent \u0026 Occupancy",
+        "vendorName":  "",
+        "description":  "Office advance security",
+        "updatedAt":  "2026-11-04T11:08:35.409619+00:00"
+    },
+    {
+        "id":  "exp_1793790689049",
+        "date":  "2025-07-09T16:11:29.000",
+        "amount":  1972,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Electricity \u0026 Utilities",
+        "vendorName":  "",
+        "description":  "Electricity Bill",
+        "updatedAt":  "2026-11-04T11:11:29.231758+00:00"
+    },
+    {
+        "id":  "exp_1793790795534",
+        "date":  "2025-07-09T16:13:15.000",
+        "amount":  9800,
+        "accountId":  "acc_company_1793707304030",
+        "category":  "Salaries \u0026 Payroll",
+        "vendorName":  "",
+        "description":  "Fareeha salary",
+        "updatedAt":  "2026-11-04T11:13:15.398528+00:00"
+    },
+    {
+        "id":  "exp_1793790845882",
+        "date":  "2025-07-10T16:14:05.000",
+        "amount":  14733,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Salaries \u0026 Payroll",
+        "vendorName":  "",
+        "description":  "Amna imran seo salary",
+        "updatedAt":  "2026-11-04T11:14:05.76033+00:00"
+    },
+    {
+        "id":  "exp_1793790894609",
+        "date":  "2025-07-10T16:14:54.000",
+        "amount":  5785,
+        "accountId":  "acc_personal_1793174279547",
+        "category":  "Internet \u0026 Telecom",
+        "vendorName":  "",
+        "description":  "Nayatel Monthly bill",
+        "updatedAt":  "2026-11-04T11:14:54.68184+00:00"
+    }
+]

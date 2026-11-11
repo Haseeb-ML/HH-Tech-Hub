@@ -1,0 +1,728 @@
+﻿[
+    {
+        "id":  "role_super_admin",
+        "role_name":  "Super Admin",
+        "description":  "Complete unrestricted access across all ERP systems, security, and data.",
+        "is_system_role":  true,
+        "permissions":  {
+                            "hr":  [
+                                       "view",
+                                       "create",
+                                       "edit",
+                                       "delete",
+                                       "approve",
+                                       "export",
+                                       "manage"
+                                   ],
+                            "loans":  [
+                                          "view",
+                                          "create",
+                                          "edit",
+                                          "delete",
+                                          "approve",
+                                          "export",
+                                          "manage"
+                                      ],
+                            "tasks":  [
+                                          "view",
+                                          "create",
+                                          "edit",
+                                          "delete",
+                                          "approve",
+                                          "export",
+                                          "manage"
+                                      ],
+                            "assets":  [
+                                           "view",
+                                           "create",
+                                           "edit",
+                                           "delete",
+                                           "approve",
+                                           "export",
+                                           "manage"
+                                       ],
+                            "income":  [
+                                           "view",
+                                           "create",
+                                           "edit",
+                                           "delete",
+                                           "approve",
+                                           "export",
+                                           "manage"
+                                       ],
+                            "ledger":  [
+                                           "view",
+                                           "create",
+                                           "edit",
+                                           "delete",
+                                           "approve",
+                                           "export",
+                                           "manage"
+                                       ],
+                            "clients":  [
+                                            "view",
+                                            "create",
+                                            "edit",
+                                            "delete",
+                                            "approve",
+                                            "export",
+                                            "manage"
+                                        ],
+                            "finance":  [
+                                            "view",
+                                            "create",
+                                            "edit",
+                                            "delete",
+                                            "approve",
+                                            "export",
+                                            "manage"
+                                        ],
+                            "payroll":  [
+                                            "view",
+                                            "create",
+                                            "edit",
+                                            "delete",
+                                            "approve",
+                                            "export",
+                                            "manage"
+                                        ],
+                            "reports":  [
+                                            "view",
+                                            "create",
+                                            "edit",
+                                            "delete",
+                                            "approve",
+                                            "export",
+                                            "manage"
+                                        ],
+                            "accounts":  [
+                                             "view",
+                                             "create",
+                                             "edit",
+                                             "delete",
+                                             "approve",
+                                             "export",
+                                             "manage"
+                                         ],
+                            "advances":  [
+                                             "view",
+                                             "create",
+                                             "edit",
+                                             "delete",
+                                             "approve",
+                                             "export",
+                                             "manage"
+                                         ],
+                            "expenses":  [
+                                             "view",
+                                             "create",
+                                             "edit",
+                                             "delete",
+                                             "approve",
+                                             "export",
+                                             "manage"
+                                         ],
+                            "projects":  [
+                                             "view",
+                                             "create",
+                                             "edit",
+                                             "delete",
+                                             "approve",
+                                             "export",
+                                             "manage"
+                                         ],
+                            "auditLogs":  [
+                                              "view",
+                                              "create",
+                                              "edit",
+                                              "delete",
+                                              "approve",
+                                              "export",
+                                              "manage"
+                                          ],
+                            "dashboard":  [
+                                              "view",
+                                              "create",
+                                              "edit",
+                                              "delete",
+                                              "approve",
+                                              "export",
+                                              "manage"
+                                          ],
+                            "employees":  [
+                                              "view",
+                                              "create",
+                                              "edit",
+                                              "delete",
+                                              "approve",
+                                              "export",
+                                              "manage"
+                                          ],
+                            "inventory":  [
+                                              "view",
+                                              "create",
+                                              "edit",
+                                              "delete",
+                                              "approve",
+                                              "export",
+                                              "manage"
+                                          ],
+                            "attendance":  [
+                                               "view",
+                                               "create",
+                                               "edit",
+                                               "delete",
+                                               "approve",
+                                               "export",
+                                               "manage"
+                                           ],
+                            "timesheets":  [
+                                               "view",
+                                               "create",
+                                               "edit",
+                                               "delete",
+                                               "approve",
+                                               "export",
+                                               "manage"
+                                           ],
+                            "projectsList":  [
+                                                 "view",
+                                                 "create",
+                                                 "edit",
+                                                 "delete",
+                                                 "approve",
+                                                 "export",
+                                                 "manage"
+                                             ],
+                            "administration":  [
+                                                   "view",
+                                                   "create",
+                                                   "edit",
+                                                   "delete",
+                                                   "approve",
+                                                   "export",
+                                                   "manage"
+                                               ],
+                            "databaseBackup":  [
+                                                   "view",
+                                                   "create",
+                                                   "edit",
+                                                   "delete",
+                                                   "approve",
+                                                   "export",
+                                                   "manage"
+                                               ],
+                            "financeReports":  [
+                                                   "view",
+                                                   "create",
+                                                   "edit",
+                                                   "delete",
+                                                   "approve",
+                                                   "export",
+                                                   "manage"
+                                               ],
+                            "generalReports":  [
+                                                   "view",
+                                                   "create",
+                                                   "edit",
+                                                   "delete",
+                                                   "approve",
+                                                   "export",
+                                                   "manage"
+                                               ],
+                            "systemSettings":  [
+                                                   "view",
+                                                   "create",
+                                                   "edit",
+                                                   "delete",
+                                                   "approve",
+                                                   "export",
+                                                   "manage"
+                                               ],
+                            "employeeHistory":  [
+                                                    "view",
+                                                    "create",
+                                                    "edit",
+                                                    "delete",
+                                                    "approve",
+                                                    "export",
+                                                    "manage"
+                                                ],
+                            "officeInventory":  [
+                                                    "view",
+                                                    "create",
+                                                    "edit",
+                                                    "delete",
+                                                    "approve",
+                                                    "export",
+                                                    "manage"
+                                                ],
+                            "personalAccounts":  [
+                                                     "view",
+                                                     "create",
+                                                     "edit",
+                                                     "delete",
+                                                     "approve",
+                                                     "export",
+                                                     "manage"
+                                                 ]
+                        },
+        "created_at":  "",
+        "updatedAt":  "2026-09-24T13:13:36.982251+00:00"
+    },
+    {
+        "id":  "role_1790669600249",
+        "role_name":  "Account",
+        "description":  "Senior Accountant",
+        "is_system_role":  false,
+        "permissions":  {
+                            "hr":  [
+
+                                   ],
+                            "loans":  [
+
+                                      ],
+                            "tasks":  [
+
+                                      ],
+                            "assets":  [
+
+                                       ],
+                            "income":  [
+
+                                       ],
+                            "ledger":  [
+
+                                       ],
+                            "clients":  [
+
+                                        ],
+                            "finance":  [
+
+                                        ],
+                            "payroll":  [
+
+                                        ],
+                            "reports":  [
+
+                                        ],
+                            "accounts":  [
+
+                                         ],
+                            "advances":  [
+
+                                         ],
+                            "expenses":  [
+
+                                         ],
+                            "projects":  [
+
+                                         ],
+                            "auditLogs":  [
+
+                                          ],
+                            "dashboard":  [
+                                              "view"
+                                          ],
+                            "employees":  [
+
+                                          ],
+                            "inventory":  [
+
+                                          ],
+                            "attendance":  [
+
+                                           ],
+                            "timesheets":  [
+
+                                           ],
+                            "projectsList":  [
+
+                                             ],
+                            "administration":  [
+
+                                               ],
+                            "databaseBackup":  [
+
+                                               ],
+                            "financeReports":  [
+                                                   "view",
+                                                   "create",
+                                                   "edit",
+                                                   "delete"
+                                               ],
+                            "generalReports":  [
+
+                                               ],
+                            "systemSettings":  [
+
+                                               ],
+                            "employeeHistory":  [
+
+                                                ],
+                            "officeInventory":  [
+
+                                                ],
+                            "personalAccounts":  [
+
+                                                 ]
+                        },
+        "created_at":  "",
+        "updatedAt":  "2026-10-09T12:52:27.187539+00:00"
+    },
+    {
+        "id":  "role_1790232271696",
+        "role_name":  "HR Manager",
+        "description":  "HR",
+        "is_system_role":  false,
+        "permissions":  {
+                            "hr":  [
+
+                                   ],
+                            "loans":  [
+
+                                      ],
+                            "tasks":  [
+
+                                      ],
+                            "assets":  [
+
+                                       ],
+                            "income":  [
+
+                                       ],
+                            "ledger":  [
+
+                                       ],
+                            "clients":  [
+
+                                        ],
+                            "finance":  [
+                                            "view"
+                                        ],
+                            "payroll":  [
+                                            "view",
+                                            "create",
+                                            "edit"
+                                        ],
+                            "reports":  [
+                                            "view"
+                                        ],
+                            "accounts":  [
+
+                                         ],
+                            "advances":  [
+                                             "view",
+                                             "create",
+                                             "edit"
+                                         ],
+                            "expenses":  [
+
+                                         ],
+                            "projects":  [
+                                             "view"
+                                         ],
+                            "auditLogs":  [
+
+                                          ],
+                            "dashboard":  [
+                                              "view"
+                                          ],
+                            "employees":  [
+                                              "view",
+                                              "create",
+                                              "edit"
+                                          ],
+                            "inventory":  [
+                                              "view"
+                                          ],
+                            "attendance":  [
+                                               "view",
+                                               "create",
+                                               "edit"
+                                           ],
+                            "timesheets":  [
+
+                                           ],
+                            "projectsList":  [
+
+                                             ],
+                            "administration":  [
+
+                                               ],
+                            "databaseBackup":  [
+
+                                               ],
+                            "financeReports":  [
+
+                                               ],
+                            "generalReports":  [
+
+                                               ],
+                            "systemSettings":  [
+
+                                               ],
+                            "employeeHistory":  [
+                                                    "view",
+                                                    "create",
+                                                    "edit"
+                                                ],
+                            "officeInventory":  [
+
+                                                ],
+                            "personalAccounts":  [
+
+                                                 ]
+                        },
+        "created_at":  "",
+        "updatedAt":  "2026-10-09T12:52:27.187539+00:00"
+    },
+    {
+        "id":  "role_1791548124405",
+        "role_name":  "Umar HR",
+        "description":  "HR  manage for all employees attendance.",
+        "is_system_role":  false,
+        "permissions":  {
+                            "hr":  [
+
+                                   ],
+                            "loans":  [
+
+                                      ],
+                            "tasks":  [
+
+                                      ],
+                            "assets":  [
+
+                                       ],
+                            "income":  [
+
+                                       ],
+                            "ledger":  [
+
+                                       ],
+                            "clients":  [
+
+                                        ],
+                            "finance":  [
+
+                                        ],
+                            "payroll":  [
+                                            "view",
+                                            "create",
+                                            "edit"
+                                        ],
+                            "reports":  [
+
+                                        ],
+                            "accounts":  [
+
+                                         ],
+                            "advances":  [
+                                             "view",
+                                             "create",
+                                             "edit"
+                                         ],
+                            "expenses":  [
+
+                                         ],
+                            "projects":  [
+
+                                         ],
+                            "auditLogs":  [
+
+                                          ],
+                            "dashboard":  [
+
+                                          ],
+                            "employees":  [
+                                              "view",
+                                              "create"
+                                          ],
+                            "inventory":  [
+
+                                          ],
+                            "attendance":  [
+                                               "view",
+                                               "create",
+                                               "edit"
+                                           ],
+                            "timesheets":  [
+
+                                           ],
+                            "projectsList":  [
+
+                                             ],
+                            "administration":  [
+
+                                               ],
+                            "databaseBackup":  [
+
+                                               ],
+                            "financeReports":  [
+
+                                               ],
+                            "generalReports":  [
+
+                                               ],
+                            "systemSettings":  [
+
+                                               ],
+                            "employeeHistory":  [
+                                                    "view",
+                                                    "create",
+                                                    "edit"
+                                                ],
+                            "officeInventory":  [
+
+                                                ],
+                            "personalAccounts":  [
+
+                                                 ]
+                        },
+        "created_at":  "",
+        "updatedAt":  "2026-10-09T12:15:24.812535+00:00"
+    },
+    {
+        "id":  "role_1791195064649",
+        "role_name":  "CEO",
+        "description":  "Company partner",
+        "is_system_role":  false,
+        "permissions":  {
+                            "hr":  [
+
+                                   ],
+                            "loans":  [
+                                          "view",
+                                          "create",
+                                          "edit",
+                                          "delete"
+                                      ],
+                            "tasks":  [
+
+                                      ],
+                            "assets":  [
+                                           "view",
+                                           "create",
+                                           "edit",
+                                           "delete"
+                                       ],
+                            "income":  [
+                                           "view",
+                                           "create",
+                                           "edit",
+                                           "delete"
+                                       ],
+                            "ledger":  [
+                                           "view",
+                                           "create",
+                                           "edit",
+                                           "delete"
+                                       ],
+                            "clients":  [
+
+                                        ],
+                            "finance":  [
+
+                                        ],
+                            "payroll":  [
+                                            "view",
+                                            "create",
+                                            "edit",
+                                            "delete"
+                                        ],
+                            "reports":  [
+
+                                        ],
+                            "accounts":  [
+                                             "view",
+                                             "create",
+                                             "edit",
+                                             "delete"
+                                         ],
+                            "advances":  [
+                                             "view",
+                                             "create",
+                                             "edit",
+                                             "delete"
+                                         ],
+                            "expenses":  [
+                                             "view",
+                                             "create",
+                                             "edit",
+                                             "delete"
+                                         ],
+                            "projects":  [
+
+                                         ],
+                            "auditLogs":  [
+                                              "view",
+                                              "create",
+                                              "edit",
+                                              "delete"
+                                          ],
+                            "dashboard":  [
+                                              "view"
+                                          ],
+                            "employees":  [
+                                              "view",
+                                              "create",
+                                              "edit",
+                                              "delete"
+                                          ],
+                            "inventory":  [
+
+                                          ],
+                            "attendance":  [
+
+                                           ],
+                            "timesheets":  [
+
+                                           ],
+                            "projectsList":  [
+
+                                             ],
+                            "administration":  [
+
+                                               ],
+                            "databaseBackup":  [
+                                                   "view",
+                                                   "create",
+                                                   "edit",
+                                                   "delete"
+                                               ],
+                            "financeReports":  [
+
+                                               ],
+                            "generalReports":  [
+
+                                               ],
+                            "systemSettings":  [
+                                                   "view",
+                                                   "create",
+                                                   "edit",
+                                                   "delete"
+                                               ],
+                            "employeeHistory":  [
+                                                    "view",
+                                                    "create",
+                                                    "edit",
+                                                    "delete"
+                                                ],
+                            "officeInventory":  [
+                                                    "view",
+                                                    "create",
+                                                    "edit",
+                                                    "delete"
+                                                ],
+                            "personalAccounts":  [
+                                                     "view",
+                                                     "create",
+                                                     "edit",
+                                                     "delete"
+                                                 ]
+                        },
+        "created_at":  "",
+        "updatedAt":  "2026-10-09T12:52:27.187539+00:00"
+    }
+]

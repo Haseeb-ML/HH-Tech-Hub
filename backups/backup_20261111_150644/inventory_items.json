@@ -1,0 +1,11 @@
+﻿{
+    "id":  "INV-90382",
+    "name":  "A4 Papers",
+    "category":  "Office Supplies",
+    "quantity":  100,
+    "minQuantity":  10,
+    "unit":  "Units",
+    "pricePerUnit":  56,
+    "lastRestockedDate":  "2026-10-30",
+    "updatedAt":  "2026-11-06T11:36:53.735818+00:00"
+}

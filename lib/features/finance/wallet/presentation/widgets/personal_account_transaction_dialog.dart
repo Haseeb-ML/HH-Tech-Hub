@@ -335,8 +335,8 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
                             : 'Receive from Personal Account',
                       ),
                       items: otherPersonalAccounts.map((account) {
-                        final label = account.ownerName.isNotEmpty
-                            ? account.ownerName
+                        final label = account.ownerName.isNotEmpty && account.ownerName != account.name
+                            ? '${account.ownerName} (${account.name})'
                             : account.name;
                         return DropdownMenuItem(value: account.id, child: Text(label));
                       }).toList(),

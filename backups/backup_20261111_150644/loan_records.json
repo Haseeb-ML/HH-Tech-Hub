@@ -1,0 +1,32 @@
+﻿[
+    {
+        "id":  "loan_1794044339532",
+        "borrowerName":  "Saif ul Rehman",
+        "type":  "Borrowed",
+        "amount":  150000,
+        "remainingBalance":  150000,
+        "startDate":  "2026-04-13T14:38:59.532",
+        "endDate":  "",
+        "status":  "Active",
+        "description":  "Loan for 2 months\n[Account:acc_company_1794044273863|Hassan Meezan Bank]",
+        "repayments":  [
+
+                       ],
+        "updatedAt":  "2026-11-07T09:39:00.07224+00:00"
+    },
+    {
+        "id":  "loan_1794044471318",
+        "borrowerName":  "Home Gold",
+        "type":  "Borrowed",
+        "amount":  795000,
+        "remainingBalance":  795000,
+        "startDate":  "2025-06-23T14:41:11.318",
+        "endDate":  "",
+        "status":  "Active",
+        "description":  "Loan of Gold\n[Account:acc_company_1794044273863|Hassan Meezan Bank]",
+        "repayments":  [
+
+                       ],
+        "updatedAt":  "2026-11-07T09:41:12.241047+00:00"
+    }
+]

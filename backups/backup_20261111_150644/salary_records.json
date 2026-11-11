@@ -1,0 +1,30 @@
+﻿[
+    {
+        "id":  "sal_1792245638264",
+        "employeeId":  "emp_1791549031881",
+        "employeeName":  "Rana Sarib",
+        "payPeriod":  "October 2026",
+        "baseSalary":  20000000,
+        "allowances":  10000,
+        "deductions":  0,
+        "netPaid":  20010000,
+        "paymentDate":  "2026-10-17",
+        "status":  "Paid",
+        "paymentMethod":  "Bank Transfer (EasyPaisa)",
+        "updatedAt":  "2026-11-06T11:36:53.585347+00:00"
+    },
+    {
+        "id":  "sal_1791553538908",
+        "employeeId":  "emp_1791549031881",
+        "employeeName":  "Sarib Ali",
+        "payPeriod":  "October 2026",
+        "baseSalary":  120000,
+        "allowances":  0,
+        "deductions":  0,
+        "netPaid":  120000,
+        "paymentDate":  "2026-10-09",
+        "status":  "Paid",
+        "paymentMethod":  "Bank Transfer (Bank Account)",
+        "updatedAt":  "2026-11-06T11:36:53.585347+00:00"
+    }
+]

@@ -1,0 +1,41 @@
+﻿[
+    {
+        "id":  "1793705743047",
+        "name":  "logo",
+        "contactPerson":  "",
+        "email":  "",
+        "phone":  "0300303000",
+        "status":  "Active",
+        "industry":  "logo",
+        "totalProjects":  0,
+        "advancedPayment":  0,
+        "fullPayment":  0,
+        "updatedAt":  "2026-11-03T12:02:09.651828+00:00"
+    },
+    {
+        "id":  "1793708463128",
+        "name":  "Bilal Bajwa",
+        "contactPerson":  "",
+        "email":  "",
+        "phone":  "0300303333",
+        "status":  "Inactive",
+        "industry":  "e commerce",
+        "totalProjects":  0,
+        "advancedPayment":  8500,
+        "fullPayment":  0,
+        "updatedAt":  "2026-11-03T12:26:06.736257+00:00"
+    },
+    {
+        "id":  "1793779441169",
+        "name":  "Digi In",
+        "contactPerson":  "Bilal Bajwa",
+        "email":  "",
+        "phone":  "03000000000",
+        "status":  "Inactive",
+        "industry":  "E comerace",
+        "totalProjects":  0,
+        "advancedPayment":  0,
+        "fullPayment":  0,
+        "updatedAt":  "2026-11-04T08:04:02.537566+00:00"
+    }
+]

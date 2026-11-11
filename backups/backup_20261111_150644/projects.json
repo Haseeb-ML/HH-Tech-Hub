@@ -1,0 +1,48 @@
+﻿[
+    {
+        "id":  "proj_1793707329183",
+        "name":  "None",
+        "description":  "Logo design",
+        "clientId":  "1793705743047",
+        "clientName":  "logo",
+        "startDate":  "2025-05-27T16:34:09.183",
+        "endDate":  "2025-05-27",
+        "status":  "Completed",
+        "budget":  800,
+        "advancedPayment":  0,
+        "partialPayments":  0,
+        "finalPayment":  0,
+        "paymentStatus":  "Pending",
+        "bankAccountId":  "acc_company_1793707304030",
+        "bankAccountName":  "Huzaifa easypaissa account",
+        "accountHolder":  "HH Tech",
+        "teamMembers":  [
+
+                        ],
+        "clientPaymentSource":  "Bank",
+        "updatedAt":  "2026-11-03T12:02:10.324579+00:00"
+    },
+    {
+        "id":  "proj_1793708766338",
+        "name":  "DIDI Inn",
+        "description":  "Management System",
+        "clientId":  "1793708463128",
+        "clientName":  "Bilal Bajwa",
+        "startDate":  "2025-05-28T17:18:06.338",
+        "endDate":  "2027-02-01",
+        "status":  "Planning",
+        "budget":  85000,
+        "advancedPayment":  17000,
+        "partialPayments":  0,
+        "finalPayment":  0,
+        "paymentStatus":  "Partially Paid",
+        "bankAccountId":  "acc_personal_1793174279547",
+        "bankAccountName":  "Hassan Personal Account",
+        "accountHolder":  "HH Tech",
+        "teamMembers":  [
+                            "emp_1793708742939"
+                        ],
+        "clientPaymentSource":  "Bank",
+        "updatedAt":  "2026-11-03T12:26:07.261914+00:00"
+    }
+]

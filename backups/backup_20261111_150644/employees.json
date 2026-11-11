@@ -1,0 +1,18 @@
+﻿{
+    "id":  "emp_1793708742939",
+    "name":  "Sami Butt",
+    "email":  "",
+    "phones":  [
+                   "Personal: 0303030303"
+               ],
+    "designation":  "developer",
+    "department":  "Web Development",
+    "joiningDate":  "2025-05-22",
+    "leavingDate":  "",
+    "status":  "Active",
+    "salaryType":  "Monthly",
+    "baseSalary":  40000,
+    "paymentMethod":  "Bank Transfer",
+    "updatedAt":  "2026-11-03T12:25:44.019807+00:00",
+    "cnic":  ""
+}

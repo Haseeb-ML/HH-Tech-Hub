@@ -1,0 +1,15 @@
+﻿{
+    "id":  "inc_1793708766457",
+    "date":  "2025-05-28T17:18:06.338",
+    "clientId":  "1793708463128",
+    "clientName":  "Bilal Bajwa",
+    "amount":  8500,
+    "accountId":  "acc_personal_1793174279547",
+    "invoiceNumber":  "INV-proj_1793708766338",
+    "description":  "Project Advance: DIDI Inn (Source: Bank)",
+    "status":  "Received",
+    "projectId":  "proj_1793708766338",
+    "projectName":  "DIDI Inn",
+    "projectPaymentType":  "Advance",
+    "updatedAt":  "2026-11-03T12:26:48.03258+00:00"
+}

@@ -1,0 +1,72 @@
+﻿[
+    {
+        "id":  "usr_super_admin",
+        "full_name":  "Super Admin",
+        "username":  "admin",
+        "email":  "admin@hhtech.com",
+        "password_hash":  "pbkdf2_$10000$2857b7ccd25e492e17b6feae6d283038629dbc07f765e0a9e20a2b6375d318da",
+        "salt":  "bff863e7b301fd5f680984724a745e6c6ce5ce1612ee2d7bd36f2e7d57d9a812",
+        "role":  "Super Admin",
+        "is_active":  true,
+        "is_super_admin":  true,
+        "last_active":  "2026-11-11 14:45",
+        "created_at":  "2026-11-11 14:45",
+        "updatedAt":  "2026-09-24T12:51:32.562527+00:00"
+    },
+    {
+        "id":  "usr_1791195066857",
+        "full_name":  "CEO",
+        "username":  "ceo",
+        "email":  "ceo@hhtech.com",
+        "password_hash":  "c23f4333d4d91e68910eeb0a2980b53da0ef1ff759203c68f5ad90b85396d734",
+        "salt":  "f954af817253dac4a01e15b833c7b4c2",
+        "role":  "Super Admin",
+        "is_active":  true,
+        "is_super_admin":  false,
+        "last_active":  "2026-10-05 16:07",
+        "created_at":  "2026-10-05 15:11",
+        "updatedAt":  "2026-10-05T10:11:06.432214+00:00"
+    },
+    {
+        "id":  "usr_1790330826189",
+        "full_name":  "Accountant",
+        "username":  "account",
+        "email":  "account@hhtech.com",
+        "password_hash":  "0082a6087b723d54e2e590884872d8b557359ec18febad672c11daca1876c922",
+        "salt":  "a785da8dd9fd78ee181dda21996b6497",
+        "role":  "Super Admin",
+        "is_active":  true,
+        "is_super_admin":  false,
+        "last_active":  "2026-09-29 12:54",
+        "created_at":  "2026-09-25 15:07",
+        "updatedAt":  "2026-09-25T10:26:31.596324+00:00"
+    },
+    {
+        "id":  "usr_1790164406501",
+        "full_name":  "Umar HR",
+        "username":  "umar",
+        "email":  "umar@hhtech.com",
+        "password_hash":  "pbkdf2_$10000$9b9efef6899154fcbdf6d00c62fe36214954b45efbc049d73d9ed613c3db1a6f",
+        "salt":  "5656aa05cac8a18f46c5c25b002b237cceea6fa89c91bce3b9eac118e3209cc2",
+        "role":  "Umar HR",
+        "is_active":  true,
+        "is_super_admin":  false,
+        "last_active":  "2026-10-09 17:37",
+        "created_at":  "2026-09-23 16:53",
+        "updatedAt":  "2026-09-24T12:51:32.562527+00:00"
+    },
+    {
+        "id":  "usr_1790159445601",
+        "full_name":  "HR Manager",
+        "username":  "rehan@gmail.com",
+        "email":  "rehan@gmail.com@hhtech.com",
+        "password_hash":  "b99918de409d758f00037abb2dfe5fc4e9d98c8c706ee554e155e6dc952be29e",
+        "salt":  "a4eca084fe546f960455b30332aed2e8",
+        "role":  "Super Admin",
+        "is_active":  true,
+        "is_super_admin":  false,
+        "last_active":  "2026-09-29 18:58",
+        "created_at":  "2026-09-23 15:30",
+        "updatedAt":  "2026-09-24T12:51:32.562527+00:00"
+    }
+]
