@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:software_house_erp/core/widgets/date_input_field.dart';
 import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
 import 'package:software_house_erp/features/finance/ledger/domain/entities/ledger_entry.dart';
 import 'package:software_house_erp/features/finance/ledger/presentation/providers/ledger_provider.dart';
@@ -164,7 +165,7 @@ class _CompanyAccountTransactionDialogState
   CompanyTransactionType _type = CompanyTransactionType.deposit;
   CompanyTransferDirection _direction = CompanyTransferDirection.transferOut;
   String? _targetAccountId;
-  final DateTime _date = DateTime.now();
+  DateTime _date = DateTime.now();
 
   @override
   void dispose() {
@@ -257,6 +258,11 @@ class _CompanyAccountTransactionDialogState
                         ? 'Enter a valid positive amount'
                         : null;
                   },
+                ),
+                const SizedBox(height: 12),
+                DateInputField(
+                  initialDate: _date,
+                  onDateChanged: (newDate) => setState(() => _date = newDate),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

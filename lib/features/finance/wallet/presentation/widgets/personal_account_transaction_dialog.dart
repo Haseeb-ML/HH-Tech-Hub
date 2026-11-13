@@ -1,4 +1,5 @@
 import 'package:software_house_erp/core/theme/app_colors.dart';
+import 'package:software_house_erp/core/widgets/date_input_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:software_house_erp/features/finance/accounts/presentation/providers/accounts_provider.dart';
@@ -215,7 +216,7 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
   String? _personalAccountId;
   String? _companyAccountId;
   String? _targetPersonalAccountId;
-  final DateTime _date = DateTime.now();
+  DateTime _date = DateTime.now();
 
   @override
   void initState() {
@@ -395,6 +396,11 @@ class _PersonalAccountTransactionDialogState extends ConsumerState<_PersonalAcco
                         ? 'Enter a valid positive amount'
                         : null;
                   },
+                ),
+                const SizedBox(height: 12),
+                DateInputField(
+                  initialDate: _date,
+                  onDateChanged: (newDate) => setState(() => _date = newDate),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
