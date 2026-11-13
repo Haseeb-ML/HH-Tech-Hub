@@ -94,10 +94,6 @@ Future<void> recordCompanyAccountTransaction(
   final source = transferOut ? company : target;
   final destination = transferOut ? target : company;
 
-  if (source.balance < transaction.amount) {
-    throw StateError('Insufficient balance in ${source.name}.');
-  }
-
   await accountNotifier.adjustBalance(source.id, -transaction.amount);
   await accountNotifier.adjustBalance(destination.id, transaction.amount);
 

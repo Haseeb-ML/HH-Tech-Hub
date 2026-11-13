@@ -145,10 +145,6 @@ Future<void> recordPersonalAccountTransaction(
   final source = personalToCompany ? personal : company;
   final destination = personalToCompany ? company : personal;
 
-  if (!source.isPersonal && source.balance < transaction.amount) {
-    throw StateError('Insufficient balance in ${source.name}.');
-  }
-
   await accountNotifier.adjustBalance(source.id, -transaction.amount);
   await accountNotifier.adjustBalance(destination.id, transaction.amount);
 
